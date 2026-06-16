@@ -345,13 +345,7 @@ tr:hover td{background:var(--hover)}
 <body>
 
 <div id="login-page">
-<div class="lbox">
-  <h1>NDS 인트라넷</h1>
-  <p>비밀번호를 입력해 로그인하세요</p>
-  <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력"></div>
-  <button class="lbtn" onclick="doLogin()">로그인</button>
-  <div class="lerr" id="lerr">비밀번호가 올바르지 않습니다.</div>
-</div>
+<!-- 로그인 박스는 Firestore 데이터 로드 후 JS로 렌더링됩니다 -->
 </div>
 
 <div id="app">
@@ -391,7 +385,22 @@ tr:hover td{background:var(--hover)}
   <div class="mo-box" id="modal-box"></div>
 </div>
 
-<script>
+<script type="module">
+// ─── FIREBASE 초기화 ───────────────────────────────
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDreapzIPaTmlCkxNtP1PxzuXUj-5H8QEI",
+  authDomain: "nds-intranet.firebaseapp.com",
+  projectId: "nds-intranet",
+  storageBucket: "nds-intranet.firebasestorage.app",
+  messagingSenderId: "342990017613",
+  appId: "1:342990017613:web:bf23989fda18f5cf5a7804"
+};
+const _app = initializeApp(firebaseConfig);
+const _db = getFirestore(_app);
+
 const HOLIDAYS_FALLBACK = {
   '2026-01-01':'신정',
   '2026-01-28':'설날 연휴','2026-01-29':'설날','2026-01-30':'설날 연휴',
@@ -473,7 +482,7 @@ function doLogin(){
   else if(pw==='intern2026'){S.user={name:'김지현',role:'intern'};sessionStorage.setItem('nds_user',JSON.stringify(S.user));startApp()}
   else{err.style.display='block'}
 }
-document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+// pw-input 엔터 이벤트는 INIT에서 등록됩니다
 
 function startApp(){
   document.getElementById('login-page').style.display='none';
@@ -899,7 +908,7 @@ function deleteEvent(id){
   S.events=S.events.filter(e=>e.id!==id);
   if(S.page==='home')renderHome();
   else if(S.page==='schedule')renderSchedulePage();
-  saveAppData();
+  saveAppData().catch(()=>{});
 }
 function openEtypeModal(){
   showModal(`<div class="mo-hd"><h3>종류 관리</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
@@ -1097,7 +1106,7 @@ function deleteLeave(empId,leaveId){
   if(!confirm('휴가 내역을 삭제하시겠습니까?'))return;
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
   e.leaveHistory=e.leaveHistory.filter(x=>x.id!==leaveId);
-  renderEmployees();saveAppData();
+  renderEmployees();saveAppData().catch(()=>{});
 }
 function openAddEmp(){
   const preview=calcAutoLeave(today());
@@ -1297,7 +1306,7 @@ function deleteIntern(id){
   const i=S.interns.find(x=>x.id===id);
   if(i)delete S.internSchedules[i.name];
   S.interns=S.interns.filter(x=>x.id!==id);
-  renderInterns();saveAppData();
+  renderInterns();saveAppData().catch(()=>{});
 }
 function switchInternTab(n){
   document.getElementById('intern-tab1').classList.toggle('act',n===1);
@@ -1848,7 +1857,7 @@ function saveEditIssue(id){
   iss.content=document.getElementById('ei-content').value;
   closeModal();renderWSIssues();
 }
-function deleteIssue(id){if(confirm('삭제하시겠습니까?')){S.workIssues=S.workIssues.filter(x=>x.id!==id);renderWSIssues();saveAppData();}}
+function deleteIssue(id){if(confirm('삭제하시겠습니까?')){S.workIssues=S.workIssues.filter(x=>x.id!==id);renderWSIssues();saveAppData().catch(()=>{});}}
 function openAddWorkIssue(){
   showModal(`<div class="mo-hd"><h3>이슈 등록</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
@@ -2802,22 +2811,57 @@ function showModal(html,size){
   box.innerHTML=html;
   overlay.style.display='flex';
 }
-function closeModal(){document.getElementById('modal').style.display='none';saveAppData();}
+function closeModal(){document.getElementById('modal').style.display='none';saveAppData().catch(()=>{});}
 function modalBgClick(e){if(e.target===document.getElementById('modal'))closeModal()}
 
-// ─── DATA PERSISTENCE ──────────────────────────────
+// ─── DATA PERSISTENCE (Firestore) ──────────────────
 const PERSIST_KEYS=['events','etypes','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','nid'];
-function saveAppData(){
-  const d={};PERSIST_KEYS.forEach(k=>{d[k]=S[k]});
-  try{localStorage.setItem('nds_data',JSON.stringify(d));}catch{}
-}
-function loadAppData(){
+
+// Firestore에 저장
+async function saveAppData(){
   try{
-    const raw=localStorage.getItem('nds_data');
-    if(!raw)return;
-    const d=JSON.parse(raw);
-    PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
-  }catch{localStorage.removeItem('nds_data');}
+    const d={};
+    PERSIST_KEYS.forEach(k=>{d[k]=S[k]});
+    await setDoc(doc(_db,'appdata','main'), d);
+  }catch(e){
+    // Firestore 저장 실패 시 localStorage 백업
+    try{
+      const d={};PERSIST_KEYS.forEach(k=>{d[k]=S[k]});
+      localStorage.setItem('nds_data',JSON.stringify(d));
+    }catch{}
+    console.warn('Firestore 저장 실패, localStorage 백업 사용:', e);
+  }
+}
+
+// Firestore에서 불러오기
+async function loadAppData(){
+  try{
+    const snap = await getDoc(doc(_db,'appdata','main'));
+    if(snap.exists()){
+      const d = snap.data();
+      PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
+      console.log('✅ Firestore에서 데이터 로드 완료');
+    } else {
+      // Firestore에 데이터 없으면 localStorage에서 마이그레이션
+      const raw=localStorage.getItem('nds_data');
+      if(raw){
+        const d=JSON.parse(raw);
+        PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
+        await saveAppData(); // Firestore에 업로드
+        console.log('✅ localStorage → Firestore 마이그레이션 완료');
+      }
+    }
+  }catch(e){
+    // Firestore 실패 시 localStorage 폴백
+    try{
+      const raw=localStorage.getItem('nds_data');
+      if(raw){
+        const d=JSON.parse(raw);
+        PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
+      }
+    }catch{}
+    console.warn('Firestore 로드 실패, localStorage 사용:', e);
+  }
 }
 
 // ─── SIDEBAR RESIZE ────────────────────────────────
@@ -2851,12 +2895,38 @@ function loadAppData(){
 
 // ─── INIT ──────────────────────────────────────────
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
-(function(){
-  loadAppData();
+(async function(){
+  // 로딩 표시
+  document.getElementById('login-page').innerHTML=`
+    <div style="text-align:center;color:var(--sub);font-size:14px">
+      <div style="margin-bottom:12px;font-size:24px">⏳</div>
+      데이터를 불러오는 중...
+    </div>`;
+
   const savedSw=localStorage.getItem('nds_sb_width');
   if(savedSw)document.documentElement.style.setProperty('--sw',savedSw);
+
+  // Firestore에서 데이터 로드
+  await loadAppData();
+
+  // 로그인 화면 복원
+  document.getElementById('login-page').innerHTML=`
+    <div class="lbox">
+      <h1>NDS 인트라넷</h1>
+      <p>비밀번호를 입력해 로그인하세요</p>
+      <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력"></div>
+      <button class="lbtn" onclick="doLogin()">로그인</button>
+      <div class="lerr" id="lerr">비밀번호가 올바르지 않습니다.</div>
+    </div>`;
+
+  // 엔터키 이벤트 재등록
+  document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+
+  // 자동 저장
   window.addEventListener('beforeunload',saveAppData);
-  setInterval(saveAppData,10000);
+  setInterval(saveAppData,30000);
+
+  // 세션 복원
   try{const u=sessionStorage.getItem('nds_user');if(u){S.user=JSON.parse(u);startApp();}}catch{sessionStorage.removeItem('nds_user');}
 })();
 </script>
