@@ -2914,13 +2914,15 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
     <div class="lbox">
       <h1>NDS 인트라넷</h1>
       <p>비밀번호를 입력해 로그인하세요</p>
-      <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력"></div>
+      <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="new-password"></div>
       <button class="lbtn" onclick="doLogin()">로그인</button>
       <div class="lerr" id="lerr">비밀번호가 올바르지 않습니다.</div>
     </div>`;
 
   // 엔터키 이벤트 재등록
   document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+  // 자동완성 값 강제 초기화
+  setTimeout(()=>{const el=document.getElementById('pw-input');if(el)el.value='';},200);
 
   // 자동 저장
   window.addEventListener('beforeunload',saveAppData);
