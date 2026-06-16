@@ -385,10 +385,10 @@ tr:hover td{background:var(--hover)}
   <div class="mo-box" id="modal-box"></div>
 </div>
 
+<!-- Firebase 초기화 (모듈) -->
 <script type="module">
-// ─── FIREBASE 초기화 ───────────────────────────────
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDreapzIPaTmlCkxNtP1PxzuXUj-5H8QEI",
@@ -400,7 +400,17 @@ const firebaseConfig = {
 };
 const _app = initializeApp(firebaseConfig);
 const _db = getFirestore(_app);
+window._db = _db;
+window._firestoreDoc = doc;
+window._firestoreSetDoc = setDoc;
+window._firestoreGetDoc = getDoc;
+// Firebase 준비 완료 신호
+window._firebaseReady = true;
+document.dispatchEvent(new Event('firebaseReady'));
+</script>
 
+<!-- 기존 앱 코드 (일반 스크립트) -->
+<script>
 const HOLIDAYS_FALLBACK = {
   '2026-01-01':'신정',
   '2026-01-28':'설날 연휴','2026-01-29':'설날','2026-01-30':'설날 연휴',
@@ -2820,9 +2830,13 @@ const PERSIST_KEYS=['events','etypes','employees','interns','internSchedules','i
 // Firestore에 저장
 async function saveAppData(){
   try{
+    const db=window._db;
+    const fdoc=window._firestoreDoc;
+    const fset=window._firestoreSetDoc;
+    if(!db||!fdoc||!fset)throw new Error('Firebase 미준비');
     const d={};
     PERSIST_KEYS.forEach(k=>{d[k]=S[k]});
-    await setDoc(doc(_db,'appdata','main'), d);
+    await fset(fdoc(db,'appdata','main'), d);
   }catch(e){
     // Firestore 저장 실패 시 localStorage 백업
     try{
@@ -2836,7 +2850,11 @@ async function saveAppData(){
 // Firestore에서 불러오기
 async function loadAppData(){
   try{
-    const snap = await getDoc(doc(_db,'appdata','main'));
+    const db=window._db;
+    const fdoc=window._firestoreDoc;
+    const fget=window._firestoreGetDoc;
+    if(!db||!fdoc||!fget)throw new Error('Firebase 미준비');
+    const snap = await fget(fdoc(db,'appdata','main'));
     if(snap.exists()){
       const d = snap.data();
       PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
@@ -2895,7 +2913,8 @@ async function loadAppData(){
 
 // ─── INIT ──────────────────────────────────────────
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
-(async function(){
+
+async function _initApp(){
   // 로딩 표시
   document.getElementById('login-page').innerHTML=`
     <div style="text-align:center;color:var(--sub);font-size:14px">
@@ -2930,7 +2949,18 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 
   // 세션 복원
   try{const u=sessionStorage.getItem('nds_user');if(u){S.user=JSON.parse(u);startApp();}}catch{sessionStorage.removeItem('nds_user');}
-})();
+}
+
+// Firebase 준비되면 앱 시작
+if(window._firebaseReady){
+  _initApp();
+} else {
+  document.addEventListener('firebaseReady', _initApp);
+  // 3초 안에 Firebase 안 뜨면 localStorage로 폴백
+  setTimeout(()=>{
+    if(!window._firebaseReady) _initApp();
+  }, 3000);
+}
 </script>
 </body>
 </html>
