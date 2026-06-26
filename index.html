@@ -62,7 +62,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 .lout-btn{width:100%;margin-top:10px;padding:7px;background:transparent;border:1px solid var(--bd);border-radius:6px;font-size:12px;color:var(--sub);transition:all .15s}
 .lout-btn:hover{background:var(--hover);color:var(--re);border-color:var(--re)}
 #main{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column}
-#topbar{background:var(--card);border-bottom:1px solid var(--bd);padding:13px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;backdrop-filter:blur(8px)}
+#topbar{background:var(--card);border-bottom:1px solid var(--bd);padding:13px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
 #topbar h2{font-size:14.5px;font-weight:600;color:var(--tx)}
 #topbar .tdate{font-size:12px;color:var(--sub)}
 #content{padding:28px 32px;flex:1}
@@ -112,18 +112,21 @@ tr:hover td{background:var(--hover)}
 .cal-hd-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .cal-nav{background:none;border:1px solid var(--bd);border-radius:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--sub);transition:background .1s}
 .cal-nav:hover{background:var(--hover)}
-.cal-grid-outer{border:1px solid var(--bd);border-radius:8px;overflow:hidden}
-.cal-header-row{display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid var(--bd);background:var(--sb)}
+.cal-grid-outer{border:1px solid var(--bd);border-radius:8px;overflow:hidden;transform:translateZ(0)}
+.cal-header-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--bd);background:var(--sb)}
 .cal-dn{padding:5px;text-align:center;font-size:11.5px;font-weight:500;color:var(--sub)}
 .cal-week{border-bottom:1px solid var(--bd)}
 .cal-week:last-child{border-bottom:none}
-.cal-cells{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:46px}
+.cal-cells{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:46px}
 .cal-cell{background:var(--card);overflow:hidden;padding:4px;cursor:pointer;position:relative;border-right:1px solid var(--bd)}
-.cal-evlayer{position:relative;height:88px;overflow:hidden;background-color:var(--card);background-image:linear-gradient(to bottom,#E3E3E0,#E3E3E0),linear-gradient(to bottom,#E3E3E0,#E3E3E0),linear-gradient(to bottom,#E3E3E0,#E3E3E0),linear-gradient(to bottom,#E3E3E0,#E3E3E0),linear-gradient(to bottom,#E3E3E0,#E3E3E0),linear-gradient(to bottom,#E3E3E0,#E3E3E0);background-size:1px 100%;background-position:calc(100%/7) 0,calc(100%/7*2) 0,calc(100%/7*3) 0,calc(100%/7*4) 0,calc(100%/7*5) 0,calc(100%/7*6) 0;background-repeat:no-repeat}
 .cal-cells .cal-cell:last-child{border-right:none}
 .cal-cell:hover{background:var(--hover)}
 .cal-cell.om{opacity:.45}
 .cal-cell.td{background:#ECEAE5}
+/* 이벤트 레이어: 날짜 셀과 동일한 7열 grid + border로 세로선을 그려 항상 정렬이 맞도록 함 */
+.cal-evlayer{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));height:88px;overflow:hidden;position:relative}
+.cal-evcol{border-right:1px solid var(--bd);background:var(--card)}
+.cal-evlayer .cal-evcol:last-child{border-right:none}
 .board-wrap{display:flex;height:calc(100vh - 108px);background:var(--card);border:1px solid var(--bd);border-radius:8px;overflow:hidden}
 .board-sb{width:240px;border-right:1px solid var(--bd);display:flex;flex-direction:column;background:var(--sb);flex-shrink:0}
 .board-sb-hd{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
@@ -340,7 +343,7 @@ tr:hover td{background:var(--hover)}
   .cal-dn{font-size:10px;padding:4px 1px}
   .cal-cell .dnum{margin-bottom:1px}
   /* 공휴일 텍스트 - 모바일 */
-  .cal-hol{font-size:9px;line-height:1.1;white-space:normal;overflow:visible}
+  .cal-hol{font-size:9px;line-height:1.1;white-space:normal;word-break:break-all;overflow:hidden}
 
   /* 캘린더 헤더: 좁은 화면에서 제목 줄 / 액션버튼 줄로 분리 */
   .cal-hd-title{font-size:13px;min-width:100%}
@@ -821,6 +824,8 @@ function renderCalendar(container,month,onAddEvent){
     });
     // Always render evlayer for uniform row heights; use absolute positioning
     html+=`<div class="cal-evlayer">`;
+    // 배경용 7개 컬럼: 날짜 셀과 동일한 grid 세로선을 만들어 항상 정렬이 맞도록 함
+    for(let ci=0;ci<7;ci++)html+=`<div class="cal-evcol"></div>`;
     const colW=100/7;
     const rowH=22;
     assigned.forEach(({e,cs,ce,lane,isMulti})=>{
@@ -1627,11 +1632,21 @@ function loadTTImage(file,id){
 function getSchedForWeek(name,weekOff){
   const hist=S.internSchedHistory[name];
   if(hist&&hist.length){
+    const targetKey=fmt(getWeekInfo(weekOff).mon); // 비교 대상 주의 월요일 날짜(절대 기준)
     let best=null;
-    for(const e of hist){if(e.fromWeek<=weekOff)best=e;else break;}
+    hist.forEach(e=>{
+      const key=e.weekKey||legacyFromWeekToKey(e.fromWeek); // 구버전 데이터(상대 오프셋) 호환
+      if(key<=targetKey&&(!best||key>best.key))best={...e,key};
+    });
     if(best)return best.slots;
   }
   return S.internSchedules[name]||[];
+}
+// 구버전 데이터 호환: 과거에 fromWeek(상대 오프셋)로 저장된 항목을
+// "오늘 기준"으로 절대 날짜 키로 환산한다. 정확하진 않을 수 있으나 완전히 사라지는 것은 방지함.
+function legacyFromWeekToKey(fromWeek){
+  if(fromWeek===undefined||fromWeek===null)return '0000-00-00';
+  return fmt(getWeekInfo(fromWeek).mon);
 }
 function isInternActive(intern){
   if(!intern.endDate)return true;
@@ -1697,7 +1712,7 @@ function buildSchedModalHtml(intern,mon,label,gs,internId,weekOff){
       const on=!!gs[`${d}-${s}`];
       const bg=on?ic.bg:'';
       const bdr=s%2===0?'border-top:1px solid var(--bd)':'border-top:1px dashed var(--bd2)';
-      row+=`<td class="sslot" style="vertical-align:middle;text-align:center;background:${bg};cursor:${editing?'pointer':'default'};height:28px;${bdr}" data-ws-d="${d}" data-ws-s="${s}" onmousedown="wsStartDrag('${d}',${s})" onmouseover="wsDragOver('${d}',${s})">${on?`<span style="font-size:11px;color:${ic.tc};font-weight:600">${intern.name}</span>`:''}</td>`;
+      row+=`<td class="sslot" style="vertical-align:middle;text-align:center;background:${bg};cursor:${editing?'pointer':'default'};height:28px;${bdr}" data-ws-d="${d}" data-ws-s="${s}" onpointerdown="wsStartDrag('${d}',${s},event)" onpointerenter="wsDragOver('${d}',${s},event)">${on?`<span style="font-size:11px;color:${ic.tc};font-weight:600">${intern.name}</span>`:''}</td>`;
     });
     tbody+=row+`</tr>`;
   }
@@ -1709,7 +1724,7 @@ function buildSchedModalHtml(intern,mon,label,gs,internId,weekOff){
       <button class="cal-nav" onclick="openInternWeekSched(${internId},${weekOff+1})">›</button>
     </div>
     <div id="ws-notice" style="font-size:12px;color:${noticeColor};margin-bottom:10px">${noticeText}</div>
-    <div style="overflow-x:auto" onmouseup="_wsDragActive=false" onmouseleave="_wsDragActive=false"><table class="st-table" style="table-layout:fixed;width:100%;border-top:none;user-select:none"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>
+    <div style="overflow-x:auto" onpointerup="_wsDragActive=false" onpointercancel="_wsDragActive=false"><table class="st-table" id="ws-edit-table" style="table-layout:fixed;width:100%;border-top:none;user-select:none;${editing?'touch-action:none;':''}"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>
   </div>
   <div class="mo-ft">
     <button class="btn btn-o btn-sm" onclick="closeModal()">닫기</button>
@@ -1729,14 +1744,16 @@ function wsApplyCell(d,s,mode){
     cell.innerHTML=mode&&intern?`<span style="font-size:11px;color:${ic.tc};font-weight:600">${intern.name}</span>`:'';
   }
 }
-function wsStartDrag(d,s){
+function wsStartDrag(d,s,ev){
   if(!window._wsEditing)return;
+  if(ev)ev.preventDefault();
   _wsDragActive=true;
   _wsDragMode=!window._wsGs[`${d}-${s}`];
   wsApplyCell(d,s,_wsDragMode);
 }
-function wsDragOver(d,s){
+function wsDragOver(d,s,ev){
   if(!_wsDragActive||!window._wsEditing)return;
+  if(ev)ev.preventDefault();
   wsApplyCell(d,s,_wsDragMode);
 }
 function saveInternSchedGrid(internId,weekOff){
@@ -1755,10 +1772,11 @@ function saveInternSchedGrid(internId,weekOff){
     });
     if(st!==null)slots.push({day:d,start:slotToTime(st),end:slotToTime(prev+1)});
   });
+  const weekKey=fmt(getWeekInfo(weekOff).mon); // 해당 주 월요일 날짜를 절대 기준으로 저장
   if(!S.internSchedHistory[intern.name])S.internSchedHistory[intern.name]=[];
-  S.internSchedHistory[intern.name]=S.internSchedHistory[intern.name].filter(e=>e.fromWeek!==weekOff);
-  S.internSchedHistory[intern.name].push({fromWeek:weekOff,slots});
-  S.internSchedHistory[intern.name].sort((a,b)=>a.fromWeek-b.fromWeek);
+  S.internSchedHistory[intern.name]=S.internSchedHistory[intern.name].filter(e=>(e.weekKey||legacyFromWeekToKey(e.fromWeek))!==weekKey);
+  S.internSchedHistory[intern.name].push({weekKey,slots});
+  S.internSchedHistory[intern.name].sort((a,b)=>(a.weekKey||legacyFromWeekToKey(a.fromWeek)).localeCompare(b.weekKey||legacyFromWeekToKey(b.fromWeek)));
   const panel1=document.getElementById('intern-panel1');
   const panel2=document.getElementById('intern-panel2');
   if(panel1)panel1.innerHTML=buildInternGrid('class');
@@ -3070,6 +3088,26 @@ async function loadAppData(){
     }catch{}
     console.warn('Firestore 로드 실패, localStorage 사용:', e);
   }
+  migrateSchedHistoryToWeekKey();
+}
+// 구버전(fromWeek 상대 오프셋) 근무스케줄 데이터를 절대 날짜 기준(weekKey)으로 1회 영구 변환.
+// 상대 오프셋은 시간이 지나면 가리키는 주가 달라져 데이터가 보이지 않게 되므로,
+// 로드 시점을 기준으로 한 번 변환해 저장해두면 이후로는 항상 정확하게 유지된다.
+function migrateSchedHistoryToWeekKey(){
+  let changed=false;
+  Object.keys(S.internSchedHistory||{}).forEach(name=>{
+    const list=S.internSchedHistory[name];
+    if(!Array.isArray(list))return;
+    list.forEach(e=>{
+      if(!e.weekKey&&e.fromWeek!==undefined){
+        e.weekKey=legacyFromWeekToKey(e.fromWeek);
+        delete e.fromWeek;
+        changed=true;
+      }
+    });
+    list.sort((a,b)=>(a.weekKey||'').localeCompare(b.weekKey||''));
+  });
+  if(changed)saveAppData().catch(()=>{});
 }
 
 // ─── SIDEBAR RESIZE ────────────────────────────────
