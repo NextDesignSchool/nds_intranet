@@ -439,6 +439,7 @@ tr:hover td{background:var(--hover)}
 <!-- Firebase SDK (compat 버전 - 전역 변수 방식) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script>
 // Firebase 초기화 - SDK 로드 완료 후 실행 보장
 function _initFirebase(){
@@ -545,9 +546,21 @@ function isAdmin(){return S.user&&S.user.role==='admin'}
 function doLogin(){
   const pw=document.getElementById('pw-input').value.trim();
   const err=document.getElementById('lerr');
-  if(pw==='admin8062'){S.user={name:'Admin',role:'admin'};sessionStorage.setItem('nds_user',JSON.stringify(S.user));startApp()}
-  else if(pw==='intern2026'){S.user={name:'김지현',role:'intern'};sessionStorage.setItem('nds_user',JSON.stringify(S.user));startApp()}
-  else{err.style.display='block'}
+  if(pw==='admin8062'||pw==='intern2026'){
+    firebase.auth().signInAnonymously()
+      .then(()=>{
+        S.user = pw==='admin8062' ? {name:'Admin',role:'admin'} : {name:'김지현',role:'intern'};
+        sessionStorage.setItem('nds_user',JSON.stringify(S.user));
+        startApp();
+      })
+      .catch(e=>{
+        console.warn('익명 로그인 실패:',e);
+        err.textContent='로그인 처리 중 오류가 발생했습니다.';
+        err.style.display='block';
+      });
+  } else {
+    err.style.display='block';
+  }
 }
 // pw-input 엔터 이벤트는 INIT에서 등록됩니다
 
@@ -563,6 +576,7 @@ function startApp(){
 function doLogout(){
   S.user=null;
   sessionStorage.removeItem('nds_user');
+  firebase.auth().signOut().catch(()=>{});
   document.getElementById('login-page').style.display='flex';
   document.getElementById('app').style.display='none';
   document.getElementById('pw-input').value='';
