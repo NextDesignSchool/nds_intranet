@@ -1,0 +1,3236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NDS 인트라넷</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#F7F6F3;
+  --card:#FFFFFF;
+  --sb:#F7F6F3;
+  --bd:#E8E6E1;
+  --bd2:#EEECE8;
+  --ac:#3D3A34;
+  --ac-hover:#2C2A26;
+  --gr:#2E6845;
+  --or:#8C4E1A;
+  --re:#B03025;
+  --tx:#2E2C28;
+  --sub:#A09D98;
+  --sub2:#C9C6C0;
+  --hover:#ECEAE5;
+  --sel:#E5E2DB;
+  --sw:220px;
+}
+body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;letter-spacing:0.01em;font-size:14px;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+input,textarea,select{font-family:inherit;outline:none;border:1px solid var(--bd);border-radius:6px;padding:7px 10px;width:100%;font-size:13.5px;color:var(--tx);background:#fff;transition:border-color .15s;letter-spacing:0.01em}
+input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
+#login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)}
+.lbox{background:var(--card);padding:44px 40px;border-radius:12px;width:360px;border:1px solid var(--bd);box-shadow:0 2px 20px rgba(0,0,0,.06)}
+.lbox h1{font-size:19px;font-weight:600;margin-bottom:4px;color:var(--tx)}
+.lbox p{color:var(--sub);font-size:13px;margin-bottom:28px}
+.lbox .lf{margin-bottom:14px}
+.lbox label{display:block;font-size:12px;font-weight:500;margin-bottom:5px;color:var(--sub)}
+.lbtn{width:100%;padding:10px;background:var(--ac);color:#fff;border-radius:6px;font-size:13.5px;font-weight:500;margin-top:8px;transition:background .15s;letter-spacing:.01em}
+.lbtn:hover{background:var(--ac-hover)}
+.lerr{color:var(--re);font-size:12px;margin-top:10px;display:none}
+#app{display:none;min-height:100vh}
+#sb{position:fixed;top:0;left:0;width:var(--sw);height:100vh;background:var(--sb);border-right:1px solid var(--bd);display:flex;flex-direction:column;z-index:100;overflow:visible}
+#sb-resizer{position:absolute;right:-3px;top:0;width:6px;height:100%;cursor:col-resize;z-index:101;background:transparent;transition:background .12s}
+#sb-resizer:hover,#sb-resizer.dragging{background:var(--ac);opacity:.12}
+.sb-logo{padding:18px 14px 14px;flex-shrink:0}
+.sb-logo span{font-size:13px;font-weight:600;color:var(--tx);line-height:1.4;letter-spacing:.01em}
+.sb-nav{flex:1;overflow-y:auto;padding:2px 0 10px}
+.nav-sec-title{font-size:10px;font-weight:600;color:var(--sub2);padding:14px 14px 4px;letter-spacing:.08em;text-transform:uppercase}
+.nv{display:flex;align-items:center;gap:7px;padding:5px 10px;margin:1px 6px;font-size:13px;font-weight:500;cursor:pointer;transition:background .1s;border-radius:6px;color:var(--tx)}
+.nv:hover{background:var(--hover)}
+.nv.active{background:var(--sel);color:var(--tx);font-weight:600}
+.nv-sub{display:flex;align-items:center;padding:4px 10px 4px 30px;margin:0 6px;font-size:12.5px;font-weight:400;cursor:pointer;color:var(--sub);border-radius:6px;transition:background .1s}
+.nv-sub:hover{background:var(--hover);color:var(--tx)}
+.nv-sub.active{background:var(--sel);color:var(--tx);font-weight:500}
+.nv svg{width:14px;height:14px;flex-shrink:0;opacity:.45}
+.nv.active svg{opacity:.7}
+.nv-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.nv-label-input{outline:none}
+.sb-foot{padding:12px 14px;border-top:1px solid var(--bd);flex-shrink:0}
+.uinfo .uname{font-size:13px;font-weight:500}
+.uinfo .urole{font-size:11.5px;color:var(--sub);margin-top:2px}
+.lout-btn{width:100%;margin-top:10px;padding:7px;background:transparent;border:1px solid var(--bd);border-radius:6px;font-size:12px;color:var(--sub);transition:all .15s}
+.lout-btn:hover{background:var(--hover);color:var(--re);border-color:var(--re)}
+#main{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column}
+#topbar{background:var(--card);border-bottom:1px solid var(--bd);padding:13px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+#topbar h2{font-size:14.5px;font-weight:600;color:var(--tx)}
+#topbar .tdate{font-size:12px;color:var(--sub)}
+#content{padding:28px 32px;flex:1}
+.page{display:none}
+.page.active{display:block}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:18px 20px}
+.ctitle{font-size:11px;font-weight:600;margin-bottom:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em}
+.btn{padding:6px 13px;border-radius:6px;font-size:12.5px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .12s;display:inline-flex;align-items:center;gap:5px;letter-spacing:.01em}
+.btn-p{background:var(--ac);color:#fff;border-color:var(--ac)}
+.btn-p:hover{background:var(--ac-hover);border-color:var(--ac-hover)}
+.btn-o{background:#fff;border-color:var(--bd);color:var(--tx)}
+.btn-o:hover{background:var(--hover);border-color:var(--sub2)}
+.btn-d{background:#fff;border-color:var(--bd);color:var(--re)}
+.btn-d:hover{background:#FDF1F0;border-color:var(--re)}
+.btn-sm{padding:3px 9px;font-size:11.5px;border-radius:5px}
+.btn-g{background:transparent;border:none;color:var(--sub);padding:3px 7px;font-size:12px}
+.btn-g:hover{color:var(--tx);background:var(--hover)}
+.chip{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;letter-spacing:.01em}
+.ch-p{background:#EEEDFB;color:#5755C9}
+.ch-g{background:#EAF4EE;color:var(--gr)}
+.ch-o{background:#FDF0E6;color:var(--or)}
+.ch-r{background:#FDEFEE;color:var(--re)}
+.ch-gray{background:var(--hover);color:var(--sub)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:9px 12px;text-align:left;font-size:13px;border-bottom:1px solid var(--bd)}
+th{font-weight:500;color:var(--sub);background:transparent;white-space:nowrap;font-size:11.5px;letter-spacing:.02em}
+td{background:#fff}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--hover)}
+.mo{position:fixed;inset:0;background:rgba(20,18,14,.3);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
+.mo-box{background:#fff;border-radius:12px;width:100%;max-width:520px;box-shadow:0 8px 32px rgba(0,0,0,.1),0 0 0 1px rgba(0,0,0,.04);max-height:92vh;overflow-y:auto}
+.mo-box.lg{max-width:720px}
+.mo-box.sm{max-width:380px}
+.mo-box.xl{max-width:860px}
+.mo-hd{padding:20px 22px 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1;padding-bottom:14px;border-bottom:1px solid var(--bd)}
+.mo-hd h3{font-size:15px;font-weight:600;color:var(--tx)}
+.mo-cl{background:none;border:none;font-size:18px;color:var(--sub2);cursor:pointer;line-height:1;padding:4px 7px;border-radius:6px;transition:background .1s}
+.mo-cl:hover{background:var(--hover);color:var(--sub)}
+.mo-bd{padding:18px 22px}
+.mo-ft{padding:0 22px 18px;display:flex;gap:8px;justify-content:flex-end}
+.fr{margin-bottom:12px}
+.fr label{display:block;font-size:12px;font-weight:500;margin-bottom:4px;color:var(--sub)}
+.fr-row{display:flex;gap:10px}
+.fr-row>*{flex:1}
+.cal-hd{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.cal-hd-title{font-size:14px;font-weight:600;flex:1;text-align:left;display:flex;align-items:center;min-width:120px}
+.cal-hd-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.cal-nav{background:none;border:1px solid var(--bd);border-radius:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--sub);transition:background .1s}
+.cal-nav:hover{background:var(--hover)}
+.cal-grid-outer{border:1px solid var(--bd);border-radius:8px;overflow:hidden;transform:translateZ(0)}
+.cal-header-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--bd);background:var(--sb)}
+.cal-dn{padding:5px;text-align:center;font-size:11.5px;font-weight:500;color:var(--sub)}
+.cal-week{border-bottom:1px solid var(--bd)}
+.cal-week:last-child{border-bottom:none}
+.cal-cells{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:46px}
+.cal-cell{background:var(--card);overflow:hidden;padding:4px;cursor:pointer;position:relative;border-right:1px solid var(--bd)}
+.cal-cells .cal-cell:last-child{border-right:none}
+.cal-cell:hover{background:var(--hover)}
+.cal-cell.om{opacity:.45}
+.cal-cell.td{background:#ECEAE5}
+/* 이벤트 레이어: 날짜 셀과 동일한 7열 grid + border로 세로선을 그려 항상 정렬이 맞도록 함 */
+.cal-evlayer{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));height:88px;overflow:hidden;position:relative}
+.cal-evcol{border-right:1px solid var(--bd);background:var(--card)}
+.cal-evlayer .cal-evcol:last-child{border-right:none}
+.board-wrap{display:flex;height:calc(100vh - 108px);background:var(--card);border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.board-sb{width:240px;border-right:1px solid var(--bd);display:flex;flex-direction:column;background:var(--sb);flex-shrink:0}
+.board-sb-hd{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.board-list-wrap{flex:1;overflow-y:auto;padding:4px 0}
+.board-li{padding:7px 12px;cursor:pointer;transition:background .08s}
+.board-li:hover{background:var(--sel)}
+.board-li.active{background:var(--sel)}
+.board-li-title{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tx)}
+.board-li.active .board-li-title{font-weight:600}
+.board-li-meta{font-size:11px;color:var(--sub);margin-top:2px}
+.board-editor-area{flex:1;overflow-y:auto;padding:40px 56px}
+.board-title-input{font-size:28px;font-weight:700;border:none;outline:none;width:100%;color:var(--tx);background:transparent;padding:4px 0;font-family:inherit}
+.board-title-input::placeholder{color:var(--sub2)}
+.bk-wrap{position:relative;display:flex;align-items:flex-start;gap:0;margin:1px 0;padding-left:32px}
+.bk-wrap:hover .bk-actions{opacity:1}
+.bk-actions{position:absolute;left:0;top:3px;display:flex;gap:1px;opacity:0;transition:opacity .12s;z-index:10}
+.bk-handle{width:15px;font-size:11px;color:var(--sub2);cursor:grab;padding:2px 1px;user-select:none;display:flex;align-items:center;justify-content:center}
+.bk-add-btn{width:15px;font-size:14px;color:var(--sub2);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.bk-add-btn:hover{color:var(--sub)}
+.bk-content{flex:1;outline:none;min-height:1.5em;padding:2px 4px;border-radius:3px;line-height:1.7;font-size:15px;word-break:break-word;color:var(--tx)}
+.bk-content:empty::before{content:attr(data-ph);color:var(--sub2);pointer-events:none}
+.bk-content[data-type=heading1]{font-size:26px;font-weight:700;line-height:1.25}
+.bk-content[data-type=heading2]{font-size:22px;font-weight:700;line-height:1.25}
+.bk-content[data-type=heading3]{font-size:18px;font-weight:600;line-height:1.3}
+.bk-content[data-type=quote]{border-left:2px solid var(--sub2);padding-left:14px;color:var(--sub)}
+.bk-content[data-type=code]{font-family:monospace;background:var(--hover);padding:10px 14px;border-radius:6px;font-size:13px;white-space:pre-wrap}
+.bk-divider{flex:1;height:1px;background:var(--bd);margin:10px 0;align-self:center}
+.slash-menu{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.08);z-index:3000;min-width:200px;max-height:280px;overflow-y:auto;display:none}
+.slash-item{padding:6px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px}
+.slash-item:hover,.slash-item.sel{background:var(--hover)}
+.fmt-toolbar{position:fixed;background:#37352F;border-radius:5px;padding:3px 5px;display:none;gap:2px;z-index:3001;box-shadow:0 3px 10px rgba(55,53,47,.25);align-items:center}
+.fmt-btn{background:none;border:none;color:#fff;padding:3px 8px;border-radius:3px;cursor:pointer;font-size:12px;font-weight:600}
+.fmt-btn:hover{background:rgba(255,255,255,.15)}
+.board-search-box{padding:7px 10px;border-bottom:1px solid var(--bd)}
+.board-search-box input{background:var(--hover);border:1px solid var(--bd);border-radius:6px;font-size:12px;padding:5px 9px;width:100%;outline:none}
+.board-tags-row{padding:5px 10px;display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--bd)}
+.bcat-section{border-bottom:1px solid var(--bd);padding:4px 0}
+.bcat-all{display:flex;align-items:center;gap:6px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--sub);transition:background .08s}
+.bcat-all:hover,.bcat-all.on{background:var(--sel);color:var(--tx)}
+.bcat-row{display:flex;align-items:center;padding:5px 10px 5px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--tx);transition:background .08s}
+.bcat-row:hover{background:var(--hover)}
+.bcat-row.on{background:var(--sel)}
+.bcat-arrow{font-size:9px;color:var(--sub2);width:12px;flex-shrink:0;transition:transform .12s}
+.bcat-name{flex:1}
+.bcat-del{font-size:14px;color:var(--sub2);padding:0 4px;line-height:1;opacity:0;transition:opacity .1s}
+.bcat-row:hover .bcat-del{opacity:1}
+.bcat-del:hover{color:var(--re)}
+.bcat-posts{padding-left:12px}
+.bcat-add{padding:6px 14px;font-size:12px;color:var(--sub);cursor:pointer;display:flex;align-items:center;gap:4px}
+.bcat-add:hover{color:var(--tx)}
+.bcat-select{font-size:12px;border:1px solid var(--bd);border-radius:4px;padding:2px 6px;background:#fff;color:var(--sub);margin-top:4px;width:100%}
+.btag{padding:2px 9px;border-radius:4px;font-size:11px;background:var(--hover);color:var(--sub);cursor:pointer;border:1px solid var(--bd);transition:all .12s}
+.btag.on{background:var(--ac);color:#fff;border-color:var(--ac);opacity:.9}
+.bk-table{width:100%;border-collapse:collapse;font-size:14px;margin:2px 0}
+.bk-table td,.bk-table th{border:1px solid var(--bd);padding:6px 10px;min-width:64px;vertical-align:top;outline:none}
+.bk-table th{background:var(--hover);font-weight:600}
+.bk-table td:focus{background:#F5F4F0}
+.prj-status{padding:2px 9px;border-radius:4px;font-size:11.5px;font-weight:500;display:inline-block}
+.ps-진행중{background:#EEF6F1;color:var(--gr)}.ps-완료{background:#F0EFFC;color:#5B5BD6}
+.ps-대기{background:#FEF5E9;color:var(--or)}.ps-보류{background:#FEF0EF;color:var(--re)}
+.dnum{font-size:12.5px;font-weight:600;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;margin-bottom:2px}
+.cal-cell.td .dnum{background:var(--ac);color:#fff}
+.cal-cell.sun .dnum{color:var(--re)}
+.cal-cell.sat .dnum{color:#3366AA}
+.cal-hol{font-size:10px;color:#E24B4A;line-height:1.2;word-break:keep-all;overflow:hidden;margin-bottom:1px}
+.cal-ev{font-size:11.5px;font-weight:500;padding:1px 5px;border-radius:2px;margin-bottom:1px;overflow:hidden;word-break:break-word;white-space:normal;cursor:pointer}
+.ev-행사{background:#F0EFFC;color:#5B5BD6}
+.ev-미팅{background:#EEF6F1;color:var(--gr)}
+.ev-외근{background:#FEF5E9;color:var(--or)}
+.ev-휴가{background:#FEF0EF;color:var(--re)}
+.ev-공휴일{background:#FEF0EF;color:var(--re)}
+.dash-grid{display:grid;grid-template-columns:1fr 300px;gap:20px}
+.right-col{display:flex;flex-direction:column;gap:14px}
+.board-item{padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer}
+.board-item:last-child{border-bottom:none}
+.board-item:hover .bi-title{color:var(--ac)}
+.bi-title{font-size:13.5px;font-weight:500;margin-bottom:3px}
+.bi-meta{font-size:12px;color:var(--sub)}
+.emp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+/* 인턴 목록: PC는 테이블, 모바일은 카드뷰 (미디어쿼리에서 전환) */
+.intern-card-view{display:none}
+.intern-card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:14px;margin-bottom:10px}
+.intern-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.intern-card-name{color:var(--tx);font-weight:600;font-size:15px;text-decoration:none}
+.intern-card-meta{display:flex;flex-wrap:wrap;gap:10px;font-size:12.5px;color:var(--sub);margin-bottom:10px}
+.intern-card-actions{display:flex;flex-wrap:wrap;gap:6px}
+.st-table{width:100%;border-collapse:collapse;table-layout:fixed}
+/* 수업시간표/근무스케줄 등 격자형 테이블 공통 스타일 */
+.st-table th,.st-table td{border:1px solid var(--bd);padding:0;text-align:center;overflow:hidden}
+.st-table th{background:var(--sb);font-size:12px;font-weight:500;padding:6px 4px;color:var(--sub)}
+.st-table tr:last-child td{border-bottom:1px solid var(--bd)}
+.st-table tr:hover td{background:transparent}
+.stime{font-size:10.5px;color:var(--sub);background:var(--sb);padding:0 4px;min-width:48px;text-align:center;vertical-align:middle}
+.sslot{position:relative;vertical-align:middle}
+.sslot:hover{background:var(--hover)}
+.tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:16px;gap:2px}
+.tab-btn{padding:7px 12px;font-size:13px;font-weight:500;background:none;border:none;cursor:pointer;color:var(--sub);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .1s}
+.tab-btn.act{color:var(--tx);border-bottom-color:var(--tx);font-weight:600}
+.cmt{padding:10px 0;border-bottom:1px solid var(--bd)}
+.cmt:last-child{border-bottom:none}
+.cmt-meta{font-size:11px;color:var(--sub);margin-bottom:3px}
+.cmt-text{font-size:13px}
+.cmt-form{display:flex;gap:8px;margin-top:14px}
+.cmt-form input{flex:1}
+.drop-zone{border:1px dashed var(--bd2);border-radius:8px;padding:28px;text-align:center;color:var(--sub);font-size:13px;cursor:pointer;transition:all .15s}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--sub);background:var(--hover)}
+.tg-table{width:100%;border-collapse:collapse}
+.tg-table th,.tg-table td{border:1px solid var(--bd);text-align:center;font-size:12px;padding:0}
+.tg-table th{background:var(--hover);padding:5px;font-weight:500;color:var(--sub)}
+.tg-cell{height:30px;cursor:pointer;transition:background .08s}
+.tg-cell:hover{background:var(--hover)}
+.tg-cell.sel{background:#F0EFFC;color:#5B5BD6;font-weight:600}
+#menu-toggle{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--card);border:1px solid var(--bd);border-radius:7px;padding:7px 10px;cursor:pointer;font-size:16px}
+.pg-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.pg-hd h3{font-size:16px;font-weight:600;color:var(--tx)}
+.leave-bar{display:flex;gap:12px;margin-bottom:8px}
+.leave-item{text-align:center;flex:1;padding:12px 8px;background:var(--sb);border-radius:8px;border:1px solid var(--bd)}
+.leave-item .lval{font-size:20px;font-weight:700;color:var(--tx)}
+.leave-item .llabel{font-size:11px;color:var(--sub);margin-top:2px}
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr}.right-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}}
+
+/* ── 태블릿 ── */
+@media(max-width:768px){
+  /* 사이드바 + 메인 레이아웃 */
+  #menu-toggle{display:block}
+  #sb{transform:translateX(-100%);transition:transform .25s}
+  #sb.open{transform:translateX(0)}
+  #main{margin-left:0}
+  #topbar{padding-left:52px;padding-right:16px}
+  #content{padding:16px 14px}
+
+  /* 카드 / 페이지 헤더 */
+  .card{padding:14px 14px}
+  .pg-hd{flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .pg-hd h3{font-size:15px}
+
+  /* 그리드 */
+  .emp-grid{grid-template-columns:1fr}
+  .dash-grid{grid-template-columns:1fr}
+  .fr-row{flex-direction:column;gap:8px}
+
+  /* 테이블 — 가로 스크롤 */
+  table{min-width:520px}
+  .st-table{min-width:0}
+
+  /* 탭 */
+  .tabs{gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+  .tab-btn{white-space:nowrap;padding:7px 10px;font-size:12.5px}
+
+  /* 모달 */
+  .mo{padding:10px}
+  .mo-box,.mo-box.lg,.mo-box.xl{max-width:100%;width:100%}
+  .mo-box.sm{max-width:100%;width:calc(100% - 0px)}
+  .mo-hd{padding:14px 16px 10px}
+  .mo-bd{padding:14px 16px}
+  .mo-ft{padding:0 16px 14px;flex-wrap:wrap}
+
+  /* 게시판 레이아웃 */
+  .board-wrap{flex-direction:column;height:auto}
+  .board-sb{width:100%;border-right:none;border-bottom:1px solid var(--bd);max-height:200px}
+  .board-editor-area{padding:20px 18px}
+
+  /* 캘린더 */
+  .cal-cells{grid-auto-rows:38px}
+  .cal-ev{font-size:10.5px;padding:1px 3px}
+  .dnum{font-size:11.5px;width:19px;height:19px}
+
+  /* 휴가 바 */
+  .leave-bar{flex-wrap:wrap;gap:8px}
+  .leave-item{min-width:calc(50% - 4px);flex:none}
+
+  /* 칩 */
+  .chip{font-size:11px}
+
+  /* 탑바 타이틀 */
+  #topbar h2{font-size:14px}
+  #topbar .tdate{display:none}
+}
+
+/* ── 모바일 ── */
+@media(max-width:600px){
+  #content{padding:10px 8px}
+  .card{padding:12px 12px;border-radius:6px}
+
+  /* 우측 컬럼 */
+  .right-col{display:flex;flex-direction:column}
+
+  /* 상단 액션버튼 줄바꿈 */
+  .pg-hd{flex-direction:column;align-items:flex-start;gap:8px}
+  .pg-hd>div,.pg-hd>span{display:flex;flex-wrap:wrap;gap:6px}
+
+  /* 테이블 폰트 & 스크롤 */
+  th,td{padding:5px 6px;font-size:11.5px}
+  table{min-width:400px}
+
+  /* 인턴 목록: 모바일에서는 카드뷰로 전환 */
+  .intern-table-view{display:none}
+  .intern-card-view{display:block}
+
+  /* 모달 풀스크린에 가깝게 */
+  .mo{padding:0;align-items:flex-end}
+  .mo-box{border-radius:12px 12px 0 0;max-height:92vh}
+  .mo-box.sm{border-radius:12px 12px 0 0}
+
+  /* 게시판 에디터 */
+  .board-editor-area{padding:16px 14px}
+  .board-title-input{font-size:22px}
+
+  /* 캘린더 - 공휴일 글자 잘림 방지 + 일정 표시 */
+  .cal-cells{grid-auto-rows:auto;min-height:52px}
+  .cal-cell{min-height:52px;height:auto;overflow:visible;padding:2px}
+  .cal-ev{display:block;font-size:9.5px;padding:1px 3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dnum{font-size:11px;width:18px;height:18px}
+  .cal-dn{font-size:10px;padding:4px 1px}
+  .cal-cell .dnum{margin-bottom:1px}
+  /* 공휴일 텍스트 - 모바일 */
+  .cal-hol{font-size:9px;line-height:1.1;white-space:normal;word-break:break-all;overflow:hidden}
+
+  /* 캘린더 헤더: 좁은 화면에서 제목 줄 / 액션버튼 줄로 분리 */
+  .cal-hd-title{font-size:13px;min-width:100%}
+  .cal-hd-actions{width:100%;justify-content:space-between}
+
+  /* 폼 여백 */
+  .fr{margin-bottom:10px}
+
+  /* 탭 */
+  .tab-btn{padding:6px 8px;font-size:12px}
+
+  /* 휴가 바 아이템 */
+  .leave-item{min-width:calc(50% - 4px)}
+  .leave-item .lval{font-size:18px}
+
+  /* 버튼 사이즈 */
+  .btn{padding:5px 10px;font-size:12.5px}
+
+  /* 로그인 박스 */
+  .lbox{width:calc(100% - 32px);padding:28px 20px}
+
+  /* 근무스케줄 페이지: 좁은 화면에서는 인턴목록을 시간표 아래로 쌓음 */
+  #page-workschedule .card{padding:8px 4px}
+  .ws-card-inner{flex-direction:column}
+  .ws-intern-list-mobile{
+    width:100% !important;
+    flex-shrink:0;
+    border-left:none !important;
+    border-top:1px solid var(--bd);
+    margin-top:8px;
+    padding:10px 6px 2px !important;
+    font-size:11px;
+  }
+  .ws-intern-list-mobile .wsl-title{margin-bottom:6px !important}
+  .ws-intern-list-mobile .wsl-row{
+    display:inline-flex !important;
+    width:auto !important;
+    margin:0 10px 8px 0 !important;
+    vertical-align:top;
+  }
+
+  /* 사이드바 닫힌 상태에서 오버레이 */
+  #topbar{padding-left:48px}
+
+  /* 페이지 헤더 버튼 작게 */
+  .pg-hd .btn{font-size:12px;padding:4px 8px}
+}
+</style>
+</head>
+<body>
+
+<div id="login-page">
+<!-- 로그인 박스는 Firestore 데이터 로드 후 JS로 렌더링됩니다 -->
+</div>
+
+<div id="app">
+  <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <aside id="sb">
+    <div class="sb-logo"><span style="cursor:pointer" onclick="navigate('home')">Next Design School</span></div>
+    <nav class="sb-nav" id="sb-nav"></nav>
+    <div class="sb-foot">
+      <div class="uinfo">
+        <div class="uname" id="u-name"></div>
+        <div class="urole" id="u-role"></div>
+      </div>
+      <button class="lout-btn" onclick="doLogout()">로그아웃</button>
+    </div>
+    <div id="sb-resizer"></div>
+  </aside>
+  <div id="main">
+    <div id="topbar">
+      <h2 id="pg-title">홈 대시보드</h2>
+      <span class="tdate" id="top-date"></span>
+    </div>
+    <div id="content">
+      <div class="page" id="page-home"></div>
+      <div class="page" id="page-schedule"></div>
+      <div class="page" id="page-employees"></div>
+      <div class="page" id="page-board"></div>
+      <div class="page" id="page-projects"></div>
+      <div class="page" id="page-interns"></div>
+      <div class="page" id="page-workschedule"></div>
+      <div class="page" id="page-notice"></div>
+      <div class="page" id="page-worklog"></div>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="modal" style="display:none" onclick="modalBgClick(event)">
+  <div class="mo-box" id="modal-box"></div>
+</div>
+
+<!-- Firebase SDK (compat 버전 - 전역 변수 방식) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script>
+// Firebase 초기화 - SDK 로드 완료 후 실행 보장
+function _initFirebase(){
+  try{
+    const firebaseConfig = {
+      apiKey: "AIzaSyDreapzIPaTmlCkxNtP1PxzuXUj-5H8QEI",
+      authDomain: "nds-intranet.firebaseapp.com",
+      projectId: "nds-intranet",
+      storageBucket: "nds-intranet.firebasestorage.app",
+      messagingSenderId: "342990017613",
+      appId: "1:342990017613:web:bf23989fda18f5cf5a7804"
+    };
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    window._db = firebase.firestore();
+    console.log("✅ Firebase 초기화 완료");
+  }catch(e){
+    console.warn("Firebase 초기화 실패:", e);
+  }
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', _initFirebase);
+} else {
+  _initFirebase();
+}
+</script>
+
+<!-- 기존 앱 코드 -->
+<script>
+const HOLIDAYS_FALLBACK = {
+  '2026-01-01':'신정',
+  '2026-01-28':'설날 연휴','2026-01-29':'설날','2026-01-30':'설날 연휴',
+  '2026-03-01':'삼일절',
+  '2026-05-05':'어린이날','2026-05-06':'부처님오신날',
+  '2026-06-06':'현충일',
+  '2026-08-15':'광복절',
+  '2026-10-01':'추석 연휴','2026-10-02':'추석','2026-10-03':'추석 연휴·개천절',
+  '2026-10-09':'한글날',
+  '2026-12-25':'크리스마스'
+};
+const COLORS=[
+  {bg:'#F0EFFC',tc:'#5B5BD6'},{bg:'#EEF6F1',tc:'#2A6041'},{bg:'#FEF5E9',tc:'#92511A'},
+  {bg:'#FEF0EF',tc:'#C0392B'},{bg:'#EBF3FF',tc:'#2A5DA8'},{bg:'#F4F1FF',tc:'#6E4FB0'}
+];
+const S={
+  user:null,page:'home',
+  cal:new Date(new Date().getFullYear(),new Date().getMonth(),1),
+  weekOffset:0,
+  schedSort:'date',
+  nid:200,
+  navLabels:{},
+  holidayCache:{},
+  holidayFallback:false,
+  events:[
+    {id:1,title:'팀 워크샵',start:'2026-05-15',end:'2026-05-16',type:'행사',content:'팀 빌딩 워크샵',time:false},
+    {id:2,title:'디자인 미팅',start:'2026-05-20',end:'2026-05-20',type:'미팅',content:'월간 디자인 리뷰',time:false},
+    {id:3,title:'클라이언트 외근',start:'2026-05-22',end:'2026-05-22',type:'외근',content:'',time:false}
+  ],
+  etypes:['행사','미팅','외근','휴가'],
+  employees:[{
+    id:1,name:'김디자인',startDate:'2023-03-01',phone:'010-1234-5678',email:'design@nds.com',
+    annualLeave:15,monthLeave:1,
+    leaveHistory:[{id:1,type:'연차',date:'2026-04-10',days:1,reason:'개인사정'}]
+  }],
+  interns:[{
+    id:1,name:'김지현',birth:'2003-05-10',school:'홍익대학교',major:'시각디자인',
+    phone:'010-9876-5432',startDate:'2026-03-02',type:'국가근로',
+    semester:'2026년 1학기',monthTarget:80,monthAccum:52,
+    timetableImg:null,endDate:''
+  }],
+  internTimetable:{},
+  internSchedules:{
+    '김지현':[
+      {day:'월',start:'09:00',end:'13:00'},
+      {day:'화',start:'09:00',end:'13:00'},
+      {day:'목',start:'13:00',end:'17:00'}
+    ]
+  },
+  internSchedHistory:{},
+  notices:[{
+    id:1,title:'5월 인턴 운영 안내',
+    content:'5월 인턴 운영 관련 공지입니다.\n\n- 근무시간 준수 바랍니다\n- 근무일지 매주 금요일 제출',
+    author:'Admin',date:'2026-05-01',pinned:true,
+    comments:[{id:1,author:'김지현',text:'확인했습니다!',date:'2026-05-01'}]
+  }],
+  workLogs:[{
+    id:1,title:'[김지현] 5월 2주차',author:'김지현',date:'2026-05-09',
+    tasks:{open:true,openItems:[true,true,false,true],close:true,closeItems:[true,false,true,true,true,false]},
+    content:'- 홈페이지 배너 디자인 작업 완료\n- SNS 콘텐츠 시안 3종 제작\n- 미팅 자료 준비',
+    comments:[{id:1,author:'Admin',text:'수고했어요! 배너 시안 잘 봤습니다.',date:'2026-05-09'}]
+  }],
+  workIssues:[
+    {id:1,intern:'김지현',date:'2026-05-06',content:'지각 10분',status:'처리완료'},
+    {id:2,intern:'김지현',date:'2026-05-13',content:'조기퇴근 요청',status:'처리중'}
+  ]
+};
+
+function fmt(d){return d instanceof Date?`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`:d}
+function p2(n){return String(n).padStart(2,'0')}
+function fmtDisp(s){if(!s)return '';const[y,m,d]=s.split('-');return `${y}.${m}.${d}`}
+function today(){return fmt(new Date())}
+function newId(){return ++S.nid}
+function isAdmin(){return S.user&&S.user.role==='admin'}
+
+function doLogin(){
+  const pw=document.getElementById('pw-input').value.trim();
+  const err=document.getElementById('lerr');
+  if(pw==='admin8062'||pw==='intern2026'){
+    firebase.auth().signInAnonymously()
+      .then(()=>{
+        S.user = pw==='admin8062' ? {name:'Admin',role:'admin'} : {name:'김지현',role:'intern'};
+        sessionStorage.setItem('nds_user',JSON.stringify(S.user));
+        startApp();
+      })
+      .catch(e=>{
+        console.warn('익명 로그인 실패:',e);
+        err.textContent='로그인 처리 중 오류가 발생했습니다.';
+        err.style.display='block';
+      });
+  } else {
+    err.style.display='block';
+  }
+}
+// pw-input 엔터 이벤트는 INIT에서 등록됩니다
+
+function startApp(){
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('u-name').textContent=S.user.name;
+  document.getElementById('u-role').textContent=S.user.role==='admin'?'Admin':'Intern';
+  document.getElementById('top-date').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  renderSidebar();
+  navigate('home');
+}
+function doLogout(){
+  S.user=null;
+  sessionStorage.removeItem('nds_user');
+  firebase.auth().signOut().catch(()=>{});
+  document.getElementById('login-page').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('pw-input').value='';
+  document.getElementById('lerr').style.display='none';
+}
+function toggleSidebar(){document.getElementById('sb').classList.toggle('open')}
+
+let _sbBoardOpen=true;
+function toggleBoardNav(e){if(e)e.stopPropagation();_sbBoardOpen=!_sbBoardOpen;renderSidebar();}
+function navigateBoardCat(id){_bCatFilter=id;navigate('board');}
+
+const PAGES=[
+  {id:'home',label:'홈 대시보드',role:'all',section:'메인',icon:'🏠'},
+  {id:'schedule',label:'일정관리',role:'admin',section:'메인',icon:'📅'},
+  {id:'employees',label:'직원 관리',role:'admin',section:'직원 관리',icon:'👤'},
+  {id:'board',label:'게시판',role:'admin',section:'직원 관리',icon:'🗂'},
+  {id:'projects',label:'프로젝트 관리',role:'admin',section:'직원 관리',icon:'🗃'},
+  {id:'interns',label:'인턴 목록',role:'admin',section:'인턴관리',icon:'📋'},
+  {id:'workschedule',label:'근무스케줄',role:'all',section:'인턴관리',icon:'🗓'},
+  {id:'notice',label:'인턴 공지',role:'all',section:'인턴관리',icon:'📢'},
+  {id:'worklog',label:'근무일지',role:'all',section:'인턴관리',icon:'📝'},
+];
+function renderSidebar(){
+  const nav=document.getElementById('sb-nav');
+  const visible=PAGES.filter(p=>p.role==='all'||isAdmin());
+  let html='',lastSec='';
+  visible.forEach(p=>{
+    if(p.section!==lastSec){html+=`<div class="nav-sec-title">${p.section}</div>`;lastSec=p.section}
+    const label=navLabel(p.id,p.label);
+    if(p.id==='board'){
+      _bCatLoad();
+      html+=`<div class="nv${S.page===p.id?' active':''}" onclick="navItemClick(event,'board')" ondblclick="navItemDblClick(event,'board')">
+        ${p.icon} <span class="nv-label" data-nid="${p.id}" data-default="${p.label}">${label}</span>
+        ${_bCategories.length?`<span onclick="toggleBoardNav(event)" style="font-size:9px;color:var(--sub2);padding:2px 4px">${_sbBoardOpen?'▾':'▸'}</span>`:''}
+      </div>`;
+      if(_sbBoardOpen&&_bCategories.length){
+        html+=`<div class="nv-sub${!_bCatFilter&&S.page==='board'?' active':''}" onclick="navigateBoardCat(null)">전체</div>`;
+        _bCategories.forEach(c=>{
+          html+=`<div class="nv-sub${_bCatFilter===c.id?' active':''}" onclick="navigateBoardCat('${c.id}')">${c.name}</div>`;
+        });
+      }
+    } else {
+      html+=`<div class="nv${S.page===p.id?' active':''}" onclick="navItemClick(event,'${p.id}')" ondblclick="navItemDblClick(event,'${p.id}')">${p.icon} <span class="nv-label" data-nid="${p.id}" data-default="${p.label}">${label}</span></div>`;
+    }
+  });
+  nav.innerHTML=html;
+}
+function navLabel(id,fallback){
+  return (S.navLabels&&S.navLabels[id])?S.navLabels[id]:fallback;
+}
+let _navClickTimer=null;
+function navItemClick(e,id){
+  // 더블클릭과 구분하기 위해 약간 지연 후 이동. 이 시간 안에 dblclick이 오면 navItemDblClick이 타이머를 취소함.
+  if(_navClickTimer)clearTimeout(_navClickTimer);
+  _navClickTimer=setTimeout(()=>{_navClickTimer=null;navigate(id);},220);
+}
+function navItemDblClick(e,id){
+  e.preventDefault();
+  if(_navClickTimer){clearTimeout(_navClickTimer);_navClickTimer=null;}
+  const span=e.currentTarget.querySelector('.nv-label');
+  if(!span)return;
+  navLabelEdit(span,id);
+}
+function navLabelEdit(span,id){
+  const cur=span.textContent;
+  const input=document.createElement('input');
+  input.value=cur;
+  input.className='nv-label-input';
+  input.style.cssText='flex:1;width:100%;font-size:13px;font-weight:500;padding:1px 4px;border:1px solid var(--ac);border-radius:4px;background:#fff;color:var(--tx)';
+  span.replaceWith(input);
+  input.focus();input.select();
+  const commit=()=>{
+    const v=input.value.trim();
+    const dflt=span.getAttribute('data-default');
+    if(!S.navLabels)S.navLabels={};
+    if(v&&v!==dflt)S.navLabels[id]=v;
+    else delete S.navLabels[id];
+    saveAppData().catch(()=>{});
+    renderSidebar();
+  };
+  input.addEventListener('blur',commit);
+  input.addEventListener('keydown',ev=>{
+    if(ev.key==='Enter'){ev.preventDefault();input.blur();}
+    else if(ev.key==='Escape'){ev.preventDefault();input.value=cur;input.blur();}
+  });
+  input.addEventListener('click',ev=>ev.stopPropagation());
+}
+function navigate(pg){
+  const allowed=PAGES.find(p=>p.id===pg);
+  if(!allowed)return;
+  if(allowed.role==='admin'&&!isAdmin())return;
+  S.page=pg;
+  renderSidebar();
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('page-'+pg);
+  if(el)el.classList.add('active');
+  const titles={home:'홈 대시보드',schedule:'일정관리',employees:'직원 관리',board:'게시판',projects:'프로젝트 관리',interns:'인턴 목록',workschedule:'근무스케줄',notice:'인턴 공지',worklog:'근무일지'};
+  document.getElementById('pg-title').textContent=navLabel(pg,titles[pg]||pg);
+  document.getElementById('sb').classList.remove('open');
+  renderPage(pg);
+}
+function renderPage(pg){
+  if(pg==='home')renderHome();
+  else if(pg==='schedule')renderSchedulePage();
+  else if(pg==='employees')renderEmployees();
+  else if(pg==='interns')renderInterns();
+  else if(pg==='workschedule')renderWorkSchedule();
+  else if(pg==='notice')renderNotice();
+  else if(pg==='worklog')renderWorkLog();
+  else if(pg==='board')renderBoard();
+  else if(pg==='projects')renderProjects();
+}
+
+// ─── HOLIDAY API ──────────────────────────────────
+const HOL_KEY='fbcc88a6bd5c51ff9615e71d4c178d55789d6b464ca8ef1c92a181075c7437a8';
+const HOL_BASE='https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo';
+const HOL_PROXY='https://cors-anywhere.herokuapp.com/'+HOL_BASE;
+
+async function fetchHolidays(y,m){
+  const ym=`${y}-${p2(m)}`;
+  if(S.holidayCache[ym]!==undefined)return;
+  S.holidayCache[ym]=null;
+  const params=`serviceKey=${HOL_KEY}&solYear=${y}&solMonth=${p2(m)}&numOfRows=50&_type=json`;
+  const tryFetch=async(base)=>{
+    const r=await fetch(`${base}?${params}`,{signal:AbortSignal.timeout(8000)});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  };
+  const parse=(data)=>{
+    const raw=data?.response?.body?.items?.item;
+    if(!raw)return{};
+    const arr=Array.isArray(raw)?raw:[raw];
+    const out={};
+    arr.forEach(item=>{
+      if(item.isHoliday==='Y'){
+        const ds=String(item.locdate);
+        out[`${ds.slice(0,4)}-${ds.slice(4,6)}-${ds.slice(6,8)}`]=item.dateName;
+      }
+    });
+    return out;
+  };
+  try{
+    const data=await tryFetch(HOL_BASE);
+    S.holidayCache[ym]=parse(data);
+    S.holidayFallback=false;
+  }catch(e1){
+    try{
+      const data=await tryFetch(HOL_PROXY);
+      S.holidayCache[ym]=parse(data);
+      S.holidayFallback=false;
+    }catch(e2){
+      const fb={};
+      Object.entries(HOLIDAYS_FALLBACK).forEach(([k,v])=>{if(k.startsWith(ym))fb[k]=v});
+      S.holidayCache[ym]=fb;
+      S.holidayFallback=true;
+    }
+  }
+  if(S.cal.getFullYear()===y&&S.cal.getMonth()+1===m){
+    if(S.page==='home')renderHome();
+    else if(S.page==='schedule')renderSchedulePage();
+  }
+}
+
+function getHolidayForDay(dateStr){
+  const ym=dateStr.slice(0,7);
+  const cache=S.holidayCache[ym];
+  if(cache==null)return HOLIDAYS_FALLBACK[dateStr]||null;
+  return cache[dateStr]||null;
+}
+
+// ─── CALENDAR UTILS ───────────────────────────────
+function getDaysInMonth(y,m){return new Date(y,m+1,0).getDate()}
+function renderCalendar(container,month,onAddEvent){
+  const y=month.getFullYear(),m=month.getMonth();
+  const ym=`${y}-${p2(m+1)}`;
+  const loading=S.holidayCache[ym]===null;
+  const isLoaded=S.holidayCache[ym]!==undefined&&S.holidayCache[ym]!==null;
+  if(!isLoaded&&!loading)fetchHolidays(y,m+1);
+  const first=new Date(y,m,1).getDay();
+  const days=getDaysInMonth(y,m);
+  const todayStr=today();
+  const prevDays=getDaysInMonth(y,m-1);
+  const loadingBadge=loading?`<span style="font-size:11px;color:var(--sub);margin-left:6px">공휴일 로딩중…</span>`:
+    (S.holidayFallback&&isLoaded?`<span style="font-size:11px;color:var(--or);margin-left:6px" title="API 연결 실패, 기본 데이터 사용">⚠ 오프라인</span>`:'');
+  let html=`<div class="cal-hd">
+    <h3 class="cal-hd-title">${y}년 ${m+1}월${loadingBadge}</h3>
+    <div class="cal-hd-actions">
+      ${onAddEvent?`<button class="btn btn-p btn-sm" onclick="${onAddEvent}">+ 일정추가</button>`:''}
+      <button class="cal-nav" onclick="calPrev('${container}')">‹</button>
+      <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px" onclick="calToday('${container}')">오늘</button>
+      <button class="cal-nav" onclick="calNext('${container}')">›</button>
+    </div>
+  </div>`;
+  // Build flat day array (padded with prev/next month cells)
+  const allDays=[];
+  for(let i=first;i>0;i--){const d=prevDays-i+1;const pm=m===0?11:m-1,py=m===0?y-1:y;allDays.push({ds:`${py}-${p2(pm+1)}-${p2(d)}`,d,pad:true});}
+  for(let d=1;d<=days;d++)allDays.push({ds:`${y}-${p2(m+1)}-${p2(d)}`,d,pad:false});
+  const rem=(7-allDays.length%7)%7;
+  for(let i=1;i<=rem;i++){const nm=m===11?0:m+1,ny=m===11?y+1:y;allDays.push({ds:`${ny}-${p2(nm+1)}-${p2(i)}`,d:i,pad:true});}
+  const weeks=[];for(let i=0;i<allDays.length;i+=7)weeks.push(allDays.slice(i,i+7));
+  const multiEvs=S.events.filter(e=>e.start!==e.end);
+  html+=`<div class="cal-grid-outer">`;
+  html+=`<div class="cal-header-row">`;
+  ['일','월','화','수','목','금','토'].forEach(d=>html+=`<div class="cal-dn">${d}</div>`);
+  html+=`</div>`;
+  weeks.forEach((week,wi)=>{
+    html+=`<div class="cal-week${wi===weeks.length-1?' cal-week-last':''}">`;
+    const wS=week[0].ds,wE=week[6].ds;
+    // Date numbers row only
+    html+=`<div class="cal-cells">`;
+    week.forEach((day,di)=>{
+      const{ds,d,pad}=day;
+      const hol=getHolidayForDay(ds);
+      const isRed=!pad&&(hol||di===0);
+      const isSat=!pad&&di===6;
+      let cls=pad?' om':'';
+      if(ds===todayStr)cls+=' td';
+      if(di===0)cls+=' sun';
+      if(di===6)cls+=' sat';
+      const dnStyle=pad?'':(isRed?'color:#E24B4A':isSat?'color:#3366AA':'');
+      const holHtml=hol&&!pad?`<div class="cal-hol">${hol}</div>`:'';
+      html+=`<div class="cal-cell${cls}" onclick="openAddEvent('${ds}')"><div class="dnum" style="${dnStyle}">${d}</div>${holHtml}</div>`;
+    });
+    html+=`</div>`;
+    // All events below date numbers using combined lane assignment
+    const wEvs=[];
+    // Multi-day events
+    multiEvs.filter(e=>e.start<=wE&&e.end>=wS).forEach(e=>{
+      const vs=e.start<wS?wS:e.start;
+      const ve=e.end>wE?wE:e.end;
+      const cs=week.findIndex(d=>d.ds===vs);
+      const ce=week.findIndex(d=>d.ds===ve);
+      if(cs>=0&&ce>=0)wEvs.push({e,cs,ce,isMulti:true});
+    });
+    // Single-day events
+    week.forEach((day,di)=>{
+      S.events.filter(ev=>ev.start===ev.end&&ev.start===day.ds).forEach(e=>{
+        wEvs.push({e,cs:di,ce:di,isMulti:false});
+      });
+    });
+    // Sort: multi-day first (longer first), then by start
+    wEvs.sort((a,b)=>{
+      const aL=a.ce-a.cs,bL=b.ce-b.cs;
+      if(bL!==aL)return bL-aL;
+      return a.e.start.localeCompare(b.e.start);
+    });
+    // Assign lanes
+    const laneGrid=[];
+    const assigned=wEvs.map(ev=>{
+      let lane=0;
+      while(true){
+        if(!laneGrid[lane])laneGrid[lane]=new Set();
+        let ok=true;
+        for(let c=ev.cs;c<=ev.ce;c++){if(laneGrid[lane].has(c)){ok=false;break;}}
+        if(ok){for(let c=ev.cs;c<=ev.ce;c++)laneGrid[lane].add(c);break;}
+        lane++;
+      }
+      return{...ev,lane};
+    });
+    // Always render evlayer for uniform row heights; use absolute positioning
+    html+=`<div class="cal-evlayer">`;
+    // 배경용 7개 컬럼: 날짜 셀과 동일한 grid 세로선을 만들어 항상 정렬이 맞도록 함
+    for(let ci=0;ci<7;ci++)html+=`<div class="cal-evcol"></div>`;
+    const colW=100/7;
+    const rowH=22;
+    assigned.forEach(({e,cs,ce,lane,isMulti})=>{
+      const left=colW*cs;
+      const width=colW*(ce-cs+1);
+      const top=lane*rowH+2;
+      if(isMulti){
+        const isFirst=e.start>=wS,isLast=e.end<=wE;
+        const r=isFirst&&isLast?'4px':isFirst?'4px 0 0 4px':isLast?'0 4px 4px 0':'0';
+        const ml=isFirst?2:0,mr=isLast?2:0;
+        html+=`<div class="cal-ev ev-${e.type}" style="position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:20px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;cursor:pointer;font-size:11px;border-radius:${r}" onclick="event.stopPropagation();openEventDetail(${e.id})">${isFirst?e.title:''}</div>`;
+      } else {
+        html+=`<div class="cal-ev ev-${e.type}" style="position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:20px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;cursor:pointer;font-size:11px;border-radius:4px" onclick="event.stopPropagation();openEventDetail(${e.id})">${e.title}</div>`;
+      }
+    });
+    html+=`</div></div>`;
+  });
+  html+=`</div>`;
+  document.getElementById(container).innerHTML=html;
+}
+function calPrev(c){S.cal=new Date(S.cal.getFullYear(),S.cal.getMonth()-1,1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
+function calNext(c){S.cal=new Date(S.cal.getFullYear(),S.cal.getMonth()+1,1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
+function calToday(c){const n=new Date();S.cal=new Date(n.getFullYear(),n.getMonth(),1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
+
+// ─── HOME ─────────────────────────────────────────
+function renderHome(){
+  const p=document.getElementById('page-home');
+  p.innerHTML=`<div class="dash-grid">
+    <div class="card"><div id="home-cal"></div></div>
+    <div class="right-col">
+      <div class="card">
+        <div class="ctitle">오늘 근무 인턴</div>
+        <div id="today-interns"></div>
+      </div>
+      <div class="card">
+        <div class="ctitle">최근 근무일지</div>
+        <div id="recent-logs"></div>
+      </div>
+    </div>
+  </div>`;
+  renderCalendar('home-cal',S.cal,'openAddEvent(null)');
+  renderTodayInterns();
+  renderRecentLogs();
+}
+function renderTodayInterns(){
+  const el=document.getElementById('today-interns');
+  if(!el)return;
+  const dow=['일','월','화','수','목','금','토'][new Date().getDay()];
+  const working=[];
+  S.interns.filter(isInternActive).forEach(intern=>{
+    // 근무스케줄(현재 주차 기준, 수정 내역 포함)을 그대로 반영
+    const sched=getSchedForWeek(intern.name,0);
+    sched.filter(s=>s.day===dow).sort((a,b)=>a.start.localeCompare(b.start)).forEach(slot=>{
+      working.push({name:intern.name,slot});
+    });
+  });
+  if(!working.length){el.innerHTML='<div style="color:var(--sub);font-size:13px">오늘 근무 인턴이 없습니다.</div>';return}
+  el.innerHTML=working.map(w=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd)">
+    <span style="font-size:14px;font-weight:600">${w.name}</span>
+    <span class="chip ch-p">${w.slot.start}~${w.slot.end}</span>
+  </div>`).join('');
+}
+function renderRecentLogs(){
+  const el=document.getElementById('recent-logs');
+  if(!el)return;
+  const logs=[...S.workLogs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+  if(!logs.length){el.innerHTML='<div style="color:var(--sub);font-size:13px">등록된 근무일지가 없습니다.</div>';return}
+  el.innerHTML=logs.map(l=>`<div class="board-item" onclick="navigate('worklog');setTimeout(()=>openWorkLogDetail(${l.id}),100)">
+    <div class="bi-title">${l.title}</div>
+    <div class="bi-meta">${l.author} · ${fmtDisp(l.date)}</div>
+  </div>`).join('');
+}
+
+// ─── SCHEDULE PAGE ────────────────────────────────
+function renderSchedulePage(){
+  const p=document.getElementById('page-schedule');
+  p.innerHTML=`<div class="card" style="margin-bottom:20px"><div id="sched-cal"></div></div>
+  <div class="card">
+    <div class="pg-hd">
+      <span class="ctitle" style="margin:0">일정 목록</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--sub)">정렬:</span>
+        <select id="sched-sort" style="font-size:12px;padding:4px 8px;border:1px solid var(--bd);border-radius:6px;background:#fff;width:auto" onchange="S.schedSort=this.value;renderScheduleTable()">
+          <option value="date"${S.schedSort==='date'?' selected':''}>날짜 순</option>
+          <option value="type"${S.schedSort==='type'?' selected':''}>종류 순</option>
+          <option value="title"${S.schedSort==='title'?' selected':''}>제목 순</option>
+        </select>
+        <button class="btn btn-p btn-sm" onclick="openAddEvent(null)">+ 일정추가</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto"><table><thead><tr><th>날짜</th><th>시간</th><th>제목</th><th>종류</th><th>내용</th><th>관리</th></tr></thead>
+    <tbody id="sched-table-body"></tbody></table></div>
+  </div>`;
+  renderCalendar('sched-cal',S.cal,'openAddEvent(null)');
+  renderScheduleTable();
+}
+function renderScheduleTable(){
+  const tb=document.getElementById('sched-table-body');
+  if(!tb)return;
+  const sortFn=S.schedSort==='type'?(a,b)=>a.type.localeCompare(b.type)||a.start.localeCompare(b.start):S.schedSort==='title'?(a,b)=>a.title.localeCompare(b.title):(a,b)=>a.start.localeCompare(b.start);
+  const evs=[...S.events].sort(sortFn);
+  tb.innerHTML=evs.map(e=>`<tr>
+    <td>${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''}</td>
+    <td>${e.time?`${e.startTime||''}~${e.endTime||''}`:'-'}</td>
+    <td>${e.title}</td>
+    <td><span class="chip ev-${e.type}">${e.type}</span></td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.content||'-'}</td>
+    <td><button class="btn btn-o btn-sm" onclick="openEditEvent(${e.id})">수정</button>
+    <button class="btn btn-d btn-sm" style="margin-left:4px" onclick="deleteEvent(${e.id})">삭제</button></td>
+  </tr>`).join('');
+}
+
+// ─── EVENT MODALS ─────────────────────────────────
+function openAddEvent(dateStr){
+  showModal(`<div class="mo-hd"><h3>일정 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>제목</label><input id="ev-title" placeholder="일정 제목"></div>
+    <div class="fr fr-row">
+      <div><label>시작일</label><input type="date" id="ev-start" value="${dateStr||today()}"></div>
+      <div><label>종료일</label><input type="date" id="ev-end" value="${dateStr||today()}"></div>
+    </div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" onchange="toggleEvTime()"> 시간 설정</label></div>
+    <div id="ev-time-row" style="display:none" class="fr fr-row">
+      <div><label>시작시간</label><input type="time" id="ev-stime"></div>
+      <div><label>종료시간</label><input type="time" id="ev-etime"></div>
+    </div>
+    <div class="fr"><label style="display:flex;align-items:center;justify-content:space-between">종류<button class="btn-g" onclick="openEtypeModal()">수정</button></label>
+    <select id="ev-type">${S.etypes.map(t=>`<option>${t}</option>`).join('')}</select></div>
+    <div class="fr"><label>내용</label><textarea id="ev-content" rows="3" placeholder="내용 입력"></textarea></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveEvent()">저장</button></div>`);
+}
+function toggleEvTime(){
+  const chk=document.getElementById('ev-time');
+  document.getElementById('ev-time-row').style.display=chk.checked?'flex':'none';
+}
+function openEditEvent(id){
+  const e=S.events.find(x=>x.id===id);if(!e)return;
+  showModal(`<div class="mo-hd"><h3>일정 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>제목</label><input id="ev-title" value="${e.title}"></div>
+    <div class="fr fr-row">
+      <div><label>시작일</label><input type="date" id="ev-start" value="${e.start}"></div>
+      <div><label>종료일</label><input type="date" id="ev-end" value="${e.end}"></div>
+    </div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" ${e.time?'checked':''} onchange="toggleEvTime()"> 시간 설정</label></div>
+    <div id="ev-time-row" style="display:${e.time?'flex':'none'}" class="fr fr-row">
+      <div><label>시작시간</label><input type="time" id="ev-stime" value="${e.startTime||''}"></div>
+      <div><label>종료시간</label><input type="time" id="ev-etime" value="${e.endTime||''}"></div>
+    </div>
+    <div class="fr"><label style="display:flex;align-items:center;justify-content:space-between">종류<button class="btn-g" onclick="openEtypeModal()">수정</button></label>
+    <select id="ev-type">${S.etypes.map(t=>`<option${t===e.type?' selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${e.content||''}</textarea></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-d btn-sm" onclick="deleteEvent(${id});closeModal()">삭제</button>
+  <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveEvent(${id})">저장</button></div>`);
+}
+function openEventDetail(id){
+  if(typeof id==='string'&&id.startsWith('h'))return;
+  const e=S.events.find(x=>x.id===id);if(!e)return;
+  showModal(`<div class="mo-hd"><h3>${e.title}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div style="margin-bottom:10px"><span class="chip ev-${e.type}">${e.type}</span></div>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:8px">📅 ${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''} ${e.time?`${e.startTime||''}~${e.endTime||''}`:'(종일)'}</div>
+    ${e.content?`<div style="font-size:14px;white-space:pre-wrap">${e.content}</div>`:''}
+  </div>
+  <div class="mo-ft" style="gap:8px">
+    <button class="btn btn-o" style="flex:1" onclick="closeModal()">닫기</button>
+    <button class="btn btn-p" style="flex:1" onclick="closeModal();openEditEvent(${id})">수정</button>
+    <button class="btn btn-d" style="flex:1" onclick="deleteEvent(${id});closeModal()">삭제</button>
+  </div>`);
+}
+function saveEvent(id){
+  const title=document.getElementById('ev-title').value.trim();
+  const start=document.getElementById('ev-start').value;
+  const end=document.getElementById('ev-end').value;
+  const type=document.getElementById('ev-type').value;
+  const content=document.getElementById('ev-content').value.trim();
+  const time=document.getElementById('ev-time').checked;
+  const startTime=time?document.getElementById('ev-stime').value:'';
+  const endTime=time?document.getElementById('ev-etime').value:'';
+  if(!title||!start||!end){alert('제목과 날짜를 입력해주세요');return}
+  if(id){const e=S.events.find(x=>x.id===id);Object.assign(e,{title,start,end,type,content,time,startTime,endTime})}
+  else S.events.push({id:newId(),title,start,end,type,content,time,startTime,endTime});
+  closeModal();
+  if(S.page==='home')renderHome();
+  else if(S.page==='schedule')renderSchedulePage();
+}
+function deleteEvent(id){
+  if(!confirm('일정을 삭제하시겠습니까?'))return;
+  S.events=S.events.filter(e=>e.id!==id);
+  if(S.page==='home')renderHome();
+  else if(S.page==='schedule')renderSchedulePage();
+  saveAppData().catch(()=>{});
+}
+function openEtypeModal(){
+  showModal(`<div class="mo-hd"><h3>종류 관리</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div id="etype-list">${renderEtypeList()}</div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <input id="new-etype" placeholder="새 종류 이름" style="flex:1">
+      <button class="btn btn-p" onclick="addEtype()">추가</button>
+    </div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-p" onclick="closeModal()">완료</button></div>`,'sm');
+}
+function renderEtypeList(){
+  return S.etypes.map((t,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bd)">
+    <span>${t}</span>
+    ${i>3?`<button class="btn btn-d btn-sm" onclick="delEtype(${i})">삭제</button>`:'<span style="font-size:11px;color:var(--sub)">기본</span>'}
+  </div>`).join('');
+}
+function addEtype(){
+  const v=document.getElementById('new-etype').value.trim();
+  if(!v)return;
+  S.etypes.push(v);
+  document.getElementById('etype-list').innerHTML=renderEtypeList();
+  document.getElementById('new-etype').value='';
+}
+function delEtype(i){S.etypes.splice(i,1);document.getElementById('etype-list').innerHTML=renderEtypeList()}
+
+// ─── EMPLOYEES ────────────────────────────────────
+function calcAutoLeave(startDateStr){
+  if(!startDateStr)return{annual:0,monthly:0};
+  const start=new Date(startDateStr),now=new Date();
+  const ms=now-start;
+  if(ms<0)return{annual:0,monthly:0};
+  const months=(now.getFullYear()-start.getFullYear())*12+(now.getMonth()-start.getMonth());
+  const years=ms/(1000*60*60*24*365.25);
+  if(years>=1)return{annual:15,monthly:0};
+  return{annual:0,monthly:Math.max(0,months)};
+}
+function syncEmpAutoLeave(){
+  const now=new Date();
+  S.employees.forEach(e=>{
+    if(!e.startDate||e._yearGranted)return;
+    const years=(now-new Date(e.startDate))/(1000*60*60*24*365.25);
+    if(years>=1){
+      e.annualLeave=Math.max(e.annualLeave||0,15);
+      e.monthLeave=0;
+      e._yearGranted=true;
+      e.leaveHistory=e.leaveHistory||[];
+      e.leaveHistory.push({id:newId(),type:'연차',date:today(),days:15,reason:'입사 1년 경과 자동 부여',granted:true});
+    }
+  });
+}
+function renderEmployees(){
+  syncEmpAutoLeave();
+  const p=document.getElementById('page-employees');
+  let cards=S.employees.map(e=>`<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <a href="#" style="font-size:16px;font-weight:700;color:var(--tx)" onclick="event.preventDefault();openEmpDetail(${e.id})">${e.name}</a>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-o btn-sm" onclick="openLeaveAdjust(${e.id})">휴가 조정</button>
+        <button class="btn btn-o btn-sm" onclick="openEmpLeaveGrant(${e.id})">휴가 등록</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:10px;display:flex;flex-direction:column;gap:3px">
+      <span>입사일: ${fmtDisp(e.startDate)||'-'}</span>
+      <span>연락처: ${e.phone||'-'}</span>
+      <span>이메일: ${e.email||'-'}</span>
+    </div>
+    <div class="leave-bar">
+      <div class="leave-item"><div class="lval">${e.annualLeave}</div><div class="llabel">연차 잔여</div></div>
+      <div class="leave-item"><div class="lval">${e.monthLeave}</div><div class="llabel">월차 잔여</div></div>
+    </div>
+    <div style="margin-top:14px">
+      <div class="ctitle" style="font-size:13px">휴가 내역</div>
+      ${e.leaveHistory.length?`<div style="overflow-x:auto"><table><thead><tr><th>종류</th><th>날짜</th><th>일수</th><th>사유</th><th>기한</th><th></th></tr></thead><tbody>
+      ${e.leaveHistory.map(l=>`<tr>
+        <td><span class="chip ${l.granted?'ch-g':'ch-gray'}">${l.type}${l.granted?' 부여':''}</span></td>
+        <td>${fmtDisp(l.date)}</td><td>${l.days}일</td><td>${l.reason||'-'}</td>
+        <td style="color:${l.expiry?'var(--or)':'var(--sub)'}">${l.expiry?fmtDisp(l.expiry):'-'}</td>
+        <td style="white-space:nowrap;display:flex;gap:4px">
+          <button class="btn btn-o btn-sm" onclick="openEditLeave(${e.id},${l.id})">수정</button>
+          <button class="btn btn-d btn-sm" onclick="deleteLeave(${e.id},${l.id})">삭제</button>
+        </td>
+      </tr>`).join('')}
+      </tbody></table></div>`:'<div style="color:var(--sub);font-size:13px">내역 없음</div>'}
+    </div>
+  </div>`).join('');
+  p.innerHTML=`<div class="pg-hd">
+    <h3>직원 관리</h3>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-o" onclick="openManualLeaveGrant()">휴가 수동 부여</button>
+      <button class="btn btn-p" onclick="openAddEmp()">+ 직원 추가</button>
+    </div>
+  </div>
+  <div class="emp-grid">${cards}</div>`;
+}
+function openLeaveAdjust(empId){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  showModal(`<div class="mo-hd"><h3>${e.name} — 휴가 조정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div style="background:var(--hover);border:1px solid var(--bd);border-radius:4px;padding:12px;margin-bottom:16px;font-size:13px">
+      <div style="display:flex;gap:24px">
+        <span>연차 잔여 <b>${e.annualLeave}</b>일</span>
+        <span>월차 잔여 <b>${e.monthLeave}</b>일</span>
+      </div>
+    </div>
+    <div class="fr-row">
+      <div class="fr">
+        <label>연차 조정 (+ 증가 / - 차감)</label>
+        <input type="number" id="la-annual" value="0" step="0.5" oninput="updateLeaveAdjPreview(${empId})">
+      </div>
+      <div class="fr">
+        <label>월차 조정 (+ 증가 / - 차감)</label>
+        <input type="number" id="la-month" value="0" step="0.5" oninput="updateLeaveAdjPreview(${empId})">
+      </div>
+    </div>
+    <div id="la-preview" style="font-size:13px;color:var(--sub);padding:8px 0"></div>
+  </div>
+  <div class="mo-ft">
+    <button class="btn btn-o" onclick="closeModal()">취소</button>
+    <button class="btn btn-p" onclick="saveLeaveAdjust(${empId})">적용</button>
+  </div>`,'sm');
+}
+function updateLeaveAdjPreview(empId){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const da=parseFloat(document.getElementById('la-annual').value)||0;
+  const dm=parseFloat(document.getElementById('la-month').value)||0;
+  const na=Math.max(0,e.annualLeave+da);
+  const nm=Math.max(0,e.monthLeave+dm);
+  const prev=document.getElementById('la-preview');
+  if(prev)prev.innerHTML=`조정 후 → 연차 <b>${na}</b>일 / 월차 <b>${nm}</b>일`;
+}
+function saveLeaveAdjust(empId){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const da=parseFloat(document.getElementById('la-annual').value)||0;
+  const dm=parseFloat(document.getElementById('la-month').value)||0;
+  if(da===0&&dm===0){closeModal();return;}
+  e.annualLeave=Math.max(0,e.annualLeave+da);
+  e.monthLeave=Math.max(0,e.monthLeave+dm);
+  closeModal();renderEmployees();
+}
+function openEmpDetail(id){
+  const e=S.employees.find(x=>x.id===id);if(!e)return;
+  showModal(`<div class="mo-hd"><h3>직원 상세</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>이름</label><input id="ed-name" value="${e.name}"></div>
+    <div class="fr"><label>입사일</label><input type="date" id="ed-start" value="${e.startDate}"></div>
+    <div class="fr"><label>연락처</label><input id="ed-phone" value="${e.phone}"></div>
+    <div class="fr"><label>이메일</label><input id="ed-email" value="${e.email}"></div>
+  </div>
+  <div class="mo-ft">
+    <button class="btn btn-o" onclick="closeModal()">닫기</button>
+    <button class="btn btn-p" onclick="saveEmpDetail(${id})">수정</button>
+    <button class="btn btn-d" onclick="deleteEmployee(${id})">삭제</button>
+  </div>`);
+}
+function saveEmpDetail(id){
+  const e=S.employees.find(x=>x.id===id);
+  e.name=document.getElementById('ed-name').value;
+  e.startDate=document.getElementById('ed-start').value;
+  e.phone=document.getElementById('ed-phone').value;
+  e.email=document.getElementById('ed-email').value;
+  closeModal();renderEmployees();
+}
+function deleteEmployee(id){
+  if(!confirm('직원을 삭제하시겠습니까?'))return;
+  S.employees=S.employees.filter(x=>x.id!==id);
+  closeModal();renderEmployees();
+}
+function openEditLeave(empId,leaveId){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const l=e.leaveHistory.find(x=>x.id===leaveId);if(!l)return;
+  showModal(`<div class="mo-hd"><h3>휴가 내역 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>종류</label><input id="el-type" value="${l.type}"></div>
+    <div class="fr"><label>날짜</label><input type="date" id="el-date" value="${l.date}"></div>
+    <div class="fr"><label>일수</label><input type="number" id="el-days" value="${l.days}" min="0" step="0.5"></div>
+    <div class="fr"><label>사유</label><input id="el-reason" value="${l.reason||''}"></div>
+    <div class="fr"><label>기한</label><input type="date" id="el-expiry" value="${l.expiry||''}"></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveEditLeave(${empId},${leaveId})">저장</button></div>`,'sm');
+}
+function saveEditLeave(empId,leaveId){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const l=e.leaveHistory.find(x=>x.id===leaveId);if(!l)return;
+  l.type=document.getElementById('el-type').value;
+  l.date=document.getElementById('el-date').value;
+  l.days=parseFloat(document.getElementById('el-days').value)||0;
+  l.reason=document.getElementById('el-reason').value;
+  l.expiry=document.getElementById('el-expiry').value||'';
+  closeModal();renderEmployees();
+}
+function deleteLeave(empId,leaveId){
+  if(!confirm('휴가 내역을 삭제하시겠습니까?'))return;
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  e.leaveHistory=e.leaveHistory.filter(x=>x.id!==leaveId);
+  renderEmployees();saveAppData().catch(()=>{});
+}
+function openAddEmp(){
+  const preview=calcAutoLeave(today());
+  showModal(`<div class="mo-hd"><h3>직원 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>이름</label><input id="ae-name" placeholder="홍길동"></div>
+    <div class="fr"><label>입사일</label><input type="date" id="ae-start" value="${today()}" oninput="updateLeavePreview()"></div>
+    <div class="fr"><label>연락처</label><input id="ae-phone" placeholder="010-0000-0000"></div>
+    <div class="fr"><label>이메일</label><input id="ae-email" placeholder="email@nds.com"></div>
+    <div style="background:var(--hover);border:1px solid var(--bd);border-radius:4px;padding:12px;font-size:13px" id="leave-preview">
+      <div style="font-weight:600;margin-bottom:6px">자동 부여 휴가</div>
+      <div id="leave-preview-text" style="color:var(--sub)">입사일 기준 자동 계산됩니다</div>
+    </div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveNewEmp()">추가</button></div>`);
+  setTimeout(updateLeavePreview,50);
+}
+function updateLeavePreview(){
+  const el=document.getElementById('leave-preview-text');if(!el)return;
+  const start=document.getElementById('ae-start').value;
+  if(!start){el.textContent='입사일을 선택해주세요';return}
+  const{annual,monthly}=calcAutoLeave(start);
+  const now=new Date(),s=new Date(start);
+  const years=(now-s)/(1000*60*60*24*365.25);
+  const mos=Math.max(0,Math.floor((now-s)/(1000*60*60*24*30.4)));
+  el.innerHTML=years>=1
+    ?`연차 <b>15일</b> 즉시 부여 (입사 1년 이상, 월차 미부여)`
+    :`월차 <b>${monthly}일</b> (입사 ${mos}개월 경과, 매월 1일씩 자동 부여)`;
+}
+function saveNewEmp(){
+  const name=document.getElementById('ae-name').value.trim();
+  if(!name){alert('이름을 입력해주세요');return}
+  const startDate=document.getElementById('ae-start').value;
+  const{annual,monthly}=calcAutoLeave(startDate);
+  S.employees.push({
+    id:newId(),name,startDate,
+    phone:document.getElementById('ae-phone').value,
+    email:document.getElementById('ae-email').value,
+    annualLeave:annual,monthLeave:monthly,
+    leaveHistory:[]
+  });
+  closeModal();renderEmployees();
+}
+function openManualLeaveGrant(){
+  showModal(`<div class="mo-hd"><h3>휴가 수동 부여</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>직원</label><select id="mg-emp">${S.employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}</select></div>
+    <div class="fr"><label>종류</label><select id="mg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
+    <div class="fr fr-row">
+      <div><label>부여 일수</label><input type="number" id="mg-days" value="1" min="0.5" step="0.5"></div>
+      <div><label>사용 기한</label><input type="date" id="mg-expiry"></div>
+    </div>
+    <div class="fr"><label>사유</label><input id="mg-reason" placeholder="사유 입력"></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveManualLeaveGrant()">부여</button></div>`,'sm');
+}
+function saveManualLeaveGrant(){
+  const empId=parseInt(document.getElementById('mg-emp').value);
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const type=document.getElementById('mg-type').value;
+  const days=parseFloat(document.getElementById('mg-days').value)||1;
+  const expiry=document.getElementById('mg-expiry').value||null;
+  e.leaveHistory.push({id:newId(),type,date:today(),days,reason:document.getElementById('mg-reason').value,expiry,granted:true});
+  if(type==='연차')e.annualLeave+=days;
+  else if(type==='월차')e.monthLeave+=days;
+  closeModal();renderEmployees();
+}
+function openEmpLeaveGrant(empId){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  showModal(`<div class="mo-hd"><h3>${e.name} 휴가 등록</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>종류</label><select id="elg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
+    <div class="fr fr-row">
+      <div><label>부여 일수</label><input type="number" id="elg-days" value="1" min="0.5" step="0.5"></div>
+      <div><label>사용 기한</label><input type="date" id="elg-expiry"></div>
+    </div>
+    <div class="fr"><label>사유</label><input id="elg-reason" placeholder="사유 입력"></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveEmpLeaveGrant(${empId})">등록</button></div>`,'sm');
+}
+function saveEmpLeaveGrant(empId){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const type=document.getElementById('elg-type').value;
+  const days=parseFloat(document.getElementById('elg-days').value)||1;
+  const expiry=document.getElementById('elg-expiry').value||null;
+  const reason=document.getElementById('elg-reason').value;
+  e.leaveHistory.push({id:newId(),type,date:today(),days,reason,expiry,granted:true});
+  if(type==='연차')e.annualLeave+=days;
+  else if(type==='월차')e.monthLeave+=days;
+  closeModal();renderEmployees();
+}
+// ─── INTERNS ──────────────────────────────────────
+function renderInterns(){
+  const p=document.getElementById('page-interns');
+  const typeMap={국가근로:'ch-p',일반인턴:'ch-g',계약직:'ch-o'};
+  const rows=S.interns.map(i=>{
+    const sched=S.internSchedules[i.name]||[];
+    const days=[...new Set(sched.map(s=>s.day))].join(', ');
+    const cc=typeMap[i.type]||'ch-gray';
+    return {i,days,cc};
+  });
+  const actionsBtnsHtml=i=>`
+    <button class="btn btn-o btn-sm" onclick="openTimetable(${i.id})">수업시간표</button>
+    <button class="btn btn-o btn-sm" onclick="openInternWeekSched(${i.id})">스케줄</button>
+    <button class="btn btn-sm" style="background:#FEF5E9;border:1px solid #E8C49A;color:#92511A" onclick="openEndIntern(${i.id})">${i.endDate?'종료: '+i.endDate:'근무 종료'}</button>
+    <button class="btn btn-d btn-sm" onclick="deleteIntern(${i.id})">삭제</button>`;
+  p.innerHTML=`<div class="pg-hd">
+    <h3>인턴 목록</h3>
+    <button class="btn btn-p" onclick="openAddIntern()">+ 인턴 추가</button>
+  </div>
+  <div class="intern-table-view" style="overflow-x:auto"><table>
+    <thead><tr><th>이름</th><th>학기</th><th>근무형태</th><th>근무일</th><th>월누적시간</th><th>관리</th></tr></thead>
+    <tbody>${rows.map(({i,days,cc})=>`<tr>
+        <td><a href="#" style="color:var(--tx);font-weight:600;white-space:nowrap" onclick="event.preventDefault();openInternDetail(${i.id})">${i.name}</a></td>
+        <td>${i.semester||'-'}</td>
+        <td><span class="chip ${cc}">${i.type}</span></td>
+        <td>${days||'-'}</td>
+        <td><b>${i.monthAccum}</b>/${i.monthTarget}h</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">${actionsBtnsHtml(i)}</td>
+      </tr>`).join('')}</tbody>
+  </table></div>
+  <div class="intern-card-view">${rows.map(({i,days,cc})=>`
+    <div class="intern-card">
+      <div class="intern-card-top">
+        <a href="#" class="intern-card-name" onclick="event.preventDefault();openInternDetail(${i.id})">${i.name}</a>
+        <span class="chip ${cc}">${i.type}</span>
+      </div>
+      <div class="intern-card-meta">
+        <span>${i.semester||'-'}</span>
+        <span>근무일 ${days||'-'}</span>
+        <span><b>${i.monthAccum}</b>/${i.monthTarget}h</span>
+      </div>
+      <div class="intern-card-actions">${actionsBtnsHtml(i)}</div>
+    </div>`).join('')}
+  </div>
+  <div style="margin-top:32px">
+    <div class="ctitle">전체 일정 현황</div>
+    <div class="tabs"><button class="tab-btn act" id="intern-tab1" onclick="switchInternTab(1)">수업시간표</button>
+    <button class="tab-btn" id="intern-tab2" onclick="switchInternTab(2)">근무스케줄</button></div>
+    <div id="intern-panel1">${buildInternGrid('class')}</div>
+    <div id="intern-panel2" style="display:none">${buildInternGrid('work')}</div>
+  </div>`;
+}
+function openInternDetail(id){
+  const i=S.interns.find(x=>x.id===id);if(!i)return;
+  showModal(`<div class="mo-hd"><h3>인턴 상세</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr fr-row"><div><label>이름</label><input id="id-name" value="${i.name}"></div><div><label>생년월일</label><input type="date" id="id-birth" value="${i.birth}"></div></div>
+    <div class="fr fr-row"><div><label>학교</label><input id="id-school" value="${i.school}"></div><div><label>전공</label><input id="id-major" value="${i.major}"></div></div>
+    <div class="fr fr-row"><div><label>연락처</label><input id="id-phone" value="${i.phone}"></div><div><label>근무시작일</label><input type="date" id="id-start" value="${i.startDate}"></div></div>
+    <div class="fr fr-row"><div><label>근무형태</label><select id="id-type"><option${i.type==='국가근로'?' selected':''}>국가근로</option><option${i.type==='일반인턴'?' selected':''}>일반인턴</option><option${i.type==='계약직'?' selected':''}>계약직</option></select></div>
+    <div><label>월누적시간</label><input type="number" id="id-accum" value="${i.monthAccum}"></div></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">닫기</button>
+  <button class="btn btn-p" onclick="saveInternDetail(${id})">수정</button></div>`);
+}
+function saveInternDetail(id){
+  const i=S.interns.find(x=>x.id===id);
+  i.name=document.getElementById('id-name').value;
+  i.birth=document.getElementById('id-birth').value;
+  i.school=document.getElementById('id-school').value;
+  i.major=document.getElementById('id-major').value;
+  i.phone=document.getElementById('id-phone').value;
+  i.startDate=document.getElementById('id-start').value;
+  i.type=document.getElementById('id-type').value;
+  i.monthAccum=parseInt(document.getElementById('id-accum').value)||0;
+  closeModal();renderInterns();
+}
+function openAddIntern(){
+  showModal(`<div class="mo-hd"><h3>인턴 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr fr-row"><div><label>이름</label><input id="ai-name" placeholder="이름"></div><div><label>생년월일</label><input type="date" id="ai-birth"></div></div>
+    <div class="fr fr-row"><div><label>학교</label><input id="ai-school" placeholder="학교명"></div><div><label>전공</label><input id="ai-major" placeholder="전공"></div></div>
+    <div class="fr fr-row"><div><label>연락처</label><input id="ai-phone" placeholder="010-0000-0000"></div><div><label>근무시작일</label><input type="date" id="ai-start" value="${today()}"></div></div>
+    <div class="fr fr-row"><div><label>근무형태</label><select id="ai-type"><option>국가근로</option><option>일반인턴</option><option>계약직</option></select></div>
+    <div><label>학기</label><input id="ai-sem" placeholder="2026년 1학기"></div></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveNewIntern()">추가</button></div>`);
+}
+function saveNewIntern(){
+  const name=document.getElementById('ai-name').value.trim();
+  if(!name){alert('이름을 입력해주세요');return}
+  const intern={
+    id:newId(),name,birth:document.getElementById('ai-birth').value,
+    school:document.getElementById('ai-school').value,major:document.getElementById('ai-major').value,
+    phone:document.getElementById('ai-phone').value,startDate:document.getElementById('ai-start').value,
+    type:document.getElementById('ai-type').value,semester:document.getElementById('ai-sem').value,
+    monthTarget:80,monthAccum:0,timetableImg:null,endDate:''
+  };
+  S.interns.push(intern);
+  S.internSchedules[name]=[];
+  S.internTimetable[name]=[];
+  closeModal();renderInterns();
+}
+function deleteIntern(id){
+  if(!confirm('인턴을 삭제하시겠습니까?'))return;
+  const i=S.interns.find(x=>x.id===id);
+  if(i)delete S.internSchedules[i.name];
+  S.interns=S.interns.filter(x=>x.id!==id);
+  renderInterns();saveAppData().catch(()=>{});
+}
+function switchInternTab(n){
+  document.getElementById('intern-tab1').classList.toggle('act',n===1);
+  document.getElementById('intern-tab2').classList.toggle('act',n===2);
+  document.getElementById('intern-panel1').style.display=n===1?'block':'none';
+  document.getElementById('intern-panel2').style.display=n===2?'block':'none';
+}
+function internGridWeek(d){
+  // 근무스케줄 탭의 주차 이동: 근무스케줄 메뉴와 동일한 S.weekOffset을 사용해 항상 동기화 유지
+  S.weekOffset+=d;
+  const panel2=document.getElementById('intern-panel2');
+  if(panel2)panel2.innerHTML=buildInternGrid('work');
+}
+function buildInternGrid(mode){
+  const DAYS=['월','화','수','목','금'];
+  const TIMES=['10','11','12','13','14','15','16','17','18'];
+  const COLORS=['#F0EFFC','#EEF6F1','#FEF5E9','#FEF0EF','#EBF3FF','#F4F1FF'];
+  const TXCOLORS=['#5B5BD6','#2A6041','#92511A','#C0392B','#2A5DA8','#6E4FB0'];
+  const theadHtml=`<tr style="height:36px">
+    <th style="background:var(--hover);font-size:11px;font-weight:500;border:1px solid var(--bd);padding:0;text-align:center;color:var(--sub)"></th>
+    ${DAYS.map(d=>`<th style="background:var(--hover);font-size:11px;font-weight:600;border:1px solid var(--bd);padding:0;text-align:center">${d}</th>`).join('')}
+  </tr>`;
+  if(mode==='work'){
+    const activeInterns=S.interns.filter(isInternActive);
+    const wOff=S.weekOffset; // 근무스케줄 메뉴와 동일한 주차를 사용해 동기화
+    const dd=buildWSDayData(activeInterns,wOff);
+    const {label}=getWeekInfo(wOff);
+    const {timeW,dayW,compact}=wsColWidths(DAYS.length);
+    const RH=22;
+    let tbody='';
+    for(let s=20;s<38;s++){
+      const isFirst=s%2===0;
+      const h=Math.floor(s/2);
+      let row=`<tr style="height:${RH}px">`;
+      if(isFirst){
+        row+=`<td style="width:${timeW}px;min-width:${timeW}px;font-size:${compact?'9.5px':'11px'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+      }
+      DAYS.forEach((d,di)=>{
+        const {slotMap}=dd[d];
+        const cur=slotMap[s]||{};
+        const prev=slotMap[s-1]||{};
+        const next=slotMap[s+1]||{};
+        const bdrL=di>0?'border-left:1px solid var(--bd);':'';
+        if(!Object.keys(cur).length){
+          row+=`<td style="${bdrL}border:1px solid var(--bd);height:${RH}px;padding:0;background:#fff"></td>`;
+          return;
+        }
+        const numCols=Math.max(...Object.values(cur).map(v=>v.numCols));
+        const blocks=[];
+        for(let col=0;col<numCols;col++){
+          const info=cur[col]||null;
+          const prevInfo=prev[col]||null;
+          const nextInfo=next[col]||null;
+          const sepL=col>0?'border-left:1px solid var(--bd);':'';
+          if(!info){blocks.push(`<div style="flex:1;height:100%;${sepL}background:#fff"></div>`);continue;}
+          const fromAbove=!!(prevInfo&&prevInfo.intern&&prevInfo.intern.id===info.intern.id);
+          const toBelow=!!(nextInfo&&nextInfo.intern&&nextInfo.intern.id===info.intern.id&&s<37);
+          const bt=fromAbove?'':'border-top:2px solid '+info.c.tc+';';
+          const bb=toBelow?'':'border-bottom:2px solid '+info.c.tc+';';
+          const name=info.showName?`<span style="color:${info.c.tc};font-size:${compact?'9.5px':'11px'};font-weight:600;white-space:nowrap">${info.intern.name}</span>`:'';
+          blocks.push(`<div onclick="openInternWeekSched(${info.intern.id},${wOff})" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}${sepL}">${name}</div>`);
+        }
+        row+=`<td style="${bdrL}border:1px solid var(--bd);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
+      });
+      row+=`</tr>`;tbody+=row;
+    }
+    const totalW=timeW+DAYS.length*dayW;
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <button class="cal-nav" onclick="internGridWeek(-1)">‹</button>
+      <span style="flex:1;text-align:center;font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
+      <button class="cal-nav" onclick="internGridWeek(1)">›</button>
+    </div>
+    <div style="overflow-x:auto"><table class="st-table" style="width:${totalW}px;border-collapse:collapse;table-layout:fixed">
+      <colgroup><col style="width:${timeW}px">${DAYS.map(()=>`<col style="width:${dayW}px">`).join('')}</colgroup>
+      <thead>${theadHtml}</thead><tbody>${tbody}</tbody>
+    </table></div>`;
+  }
+  // class mode — hourly display
+  const RH=56;
+  const slots={};
+  S.interns.filter(isInternActive).forEach((intern,idx)=>{
+    (S.internTimetable[intern.name]||[]).forEach(s=>{
+      const sh=parseInt(s.start),eh=parseInt(s.end);
+      for(let h=sh;h<eh;h++){
+        const k=`${s.day}-${h}`;
+        if(!slots[k])slots[k]=[];
+        slots[k].push({name:intern.name,ci:idx%6});
+      }
+    });
+  });
+  const trows=TIMES.map(h=>`<tr style="height:${RH}px">
+    <td style="width:90px;min-width:90px;font-size:11px;color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;height:${RH}px;padding:0">${h}:00~${parseInt(h)+1}:00</td>
+    ${DAYS.map(d=>{
+      const list=slots[`${d}-${parseInt(h)}`]||[];
+      const chips=list.map(x=>`<span style="display:inline-block;background:${COLORS[x.ci]};color:${TXCOLORS[x.ci]};border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px;white-space:nowrap">${x.name}</span>`).join('');
+      return `<td style="border:1px solid var(--bd);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
+    }).join('')}
+  </tr>`).join('');
+  return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+    <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
+    <thead>${theadHtml}</thead>
+    <tbody>${trows}</tbody>
+  </table></div>`;
+}
+function buildTTGridHtml(internId){
+  const DAYS=['월','화','수','목','금'];
+  const TIMES=['10','11','12','13','14','15','16','17','18'];
+  const gs=window._ttGridState||{};
+  return `<div style="overflow-x:auto"><table class="tg-table"><thead><tr><th></th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>
+    ${TIMES.map(h=>`<tr><th style="white-space:nowrap;font-size:11px">${h}:00~${parseInt(h)+1}:00</th>${DAYS.map(d=>{const k=`${d}-${parseInt(h)}`;const st=gs[k];const txt=typeof st==='string'?st:'';const sel=st?' sel':'';return `<td class="tg-cell${sel}" onclick="tgToggle('${d}',${parseInt(h)},${internId})" ondblclick="tgEdit(this,'${d}',${parseInt(h)},${internId})" data-d="${d}" data-h="${parseInt(h)}">${txt}</td>`;}).join('')}</tr>`).join('')}
+  </tbody></table></div>`;
+}
+function openTimetable(id){
+  const i=S.interns.find(x=>x.id===id);if(!i)return;
+  let gridState={};
+  (S.internTimetable[i.name]||[]).forEach(s=>{
+    const sh=parseInt(s.start),eh=parseInt(s.end);
+    for(let h=sh;h<eh;h++){gridState[`${s.day}-${h}`]=true}
+  });
+  window._ttGridState=gridState;window._ttInternId=id;
+  showModal(`<div class="mo-hd"><h3>${i.name} 수업시간표</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="tabs"><button class="tab-btn act" id="tt-tab1" onclick="switchTTTab(1)">이미지 업로드</button>
+    <button class="tab-btn" id="tt-tab2" onclick="switchTTTab(2)">격자 직접입력</button></div>
+    <div id="tt-panel1">
+      <div class="drop-zone" id="tt-drop" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleTTDrop(event,${id})">
+        ${i.timetableImg?`<img src="${i.timetableImg}" style="max-width:100%;border-radius:6px">`:
+        '이미지를 드래그하거나 클릭해서 업로드'}
+      </div>
+      <input type="file" id="tt-file" style="display:none" accept="image/*" onchange="handleTTFile(event,${id})">
+      <button class="btn btn-o btn-sm" style="margin-top:8px" onclick="document.getElementById('tt-file').click()">파일 선택</button>
+    </div>
+    <div id="tt-panel2" style="display:none"><div id="tt-grid">${buildTTGridHtml(id)}</div></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-p" id="tt-save-btn" onclick="saveTTGrid(${id})">저장</button></div>`,'lg');
+}
+function switchTTTab(n){
+  document.getElementById('tt-tab1').classList.toggle('act',n===1);
+  document.getElementById('tt-tab2').classList.toggle('act',n===2);
+  document.getElementById('tt-panel1').style.display=n===1?'block':'none';
+  document.getElementById('tt-panel2').style.display=n===2?'block':'none';
+}
+function tgToggle(d,h,id){
+  const k=`${d}-${h}`;
+  if(typeof window._ttGridState[k]==='string')return; // text mode: single-click disabled
+  window._ttGridState[k]=!window._ttGridState[k];
+  const cell=document.querySelector(`[data-d="${d}"][data-h="${h}"]`);
+  if(cell)cell.classList.toggle('sel',!!window._ttGridState[k]);
+}
+function tgEdit(cell,d,h,id){
+  cell.contentEditable='true';cell.style.cursor='text';cell.focus();
+  const r=document.createRange();r.selectNodeContents(cell);
+  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+  function onBlur(){
+    cell.contentEditable='false';cell.style.cursor='';
+    const k=`${d}-${h}`;const txt=cell.innerText.trim();
+    window._ttGridState[k]=txt||false;
+    cell.classList.toggle('sel',!!txt);
+    cell.textContent=txt;
+    cell.removeEventListener('blur',onBlur);
+  }
+  cell.addEventListener('blur',onBlur);
+}
+function saveTTGrid(id){
+  const i=S.interns.find(x=>x.id===id);if(!i)return;
+  const gs=window._ttGridState||{};
+  const DAYS=['월','화','수','목','금'];
+  const byDay={};
+  DAYS.forEach(d=>{byDay[d]=[]});
+  Object.entries(gs).forEach(([k,v])=>{if(v){const[d,h]=k.split('-');byDay[d].push(parseInt(h))}});
+  const slots=[];
+  DAYS.forEach(d=>{
+    const hrs=byDay[d].sort((a,b)=>a-b);
+    let st=null,prev=null;
+    hrs.forEach(h=>{
+      if(st===null){st=h;prev=h}
+      else if(h===prev+1){prev=h}
+      else{slots.push({day:d,start:`${p2(st)}:00`,end:`${p2(prev+1)}:00`});st=h;prev=h}
+    });
+    if(st!==null)slots.push({day:d,start:`${p2(st)}:00`,end:`${p2(prev+1)}:00`});
+  });
+  S.internTimetable[i.name]=slots;
+  // Stay in modal — refresh grid and change button to 닫기
+  const grid=document.getElementById('tt-grid');
+  if(grid)grid.innerHTML=buildTTGridHtml(id);
+  const btn=document.getElementById('tt-save-btn');
+  if(btn){btn.textContent='닫기';btn.onclick=closeModal;}
+  // Refresh bottom class panel
+  const panel1=document.getElementById('intern-panel1');
+  if(panel1)panel1.innerHTML=buildInternGrid('class');
+}
+function handleTTDrop(e,id){
+  e.preventDefault();e.currentTarget.classList.remove('dragover');
+  const file=e.dataTransfer.files[0];if(!file)return;
+  loadTTImage(file,id);
+}
+function handleTTFile(e,id){const file=e.target.files[0];if(file)loadTTImage(file,id)}
+function loadTTImage(file,id){
+  const r=new FileReader();
+  r.onload=ev=>{
+    const i=S.interns.find(x=>x.id===id);if(i)i.timetableImg=ev.target.result;
+    const dz=document.getElementById('tt-drop');
+    if(dz)dz.innerHTML=`<img src="${ev.target.result}" style="max-width:100%;border-radius:6px">`;
+  };r.readAsDataURL(file);
+}
+
+// ─── INTERN WEEKLY SCHEDULE MODAL ─────────────────
+function getSchedForWeek(name,weekOff){
+  const hist=S.internSchedHistory[name];
+  if(hist&&hist.length){
+    const targetKey=fmt(getWeekInfo(weekOff).mon); // 비교 대상 주의 월요일 날짜(절대 기준)
+    let best=null;
+    hist.forEach(e=>{
+      const key=e.weekKey||legacyFromWeekToKey(e.fromWeek); // 구버전 데이터(상대 오프셋) 호환
+      if(key<=targetKey&&(!best||key>best.key))best={...e,key};
+    });
+    if(best)return best.slots;
+  }
+  return S.internSchedules[name]||[];
+}
+// 구버전 데이터 호환: 과거에 fromWeek(상대 오프셋)로 저장된 항목을
+// "오늘 기준"으로 절대 날짜 키로 환산한다. 정확하진 않을 수 있으나 완전히 사라지는 것은 방지함.
+function legacyFromWeekToKey(fromWeek){
+  if(fromWeek===undefined||fromWeek===null)return '0000-00-00';
+  return fmt(getWeekInfo(fromWeek).mon);
+}
+function isInternActive(intern){
+  if(!intern.endDate)return true;
+  const td=new Date();td.setHours(0,0,0,0);
+  const ed=new Date(intern.endDate);ed.setHours(0,0,0,0);
+  return td<=ed;
+}
+function openEndIntern(id){
+  const i=S.interns.find(x=>x.id===id);if(!i)return;
+  showModal(`<div class="mo-hd"><h3>근무 종료</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>이름</label><div style="font-size:14px;font-weight:600;padding:6px 0">${i.name}</div></div>
+    <div class="fr"><label>근무 시작일</label><div style="font-size:14px;padding:6px 0;color:var(--sub)">${i.startDate||'-'}</div></div>
+    <div class="fr"><label>근무 종료일</label><input type="date" id="ee-end" value="${i.endDate||''}"></div>
+    <div style="font-size:12px;color:var(--sub);margin-top:4px">※ 종료일 다음날부터 스케줄·시간표에 표시되지 않습니다.</div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveEndIntern(${id})">저장</button></div>`,'sm');
+}
+function saveEndIntern(id){
+  const i=S.interns.find(x=>x.id===id);if(!i)return;
+  i.endDate=document.getElementById('ee-end').value;
+  closeModal();renderInterns();
+}
+// half-hour slot helpers: slot index s = hour*2 + (0|1), where 1 = :30
+function timeToSlot(t){const[h,m]=t.split(':').map(Number);return h*2+(m>=30?1:0);}
+function slotToTime(s){const h=Math.floor(s/2);const m=(s%2)*30;return `${p2(h)}:${m===0?'00':'30'}`;}
+function slotLabel(s){const e=s+1;const eh=Math.floor(e/2);const em=(e%2)*30;return `${slotToTime(s)}~${p2(eh)}:${em===0?'00':'30'}`;}
+
+function openInternWeekSched(internId,weekOff){
+  if(weekOff===undefined){weekOff=0;window._wsEditing=false;}
+  const intern=S.interns.find(x=>x.id===internId);if(!intern)return;
+  const{mon,label}=getWeekInfo(weekOff);
+  const sched=getSchedForWeek(intern.name,weekOff);
+  const gs={};
+  sched.forEach(s=>{
+    const si=timeToSlot(s.start),ei=timeToSlot(s.end);
+    for(let i=si;i<ei;i++)gs[`${s.day}-${i}`]=true;
+  });
+  window._wsGs=gs;window._wsIid=internId;window._wsWoff=weekOff;
+  showModal(buildSchedModalHtml(intern,mon,label,gs,internId,weekOff),'lg');
+}
+function buildSchedModalHtml(intern,mon,label,gs,internId,weekOff){
+  const DAYS=['월','화','수','목','금'];
+  const editing=!!window._wsEditing;
+  const editBtnText=editing?'수정 완료':'수정';
+  const ci=internColorIdx(intern)%WS_COLORS.length;
+  const ic=WS_COLORS[ci];
+  const noticeColor=editing?ic.tc:'var(--sub)';
+  const noticeText=editing?'✏ 셀을 클릭하여 근무 시간을 등록/해제하세요.':'[수정] 버튼을 눌러 근무 시간을 편집하세요.';
+  let thead=`<tr><th style="width:90px;min-width:90px">시간</th>`;
+  DAYS.forEach((d,i)=>{
+    const dt=new Date(mon);dt.setDate(mon.getDate()+i);
+    thead+=`<th>${d}<br><span style="font-weight:400;color:var(--sub)">${dt.getMonth()+1}/${dt.getDate()}</span></th>`;
+  });
+  thead+=`</tr>`;
+  let tbody='';
+  // 30-min slots: s=20(10:00) to s=37(18:30), total 16 rows
+  for(let s=20;s<38;s++){
+    const rowH=s%2===0?'border-top:1px solid var(--bd)':'border-top:1px dashed var(--bd2)';
+    let row=`<tr style="height:28px"><td class="stime" style="width:90px;min-width:90px;font-size:10px;white-space:nowrap;height:28px;${rowH}">${slotLabel(s)}</td>`;
+    DAYS.forEach(d=>{
+      const on=!!gs[`${d}-${s}`];
+      const bg=on?ic.bg:'';
+      const bdr=s%2===0?'border-top:1px solid var(--bd)':'border-top:1px dashed var(--bd2)';
+      row+=`<td class="sslot" style="vertical-align:middle;text-align:center;background:${bg};cursor:${editing?'pointer':'default'};height:28px;${bdr}" data-ws-d="${d}" data-ws-s="${s}" onpointerdown="wsStartDrag('${d}',${s},event)" onpointerenter="wsDragOver('${d}',${s},event)">${on?`<span style="font-size:11px;color:${ic.tc};font-weight:600">${intern.name}</span>`:''}</td>`;
+    });
+    tbody+=row+`</tr>`;
+  }
+  return `<div class="mo-hd"><h3>${intern.name} 근무스케줄</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <button class="cal-nav" onclick="openInternWeekSched(${internId},${weekOff-1})">‹</button>
+      <span style="flex:1;text-align:center;font-size:13px;font-weight:600">${label}</span>
+      <button class="cal-nav" onclick="openInternWeekSched(${internId},${weekOff+1})">›</button>
+    </div>
+    <div id="ws-notice" style="font-size:12px;color:${noticeColor};margin-bottom:10px">${noticeText}</div>
+    <div style="overflow-x:auto" onpointerup="_wsDragActive=false" onpointercancel="_wsDragActive=false"><table class="st-table" id="ws-edit-table" style="table-layout:fixed;width:100%;border-top:none;user-select:none;${editing?'touch-action:none;':''}"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>
+  </div>
+  <div class="mo-ft">
+    <button class="btn btn-o btn-sm" onclick="closeModal()">닫기</button>
+    <button class="btn btn-p btn-sm" id="ws-edit-btn" onclick="wsToggleEdit()">${editBtnText}</button>
+  </div>`;
+}
+let _wsDragActive=false,_wsDragMode=false;
+function wsApplyCell(d,s,mode){
+  const k=`${d}-${s}`;
+  if(!!window._wsGs[k]===mode)return;
+  window._wsGs[k]=mode;
+  const intern=S.interns.find(x=>x.id===window._wsIid);
+  const ic=WS_COLORS[internColorIdx(intern)%WS_COLORS.length];
+  const cell=document.querySelector(`[data-ws-d="${d}"][data-ws-s="${s}"]`);
+  if(cell){
+    cell.style.background=mode?ic.bg:'';
+    cell.innerHTML=mode&&intern?`<span style="font-size:11px;color:${ic.tc};font-weight:600">${intern.name}</span>`:'';
+  }
+}
+function wsStartDrag(d,s,ev){
+  if(!window._wsEditing)return;
+  if(ev)ev.preventDefault();
+  _wsDragActive=true;
+  _wsDragMode=!window._wsGs[`${d}-${s}`];
+  wsApplyCell(d,s,_wsDragMode);
+}
+function wsDragOver(d,s,ev){
+  if(!_wsDragActive||!window._wsEditing)return;
+  if(ev)ev.preventDefault();
+  wsApplyCell(d,s,_wsDragMode);
+}
+function saveInternSchedGrid(internId,weekOff){
+  const intern=S.interns.find(x=>x.id===internId);if(!intern)return;
+  const gs=window._wsGs||{};
+  const DAYS=['월','화','수','목','금'];
+  const byDay={};DAYS.forEach(d=>{byDay[d]=[]});
+  Object.entries(gs).forEach(([k,v])=>{if(v){const pts=k.split('-');byDay[pts[0]].push(parseInt(pts[1]))}});
+  const slots=[];
+  DAYS.forEach(d=>{
+    const idxs=byDay[d].sort((a,b)=>a-b);
+    let st=null,prev=null;
+    idxs.forEach(i=>{
+      if(st===null){st=i;prev=i}else if(i===prev+1){prev=i}
+      else{slots.push({day:d,start:slotToTime(st),end:slotToTime(prev+1)});st=i;prev=i}
+    });
+    if(st!==null)slots.push({day:d,start:slotToTime(st),end:slotToTime(prev+1)});
+  });
+  const weekKey=fmt(getWeekInfo(weekOff).mon); // 해당 주 월요일 날짜를 절대 기준으로 저장
+  if(!S.internSchedHistory[intern.name])S.internSchedHistory[intern.name]=[];
+  S.internSchedHistory[intern.name]=S.internSchedHistory[intern.name].filter(e=>(e.weekKey||legacyFromWeekToKey(e.fromWeek))!==weekKey);
+  S.internSchedHistory[intern.name].push({weekKey,slots});
+  S.internSchedHistory[intern.name].sort((a,b)=>(a.weekKey||legacyFromWeekToKey(a.fromWeek)).localeCompare(b.weekKey||legacyFromWeekToKey(b.fromWeek)));
+  const panel1=document.getElementById('intern-panel1');
+  const panel2=document.getElementById('intern-panel2');
+  if(panel1)panel1.innerHTML=buildInternGrid('class');
+  if(panel2)panel2.innerHTML=buildInternGrid('work');
+  renderWSTable();
+  if(S.page==='home')renderTodayInterns();
+  window._wsEditing=false;
+  openInternWeekSched(internId,weekOff);
+}
+
+function wsToggleEdit(){
+  if(window._wsEditing){
+    // Save and exit edit mode
+    saveInternSchedGrid(window._wsIid,window._wsWoff);
+    return;
+  }
+  // Enter edit mode
+  window._wsEditing=true;
+  const btn=document.getElementById('ws-edit-btn');
+  if(btn){btn.textContent='수정 완료';btn.className='btn btn-p btn-sm';}
+  const notice=document.getElementById('ws-notice');
+  if(notice){notice.style.color='var(--ac)';notice.textContent='✏ 셀을 클릭하여 근무 시간을 등록/해제하세요.';}
+  document.querySelectorAll('[data-ws-d]').forEach(el=>{el.style.cursor='pointer'});
+}
+// ─── WORK SCHEDULE PAGE ───────────────────────────
+// 화면 폭에 맞춰 근무스케줄 타임테이블의 시간열/요일열 너비를 계산
+// (모바일에서 불필요하게 넓은 가로 스크롤이 생기지 않도록 함)
+function wsColWidths(numDays){
+  const vw=window.innerWidth||1024;
+  if(vw<=600){
+    // 좁은 화면: 시간열을 줄이고, 남는 폭을 요일 수만큼 균등 분배(최소 44px 보장)
+    const timeW=40;
+    const avail=vw-32-timeW; // 좌우 패딩 대략 감안
+    const dayW=Math.max(44,Math.floor(avail/numDays));
+    return {timeW,dayW,compact:true};
+  }
+  if(vw<=768){
+    return {timeW:70,dayW:70,compact:false};
+  }
+  return {timeW:90,dayW:90,compact:false};
+}
+// 시간 슬롯 라벨: 좁은 화면에서는 "10~11"처럼 짧게, 넓은 화면에서는 "10:00~11:00"
+function wsTimeLabel(h,compact){
+  return compact?`${h}~${h+1}`:`${p2(h)}:00~${p2(h+1)}:00`;
+}
+function getWeekInfo(offset){
+  const now=new Date();
+  const dow=now.getDay();
+  const mon=new Date(now);mon.setDate(now.getDate()-(dow===0?6:dow-1)+offset*7);
+  const fri=new Date(mon);fri.setDate(mon.getDate()+4);
+  const y=mon.getFullYear(),m=mon.getMonth();
+  const first=new Date(y,m,1);
+  const fd=first.getDay();
+  const fmon=new Date(first);fmon.setDate(first.getDate()+(fd===0?1:fd===1?0:8-fd));
+  if(fmon.getMonth()!==m)fmon.setDate(fmon.getDate()-7);
+  const diff=Math.round((mon-fmon)/(864e5));
+  const wn=Math.floor(diff/7)+1;
+  const label=`${y}년 ${m+1}월 ${wn}주차(${m+1}/${mon.getDate()}~${fri.getMonth()+1}/${fri.getDate()})`;
+  return{mon,fri,label,wn};
+}
+function renderWorkSchedule(){
+  const p=document.getElementById('page-workschedule');
+  const {label}=getWeekInfo(S.weekOffset);
+  const sems=[...new Set(S.interns.map(i=>i.semester).filter(Boolean))].sort();
+  const semBtns=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+    <button class="btn btn-sm${!_wsSemFilter?' btn-p':''}" onclick="wsSetSem(null)" style="font-size:12px">전체</button>
+    ${sems.map(s=>`<button class="btn btn-sm${_wsSemFilter===s?' btn-p':''}" onclick="wsSetSem('${s}')" style="font-size:12px">${s}</button>`).join('')}
+  </div>`;
+  p.innerHTML=`<div class="pg-hd">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="cal-nav" onclick="wsWeek(-1)">‹</button>
+      <h3 id="ws-label">${label}</h3>
+      <button class="cal-nav" onclick="wsWeek(1)">›</button>
+    </div>
+  </div>
+  ${semBtns}
+  <div class="card" style="margin-bottom:20px">
+    <div class="ws-card-inner" style="display:flex;align-items:flex-start;gap:0">
+      <div style="overflow-x:auto;flex:1;min-width:0"><div id="ws-table"></div></div>
+      <div id="ws-intern-list" class="ws-intern-list-mobile" style="width:136px;flex-shrink:0;border-left:1px solid var(--bd);padding:12px 14px;align-self:stretch"></div>
+    </div>
+  </div>
+  ${isAdmin()?`<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="ctitle" style="margin-bottom:0">근무 이슈</div>
+      <button class="btn btn-p btn-sm" onclick="openAddWorkIssue()">+ 이슈 등록</button>
+    </div>
+    <div style="overflow-x:auto"><table><thead><tr><th>인턴</th><th>날짜</th><th>내용</th><th>관리</th></tr></thead>
+    <tbody id="ws-issues"></tbody></table></div>
+  </div>`:''}`;
+  renderWSTable();if(isAdmin())renderWSIssues();
+}
+function wsWeek(d){S.weekOffset+=d;renderWorkSchedule()}
+let _wsSemFilter=null;
+function wsSetSem(sem){_wsSemFilter=sem;renderWorkSchedule();}
+const WS_COLORS=[
+  {bg:'#F0EFFC',tc:'#5B5BD6'},{bg:'#EEF6F1',tc:'#2A6041'},
+  {bg:'#FEF5E9',tc:'#92511A'},{bg:'#FEF0EF',tc:'#C0392B'},
+  {bg:'#EBF3FF',tc:'#2A5DA8'},{bg:'#F4F1FF',tc:'#6E4FB0'}
+];
+function internColorIdx(intern){
+  // Use position in full S.interns list so color stays fixed regardless of active/inactive state
+  return S.interns.findIndex(x=>x.id===intern.id);
+}
+function buildWSDayData(interns,weekOffset){
+  const DAYS=['월','화','수','목','금'];
+  const result={};
+  DAYS.forEach(day=>{
+    const runs=[];
+    interns.forEach(intern=>{
+      const sched=getSchedForWeek(intern.name,weekOffset);
+      const c=WS_COLORS[internColorIdx(intern)%WS_COLORS.length];
+      const covered=new Set();
+      for(let s=20;s<38;s++){
+        if(sched.some(sch=>sch.day===day&&timeToSlot(sch.start)<=s&&timeToSlot(sch.end)>s))covered.add(s);
+      }
+      let rs=-1;
+      for(let s=20;s<=38;s++){
+        if(covered.has(s)&&rs===-1)rs=s;
+        if(!covered.has(s)&&rs!==-1){runs.push({intern,c,start:rs,end:s});rs=-1;}
+      }
+    });
+    // interval graph coloring → column assignment
+    const colEnds=[];
+    runs.forEach(run=>{
+      let col=colEnds.findIndex(e=>e<=run.start);
+      if(col===-1)col=colEnds.length;
+      colEnds[col]=run.end;
+      run.col=col;
+    });
+    // per-run numCols: peak concurrent count within this run's duration
+    runs.forEach(run=>{
+      let peak=1;
+      for(let s=run.start;s<run.end;s++){
+        const cnt=runs.filter(r=>r.start<=s&&r.end>s).length;
+        peak=Math.max(peak,cnt);
+      }
+      run.numCols=peak;
+    });
+    // slotMap[s][col] = {intern,c,showName,numCols}
+    const slotMap={};
+    runs.forEach(run=>{
+      const mid=run.start+Math.floor((run.end-run.start)/2);
+      for(let s=run.start;s<run.end;s++){
+        if(!slotMap[s])slotMap[s]={};
+        slotMap[s][run.col]={intern:run.intern,c:run.c,showName:s===mid,numCols:run.numCols};
+      }
+    });
+    result[day]={slotMap};
+  });
+  return result;
+}
+function renderWSTable(){
+  const el=document.getElementById('ws-table');if(!el)return;
+  const {mon}=getWeekInfo(S.weekOffset);
+  const DAYS=['월','화','수','목','금'];
+  const RH=22; // 30분 슬롯 높이(px)
+  const {timeW,dayW,compact}=wsColWidths(DAYS.length);
+  const activeInterns=_wsSemFilter
+    ?S.interns.filter(i=>i.semester===_wsSemFilter)
+    :S.interns.filter(isInternActive);
+  const dd=buildWSDayData(activeInterns,S.weekOffset);
+
+  // 헤더
+  let thead=`<tr>
+    <th style="width:${timeW}px;border:1px solid var(--bd);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
+  DAYS.forEach((d,i)=>{
+    const dt=new Date(mon);dt.setDate(mon.getDate()+i);
+    const hol=getHolidayForDay(fmt(dt));
+    const dateLabel=compact?`${d}<br>${dt.getMonth()+1}/${dt.getDate()}`:`${d} ${dt.getMonth()+1}/${dt.getDate()}`;
+    thead+=`<th style="border:1px solid var(--bd);background:var(--sb);padding:${compact?'4px 2px':'6px 4px'};font-size:${compact?'10.5px':'12px'};color:var(--sub);line-height:1.3">${dateLabel}${hol?`<br><span style="font-size:${compact?'8.5px':'10px'};color:var(--re)">${hol}</span>`:''}</th>`;
+  });
+  thead+=`</tr>`;
+
+  // rowspan 방식: 각 열별로 어떤 슬롯이 이미 채워졌는지 추적
+  // filled[day][s] = true이면 이미 위 슬롯의 td가 rowspan으로 커버함
+  const filled={};
+  DAYS.forEach(d=>{filled[d]={};});
+
+  let tbody='';
+  for(let s=20;s<38;s++){
+    const isFirst=s%2===0;
+    const h=Math.floor(s/2);
+    let row=`<tr style="height:${RH}px">`;
+
+    // 시간 열: 1시간 단위로 rowspan=2
+    if(isFirst){
+      row+=`<td style="border:1px solid var(--bd);background:var(--sb);font-size:${compact?'9.5px':'10.5px'};color:var(--sub);text-align:center;white-space:nowrap;vertical-align:middle;padding:0 2px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+    }
+
+    DAYS.forEach(d=>{
+      const {slotMap}=dd[d];
+
+      // 이미 위 rowspan이 커버하는 슬롯이면 td 생성 안 함
+      if(filled[d][s]){return;}
+
+      const cur=slotMap[s]||{};
+
+      // 블록이 없으면 빈 td
+      if(!Object.keys(cur).length){
+        row+=`<td style="border:1px solid var(--bd);height:${RH}px;padding:0;background:#fff"></td>`;
+        return;
+      }
+
+      // col별로 블록 처리 — numCols 기준으로 각 col을 width % 나눠서 하나의 td 안에 flex div로
+      const numCols=Math.max(...Object.values(cur).map(v=>v.numCols));
+
+      // 각 col의 rowspan 계산: 같은 인턴이 연속으로 이어지는 슬롯 수
+      // rowspan은 col별로 다를 수 있으므로 최소 rowspan 사용 (모든 col이 공유하는 td이므로)
+      // 단순화: col0 기준으로 rowspan 계산 (가장 긴 연속 블록)
+      // 사실 각 col이 다른 rowspan을 가지면 td를 합칠 수 없음
+      // → col별로 각각 td를 만들지 않고, 슬롯마다 flex div로 처리 (rowspan은 포기하고 블록 테두리로)
+      // → 대신 각 col의 블록 시작/끝을 정확히 계산해서 border만 제어
+
+      // 실제로 rowspan을 쓰려면 각 col이 독립적인 td여야 함
+      // 현재 구조(하나의 td에 여러 col을 flex div)에서는 rowspan 적용 불가
+      // → 가장 깔끔한 방법: 하나의 td에 flex div, border는 div에서만 제어
+      const blocks=[];
+      const prev=slotMap[s-1]||{};
+      const next=slotMap[s+1]||{};
+
+      for(let col=0;col<numCols;col++){
+        const info    =cur[col] ||null;
+        const prevInfo=prev[col]||null;
+        const nextInfo=next[col]||null;
+        const sepL=col>0?'border-left:1px solid var(--bd);':'';
+
+        if(!info){
+          blocks.push(`<div style="flex:1;height:100%;${sepL}background:#fff"></div>`);
+          continue;
+        }
+
+        const fromAbove=!!(prevInfo&&prevInfo.intern&&prevInfo.intern.id===info.intern.id);
+        const toBelow  =!!(nextInfo&&nextInfo.intern&&nextInfo.intern.id===info.intern.id&&s<37);
+
+        const bt=fromAbove?'':'border-top:2px solid '+info.c.tc+';';
+        const bb=toBelow  ?'':'border-bottom:2px solid '+info.c.tc+';';
+
+        const name=info.showName
+          ?`<span style="color:${info.c.tc};font-size:${compact?'9.5px':'11px'};font-weight:600;white-space:nowrap;text-align:center;line-height:1.3">${info.intern.name}</span>`
+          :'';
+        const fn=`openInternWeekSched(${info.intern.id},${S.weekOffset})`;
+
+        blocks.push(`<div onclick="${fn}" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}${sepL}">${name}</div>`);
+      }
+
+      row+=`<td style="border:1px solid var(--bd);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
+    });
+
+    row+=`</tr>`;
+    tbody+=row;
+  }
+
+  const totalW=timeW+DAYS.length*dayW;
+  el.innerHTML=`<table class="st-table" style="width:${totalW}px;table-layout:fixed;border-collapse:collapse">
+    <colgroup><col style="width:${timeW}px">${DAYS.map(()=>`<col style="width:${dayW}px">`).join('')}</colgroup>
+    <thead>${thead}</thead><tbody>${tbody}</tbody>
+  </table>`;
+  renderWSInternList();
+}
+function renderWSInternList(){
+  const el=document.getElementById('ws-intern-list');if(!el)return;
+  const active=S.interns.filter(isInternActive);
+  el.innerHTML=`<div class="wsl-title" style="font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:10px">인턴</div>`+
+    (active.length?active.map(intern=>{
+      const c=WS_COLORS[internColorIdx(intern)%WS_COLORS.length];
+      const sched=getSchedForWeek(intern.name,S.weekOffset);
+      const days=[...new Set(sched.map(s=>s.day))].join('·')||'미등록';
+      return `<div class="wsl-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer" onclick="openInternWeekSched(${intern.id},${S.weekOffset})">
+        <div style="width:10px;height:10px;border-radius:3px;background:${c.bg};border:1.5px solid ${c.tc};flex-shrink:0"></div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--tx)">${intern.name}</div>
+          <div style="font-size:11px;color:var(--sub);margin-top:1px">${days}</div>
+        </div>
+      </div>`;
+    }).join(''):`<div style="font-size:12px;color:var(--sub)">없음</div>`);
+}
+function renderWSIssues(){
+  const el=document.getElementById('ws-issues');if(!el)return;
+  el.innerHTML=S.workIssues.map(iss=>`<tr>
+    <td>${iss.intern}</td><td>${fmtDisp(iss.date)}</td><td>${iss.content}</td>
+    <td style="display:flex;gap:6px">
+      <button class="btn btn-o btn-sm" onclick="openEditIssue(${iss.id})">수정</button>
+      <button class="btn btn-d btn-sm" onclick="deleteIssue(${iss.id})">삭제</button>
+    </td>
+  </tr>`).join('');
+}
+function openEditIssue(id){
+  const iss=S.workIssues.find(x=>x.id===id);if(!iss)return;
+  showModal(`<div class="mo-hd"><h3>이슈 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>인턴</label><select id="ei-intern">${S.interns.map(i=>`<option${i.name===iss.intern?' selected':''}>${i.name}</option>`).join('')}</select></div>
+    <div class="fr"><label>날짜</label><input type="date" id="ei-date" value="${iss.date}"></div>
+    <div class="fr"><label>내용</label><input id="ei-content" value="${iss.content}"></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveEditIssue(${id})">저장</button></div>`,'sm');
+}
+function saveEditIssue(id){
+  const iss=S.workIssues.find(x=>x.id===id);if(!iss)return;
+  iss.intern=document.getElementById('ei-intern').value;
+  iss.date=document.getElementById('ei-date').value;
+  iss.content=document.getElementById('ei-content').value;
+  closeModal();renderWSIssues();
+}
+function deleteIssue(id){if(confirm('삭제하시겠습니까?')){S.workIssues=S.workIssues.filter(x=>x.id!==id);renderWSIssues();saveAppData().catch(()=>{});}}
+function openAddWorkIssue(){
+  showModal(`<div class="mo-hd"><h3>이슈 등록</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>인턴</label><select id="wi-intern">${S.interns.map(i=>`<option>${i.name}</option>`).join('')}</select></div>
+    <div class="fr"><label>날짜</label><input type="date" id="wi-date" value="${today()}"></div>
+    <div class="fr"><label>내용</label><input id="wi-content" placeholder="이슈 내용"></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveWorkIssue()">등록</button></div>`,'sm');
+}
+function saveWorkIssue(){
+  S.workIssues.push({id:newId(),intern:document.getElementById('wi-intern').value,date:document.getElementById('wi-date').value,content:document.getElementById('wi-content').value,status:'처리중'});
+  closeModal();renderWorkSchedule();
+}
+
+// ─── NOTICE ───────────────────────────────────────
+function renderNotice(){
+  const p=document.getElementById('page-notice');
+  const pinned=S.notices.filter(n=>n.pinned);
+  const regular=S.notices.filter(n=>!n.pinned);
+  const sorted=[...pinned,...regular];
+  const pinnedBanner=pinned.length?`<div style="background:#FEF5E9;border:1px solid #E8C49A;border-radius:6px;padding:0;margin-bottom:12px;overflow:hidden">
+    ${pinned.map(n=>`<div class="board-item" style="padding:12px 14px;margin:0;background:transparent" onclick="openNoticeDetail(${n.id})">
+      <div class="bi-title">📌 ${n.title}</div>
+      <div class="bi-meta">${n.author} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
+    </div>`).join('')}
+  </div>`:'';
+  const list=sorted.map(n=>`<div class="board-item" onclick="openNoticeDetail(${n.id})">
+    <div class="bi-title">${n.pinned?'📌 ':''}${n.title}</div>
+    <div class="bi-meta">${n.author} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
+  </div>`).join('');
+  p.innerHTML=`<div class="pg-hd">
+    <h3>인턴 공지</h3>
+    ${isAdmin()?`<button class="btn btn-p btn-sm" onclick="openWriteNotice()">+ 작성</button>`:''}
+  </div>
+  <div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 공지가 없습니다.</div>'}</div>`;
+}
+function openWriteNotice(id){
+  const n=id?S.notices.find(x=>x.id===id):null;
+  showModal(`<div class="mo-hd"><h3>${n?'공지 수정':'공지 작성'}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>제목</label><input id="nt-title" value="${n?n.title:''}" placeholder="제목 입력"></div>
+    <div class="fr"><label>내용</label><textarea id="nt-content" rows="6" placeholder="내용 입력">${n?n.content:''}</textarea></div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" id="nt-pinned" style="width:auto;accent-color:var(--ac)" ${n&&n.pinned?'checked':''}>
+      <span>📌 고정 (목록 최상단에 항상 표시)</span>
+    </label></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveNotice(${id||'null'})">저장</button></div>`);
+}
+function saveNotice(id){
+  const title=document.getElementById('nt-title').value.trim();
+  const content=document.getElementById('nt-content').value.trim();
+  const pinned=document.getElementById('nt-pinned').checked;
+  if(!title){alert('제목을 입력해주세요');return}
+  if(id){const n=S.notices.find(x=>x.id===id);Object.assign(n,{title,content,pinned})}
+  else S.notices.unshift({id:newId(),title,content,pinned,author:S.user.name,date:today(),comments:[]});
+  closeModal();renderNotice();
+}
+function openNoticeDetail(id){
+  const n=S.notices.find(x=>x.id===id);if(!n)return;
+  const cmts=n.comments.map(c=>`<div class="cmt">
+    <div class="cmt-meta">${c.author} · ${fmtDisp(c.date)}</div>
+    <div class="cmt-text">${c.text}</div>
+  </div>`).join('');
+  showModal(`<div class="mo-hd"><h3>${n.pinned?'📌 ':''}${n.title}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${n.author} · ${fmtDisp(n.date)}${n.pinned?' · <span style="color:var(--or)">고정됨</span>':''}</div>
+    <div style="font-size:14px;white-space:pre-wrap;margin-bottom:20px">${n.content}</div>
+    <div style="border-top:1px solid var(--bd);padding-top:14px">
+      <div class="ctitle" style="font-size:13px">댓글 ${n.comments.length}</div>
+      <div id="cmt-list">${cmts}</div>
+      <div class="cmt-form">
+        <input id="cmt-input" placeholder="댓글 입력">
+        <button class="btn btn-p btn-sm" onclick="addComment('notice',${id})">등록</button>
+      </div>
+    </div>
+  </div>
+  <div class="mo-ft">
+    <button class="btn btn-o" onclick="closeModal()">닫기</button>
+    ${isAdmin()?`<button class="btn btn-p" onclick="closeModal();openWriteNotice(${id})">수정</button>
+    <button class="btn btn-d" onclick="deleteNotice(${id})">삭제</button>`:''}
+  </div>`);
+}
+function deleteNotice(id){
+  if(!confirm('공지를 삭제하시겠습니까?'))return;
+  S.notices=S.notices.filter(x=>x.id!==id);
+  closeModal();renderNotice();
+}
+
+// ─── WORK LOG ─────────────────────────────────────
+function renderWorkLog(){
+  const p=document.getElementById('page-worklog');
+  const list=S.workLogs.map(l=>`<div class="board-item" onclick="openWorkLogDetail(${l.id})">
+    <div class="bi-title">${l.title} ${l.tasks.close?'<span class="chip ch-g" style="font-size:10px">마감완료</span>':''}</div>
+    <div class="bi-meta">${l.author} · ${fmtDisp(l.date)} · 댓글 ${l.comments.length}</div>
+  </div>`).join('');
+  p.innerHTML=`<div class="pg-hd">
+    <h3>근무일지</h3>
+    <button class="btn btn-p btn-sm" onclick="openWriteLog()">+ 작성</button>
+  </div>
+  <div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 근무일지가 없습니다.</div>'}</div>`;
+}
+const OPEN_ITEMS=['B1 음악, 스크린 전원 켜기','정수기 물받이 조립','바닥 큰 먼지 쓸기','1층 오픈'];
+const CLOSE_ITEMS=['정수기 물받이, 캡슐홀더 세척','정수기 닦기','쓰레기통 비우기','음향기기, 프로젝터 전원 끄기','1층 마감 및 B1 뒷문 잠그기','B1 냉난방, 환풍기 전원 끄기'];
+function renderTaskSubItems(prefix,items,checked){
+  return items.map((item,i)=>`<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;cursor:pointer">
+    <input type="checkbox" id="${prefix}-${i}" style="width:auto;accent-color:var(--ac)" ${checked&&checked[i]?'checked':''}>${item}</label>`).join('');
+}
+function openWriteLog(id){
+  const l=id?S.workLogs.find(x=>x.id===id):null;
+  const now=new Date();
+  const defTitle=l?l.title:`[${S.user.name}] ${now.getMonth()+1}월 ${getWeekInfo(0).wn}주차`;
+  const oi=l&&l.tasks.openItems||[];
+  const ci=l&&l.tasks.closeItems||[];
+  showModal(`<div class="mo-hd"><h3>${l?'근무일지 수정':'근무일지 작성'}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>제목</label><input id="wl-title" value="${defTitle}"></div>
+    <div class="fr">
+      <label style="font-weight:600;margin-bottom:8px;display:block">필수 업무</label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+        <input type="checkbox" id="wl-open" style="width:auto;accent-color:var(--ac)" ${l&&l.tasks.open?'checked':''} onchange="toggleWlSub('open')"> 오픈</label>
+      <div id="wl-open-sub" style="display:${l&&l.tasks.open?'block':'none'};background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0 8px">${renderTaskSubItems('wl-oi',OPEN_ITEMS,oi)}</div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+        <input type="checkbox" id="wl-close" style="width:auto;accent-color:var(--ac)" ${l&&l.tasks.close?'checked':''} onchange="toggleWlSub('close')"> 마감</label>
+      <div id="wl-close-sub" style="display:${l&&l.tasks.close?'block':'none'};background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0">${renderTaskSubItems('wl-ci',CLOSE_ITEMS,ci)}</div>
+    </div>
+    <div class="fr"><label>상세내용</label><textarea id="wl-content" rows="5" placeholder="업무 내용 입력">${l?l.content:''}</textarea></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
+  <button class="btn btn-p" onclick="saveWorkLog(${id||'null'})">저장</button></div>`);
+}
+function toggleWlSub(type){
+  const chk=document.getElementById('wl-'+type);
+  document.getElementById('wl-'+type+'-sub').style.display=chk.checked?'block':'none';
+}
+function saveWorkLog(id){
+  const title=document.getElementById('wl-title').value.trim();
+  const content=document.getElementById('wl-content').value.trim();
+  const openOn=document.getElementById('wl-open').checked;
+  const closeOn=document.getElementById('wl-close').checked;
+  const openItems=OPEN_ITEMS.map((_,i)=>document.getElementById('wl-oi-'+i)?.checked||false);
+  const closeItems=CLOSE_ITEMS.map((_,i)=>document.getElementById('wl-ci-'+i)?.checked||false);
+  const tasks={open:openOn,openItems,close:closeOn,closeItems};
+  if(!title){alert('제목을 입력해주세요');return}
+  if(id){const l=S.workLogs.find(x=>x.id===id);Object.assign(l,{title,content,tasks})}
+  else S.workLogs.unshift({id:newId(),title,content,tasks,author:S.user.name,date:today(),comments:[]});
+  closeModal();renderWorkLog();
+}
+function openWorkLogDetail(id){
+  const l=S.workLogs.find(x=>x.id===id);if(!l)return;
+  const canEdit=isAdmin()||(l.author===S.user.name);
+  const canDelete=isAdmin();
+  const cmts=l.comments.map(c=>`<div class="cmt">
+    <div class="cmt-meta">${c.author} · ${fmtDisp(c.date)}</div>
+    <div class="cmt-text">${c.text}</div>
+  </div>`).join('');
+  const openSubHtml=l.tasks.open&&l.tasks.openItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0 8px">${OPEN_ITEMS.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${l.tasks.openItems[i]?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.openItems[i]?'checked':''} disabled>${item}</div>`).join('')}</div>`:'';
+  const closeSubHtml=l.tasks.close&&l.tasks.closeItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0">${CLOSE_ITEMS.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${l.tasks.closeItems[i]?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.closeItems[i]?'checked':''} disabled>${item}</div>`).join('')}</div>`:'';
+  showModal(`<div class="mo-hd"><h3>${l.title}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${l.author} · ${fmtDisp(l.date)}</div>
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px">필수 업무</div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:default"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.open?'checked':''} disabled> 오픈</label>
+      ${openSubHtml}
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:default"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.close?'checked':''} disabled> 마감</label>
+      ${closeSubHtml}
+    </div>
+    <div style="font-size:14px;white-space:pre-wrap;margin-bottom:20px">${l.content}</div>
+    <div style="border-top:1px solid var(--bd);padding-top:14px">
+      <div class="ctitle" style="font-size:13px">댓글 ${l.comments.length}</div>
+      <div id="cmt-list">${cmts}</div>
+      <div class="cmt-form">
+        <input id="cmt-input" placeholder="댓글 입력">
+        <button class="btn btn-p btn-sm" onclick="addComment('worklog',${id})">등록</button>
+      </div>
+    </div>
+  </div>
+  <div class="mo-ft">
+    <button class="btn btn-o" onclick="closeModal()">닫기</button>
+    ${canEdit?`<button class="btn btn-p" onclick="closeModal();openWriteLog(${id})">수정</button>`:''}
+    ${canDelete?`<button class="btn btn-d" onclick="deleteWorkLog(${id})">삭제</button>`:''}
+  </div>`);
+}
+function deleteWorkLog(id){
+  if(!confirm('근무일지를 삭제하시겠습니까?'))return;
+  S.workLogs=S.workLogs.filter(x=>x.id!==id);
+  closeModal();renderWorkLog();
+}
+
+// ─── COMMENTS ─────────────────────────────────────
+function addComment(type,id){
+  const text=document.getElementById('cmt-input').value.trim();
+  if(!text)return;
+  const arr=type==='notice'?S.notices:S.workLogs;
+  const item=arr.find(x=>x.id===id);
+  if(!item)return;
+  item.comments.push({id:newId(),author:S.user.name,text,date:today()});
+  document.getElementById('cmt-input').value='';
+  const cmts=item.comments.map(c=>`<div class="cmt">
+    <div class="cmt-meta">${c.author} · ${fmtDisp(c.date)}</div>
+    <div class="cmt-text">${c.text}</div>
+  </div>`).join('');
+  const el=document.getElementById('cmt-list');
+  if(el)el.innerHTML=cmts;
+}
+
+// ─── BOARD ────────────────────────────────────────
+let _bPosts=[],_bActiveId=null,_bSearch='',_bTagFilter=null,_bCatFilter=null,_bCatOpen={};
+let _bDragId=null,_slashId=null,_slashQ='',_slashSel=0;
+let _bCategories=[];
+function _bLoad(){try{_bPosts=JSON.parse(localStorage.getItem('nds_board')||'[]')}catch{_bPosts=[]}}
+function _bSave(){localStorage.setItem('nds_board',JSON.stringify(_bPosts))}
+function _bCatLoad(){try{_bCategories=JSON.parse(localStorage.getItem('nds_board_cats')||'[]')}catch{_bCategories=[]}}
+function _bCatSave(){localStorage.setItem('nds_board_cats',JSON.stringify(_bCategories))}
+function _bNewId(){return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+function bAddCategory(){
+  const name=prompt('카테고리 이름:');
+  if(!name?.trim())return;
+  _bCategories.push({id:_bNewId(),name:name.trim()});
+  _bCatSave();bRenderSb();renderSidebar();
+}
+function bDeleteCategory(id,e){
+  if(e){e.stopPropagation();}
+  if(!confirm('카테고리를 삭제하시겠습니까?\n(포스트는 삭제되지 않습니다)'))return;
+  _bCategories=_bCategories.filter(c=>c.id!==id);
+  _bPosts.forEach(p=>{if(p.category===id)p.category=null;});
+  _bCatSave();_bSave();bRenderSb();renderSidebar();
+}
+function bToggleCat(id){
+  _bCatOpen[id]=!_bCatOpen[id];
+  if(_bCatFilter===id&&!_bCatOpen[id])_bCatFilter=null;
+  bRenderSb();
+}
+function bSetCat(id){_bCatFilter=_bCatFilter===id?null:id;bRenderSb();renderSidebar();}
+function bSetPostCat(postId,catId){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  p.category=catId||null;p.updatedAt=today();_bSave();bRenderSb();
+}
+
+function renderBoard(){
+  _bLoad();_bCatLoad();
+  const p=document.getElementById('page-board');
+  p.innerHTML=`<div class="board-wrap">
+    <div class="board-sb">
+      <div class="board-sb-hd">
+        <span style="font-size:13px;font-weight:700;color:var(--tx)">게시판</span>
+        <button class="btn btn-p btn-sm" onclick="bNewPost()">+ 새 글</button>
+      </div>
+      <div class="board-search-box"><input placeholder="검색..." oninput="bSetSearch(this.value)"></div>
+      <div id="b-cats" class="bcat-section"></div>
+      <div id="b-tags" class="board-tags-row"></div>
+      <div id="b-list" class="board-list-wrap"></div>
+    </div>
+    <div class="board-editor-area" id="b-editor">
+      <div style="color:var(--sub);font-size:14px;text-align:center;padding-top:80px">글을 선택하거나 새 글을 작성하세요.</div>
+    </div>
+  </div>`;
+  bRenderSb();
+  if(_bActiveId&&_bPosts.find(x=>x.id===_bActiveId))bOpenPost(_bActiveId);
+}
+
+function bPostLiHtml(p){
+  return `<div class="board-li${_bActiveId===p.id?' active':''}" onclick="bOpenPost('${p.id}')">
+    <div class="board-li-title">${p.icon?p.icon+' ':''}${p.title||'제목 없음'}</div>
+    <div class="board-li-meta">${p.updatedAt||p.createdAt||''}${(p.tags||[]).length?' · '+p.tags.join(', '):''}</div>
+  </div>`;
+}
+function bRenderSb(){
+  const listEl=document.getElementById('b-list'),tagsEl=document.getElementById('b-tags'),catsEl=document.getElementById('b-cats');
+  if(!listEl)return;
+  // categories panel
+  if(catsEl){
+    let html=`<div class="bcat-all${!_bCatFilter?' on':''}" onclick="bSetCat(null)">전체</div>`;
+    _bCategories.forEach(c=>{
+      const open=!!_bCatOpen[c.id];
+      const catPosts=_bPosts.filter(p=>p.category===c.id).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+      html+=`<div class="bcat-row${_bCatFilter===c.id?' on':''}" onclick="bToggleCat('${c.id}')">
+        <span class="bcat-arrow">${open?'▾':'▸'}</span>
+        <span class="bcat-name">${c.name}</span>
+        ${isAdmin()?`<span class="bcat-del" onclick="bDeleteCategory('${c.id}',event)" title="삭제">×</span>`:''}
+      </div>`;
+      if(open){
+        html+=`<div class="bcat-posts">${catPosts.length?catPosts.map(bPostLiHtml).join(''):'<div style="color:var(--sub);font-size:12px;padding:8px 14px">글 없음</div>'}</div>`;
+      }
+    });
+    if(isAdmin())html+=`<div class="bcat-add" onclick="bAddCategory()">+ 카테고리 추가</div>`;
+    catsEl.innerHTML=html;
+  }
+  // tags
+  const allTags=[...new Set(_bPosts.flatMap(p=>p.tags||[]))];
+  tagsEl.innerHTML=allTags.map(t=>`<span class="btag${_bTagFilter===t?' on':''}" onclick="bSetTag('${t.replace(/'/g,"\\'")}')">${t}</span>`).join('');
+  tagsEl.style.display=allTags.length?'flex':'none';
+  // flat post list (uncategorized or all when no filter)
+  let posts=[..._bPosts].sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+  if(_bSearch)posts=posts.filter(p=>(p.title||'').includes(_bSearch)||(p.blocks||[]).some(b=>b.content&&b.content.includes(_bSearch)));
+  if(_bTagFilter)posts=posts.filter(p=>(p.tags||[]).includes(_bTagFilter));
+  if(_bCatFilter)posts=[];  // when cat filter active, posts shown in cat section above
+  else if(!_bSearch&&!_bTagFilter)posts=posts.filter(p=>!p.category);
+  listEl.innerHTML=posts.length?posts.map(bPostLiHtml).join(''):'';
+  if(!_bCatFilter&&!_bSearch&&!_bTagFilter)listEl.style.borderTop=_bCategories.length?'':'none';
+}
+
+function bSetSearch(v){_bSearch=v;bRenderSb()}
+function bSetTag(t){_bTagFilter=_bTagFilter===t?null:t;bRenderSb()}
+
+function bOpenPost(id){
+  _bActiveId=id;bRenderSb();
+  const post=_bPosts.find(x=>x.id===id);if(!post)return;
+  const el=document.getElementById('b-editor');if(!el)return;
+  el.innerHTML=`<div style="max-width:700px;margin:0 auto">
+    ${post.cover?`<div style="height:160px;background:url(${post.cover}) center/cover no-repeat;border-radius:8px;margin-bottom:16px;position:relative">
+      <button class="btn btn-o btn-sm" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.85)" onclick="bRemoveCover('${id}')">커버 삭제</button></div>`
+    :`<div style="margin-bottom:10px"><button class="btn-g" style="font-size:12px;color:var(--sub)" onclick="document.getElementById('b-cover-inp').click()">+ 커버 추가</button>
+      <input type="file" id="b-cover-inp" style="display:none" accept="image/*" onchange="bLoadCover(event,'${id}')"></div>`}
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span style="font-size:38px;cursor:pointer;line-height:1" onclick="bPickIcon('${id}')">${post.icon||'📄'}</span>
+      <input class="board-title-input" value="${(post.title||'').replace(/"/g,'&quot;')}" placeholder="제목 없음" oninput="bUpdateTitle('${id}',this.value)">
+    </div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span>${post.createdAt||''}</span>
+      <select class="bcat-select" style="width:auto;padding:2px 6px;font-size:12px" onchange="bSetPostCat('${id}',this.value)">
+        <option value="">카테고리 없음</option>
+        ${_bCategories.map(c=>`<option value="${c.id}"${post.category===c.id?' selected':''}>${c.name}</option>`).join('')}
+      </select>
+      ${(post.tags||[]).map(t=>`<span class="btag on">${t}<button onclick="bRemoveTag('${id}','${t.replace(/'/g,"\\'")}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#999;padding:0 0 0 2px;font-size:10px">×</button></span>`).join('')}
+      <button class="btn-g" style="font-size:11px" onclick="bAddTag('${id}')">+ 태그</button>
+      <button class="btn btn-d btn-sm" style="margin-left:auto" onclick="bDeletePost('${id}')">글 삭제</button>
+    </div>
+    <div id="b-blocks">${bRenderBlocks(post.blocks||[],id)}</div>
+    <div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="bAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>
+  </div>`;
+  const tInput=el.querySelector('.board-title-input');
+  if(tInput&&!post.title)setTimeout(()=>tInput.focus(),40);
+}
+
+function bRenderBlocks(blocks,postId){
+  return (blocks||[]).map(blk=>bBlockHtml(blk,postId)).join('');
+}
+
+function bBlockHtml(blk,postId){
+  if(blk.type==='divider'){
+    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
+      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="bAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
+      <div class="bk-divider"></div>
+      <button class="btn-g" style="font-size:11px;align-self:center" onclick="bDelBlock('${blk.id}','${postId}')">×</button></div>`;
+  }
+  if(blk.type==='table'){
+    if(!blk.tableData||!blk.tableData.length)blk.tableData=[['','',''],['','',''],['','','']];
+    const rows=blk.tableData;
+    const tRows=rows.map((row,ri)=>`<tr>${row.map((cell,ci)=>{
+      const tag=ri===0?'th':'td';
+      return `<${tag} contenteditable="true" onblur="bTblCell(event,'${blk.id}','${postId}',${ri},${ci})">${cell}</${tag}>`;
+    }).join('')}</tr>`).join('');
+    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
+      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="bAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
+      <div style="overflow-x:auto;padding:2px 0">
+        <table class="bk-table"><tbody>${tRows}</tbody></table>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <button class="btn-g" style="font-size:11px" onclick="bTblAddRow('${blk.id}','${postId}')">+ 행</button>
+          <button class="btn-g" style="font-size:11px" onclick="bTblAddCol('${blk.id}','${postId}')">+ 열</button>
+          <button class="btn-g" style="font-size:11px" onclick="bTblDelRow('${blk.id}','${postId}')">− 행</button>
+          <button class="btn-g" style="font-size:11px" onclick="bTblDelCol('${blk.id}','${postId}')">− 열</button>
+          <button class="btn-g" style="font-size:11px;margin-left:auto" onclick="bDelBlock('${blk.id}','${postId}')">×</button>
+        </div>
+      </div></div>`;
+  }
+  const ph={paragraph:'내용 입력... (/ 로 블록 변경)',heading1:'제목 1',heading2:'제목 2',heading3:'제목 3',bulletedList:'• 항목',numberedList:'1. 항목',toggle:'▶ 토글',quote:'인용구',code:'코드 입력'}[blk.type]||'';
+  return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
+    <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="bShowAddMenu('${blk.id}','${postId}')">+</span></div>
+    <div class="bk-content" data-type="${blk.type}" data-ph="${ph}" contenteditable="true"
+      oninput="bContentInput(event,'${blk.id}','${postId}')"
+      onkeydown="bKeydown(event,'${blk.id}','${postId}')"
+      onmouseup="bSelChange()">${blk.content||''}</div></div>`;
+}
+
+function bUpdateTitle(postId,val){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  p.title=val;p.updatedAt=today();_bSave();bRenderSb();
+}
+
+function bNewPost(){
+  const post={id:_bNewId(),title:'',icon:'',cover:null,tags:[],createdAt:today(),updatedAt:today(),
+    blocks:[{id:_bNewId(),type:'paragraph',content:''}]};
+  _bPosts.unshift(post);_bSave();_bActiveId=post.id;bRenderSb();bOpenPost(post.id);
+}
+
+function bDeletePost(id){
+  if(!confirm('이 글을 삭제하시겠습니까?'))return;
+  _bPosts=_bPosts.filter(x=>x.id!==id);
+  if(_bActiveId===id)_bActiveId=null;
+  _bSave();renderBoard();
+}
+
+function bContentInput(e,blkId,postId){
+  const el=e.target;
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
+  const txt=el.innerText;
+  if(txt==='/'||(_slashId===blkId&&txt.startsWith('/'))){
+    if(txt==='/'){_slashId=blkId;_slashQ='';_slashSel=0;bShowSlash(el,postId);}
+    else if(_slashId===blkId){_slashQ=txt.slice(1).toLowerCase();bUpdateSlash();}
+    return;
+  }
+  if(_slashId)bHideSlash();
+  blk.content=el.innerHTML;p.updatedAt=today();_bSave();
+}
+
+function bKeydown(e,blkId,postId){
+  if(_slashId){
+    if(e.key==='ArrowDown'){e.preventDefault();bSlashNav(1);return}
+    if(e.key==='ArrowUp'){e.preventDefault();bSlashNav(-1);return}
+    if(e.key==='Enter'){e.preventDefault();bSlashPick(blkId,postId);return}
+    if(e.key==='Escape'){bHideSlash();return}
+  }
+  if(e.key==='Enter'&&!e.shiftKey){
+    e.preventDefault();
+    const el=e.target;
+    const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+    const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
+    blk.content=el.innerHTML;
+    bInsertAfter(blkId,postId,'paragraph');
+    return;
+  }
+  if(e.key==='Backspace'){
+    const el=e.target;
+    if(!el.innerText.trim()){e.preventDefault();bDelBlock(blkId,postId);}
+  }
+  if((e.ctrlKey||e.metaKey)){
+    if(e.key==='b'){e.preventDefault();document.execCommand('bold');}
+    else if(e.key==='i'){e.preventDefault();document.execCommand('italic');}
+    else if(e.key==='u'){e.preventDefault();document.execCommand('underline');}
+  }
+}
+
+function bInsertAfter(blkId,postId,type){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  const idx=p.blocks.findIndex(x=>x.id===blkId);
+  const nb={id:_bNewId(),type,content:''};
+  p.blocks.splice(idx+1,0,nb);p.updatedAt=today();_bSave();
+  const bEl=document.getElementById('b-blocks');
+  if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
+  setTimeout(()=>{const ne=document.querySelector(`[data-id="${nb.id}"] .bk-content`);if(ne)ne.focus();},20);
+}
+
+function bDelBlock(blkId,postId){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  if(p.blocks.length<=1)return;
+  const idx=p.blocks.findIndex(x=>x.id===blkId);
+  p.blocks.splice(idx,1);p.updatedAt=today();_bSave();
+  const bEl=document.getElementById('b-blocks');
+  if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
+  const pi=Math.max(0,idx-1);
+  setTimeout(()=>{const pe=document.querySelector(`[data-id="${p.blocks[pi]?.id}"] .bk-content`);if(pe){pe.focus();const r=document.createRange();r.selectNodeContents(pe);r.collapse(false);const s=window.getSelection();s.removeAllRanges();s.addRange(r);}},20);
+}
+
+function bAddBlock(afterId,postId,type){
+  if(afterId)bInsertAfter(afterId,postId,type);
+  else{const p=_bPosts.find(x=>x.id===postId);if(!p)return;const nb={id:_bNewId(),type,content:''};p.blocks.push(nb);p.updatedAt=today();_bSave();const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);setTimeout(()=>{const ne=document.querySelector(`[data-id="${nb.id}"] .bk-content`);if(ne)ne.focus();},20);}
+}
+
+// Slash menu
+const B_SLASH=[
+  {type:'paragraph',icon:'T',label:'문단'},{type:'heading1',icon:'H1',label:'제목 1'},
+  {type:'heading2',icon:'H2',label:'제목 2'},{type:'heading3',icon:'H3',label:'제목 3'},
+  {type:'bulletedList',icon:'•',label:'글머리 기호'},{type:'numberedList',icon:'1.',label:'번호 목록'},
+  {type:'quote',icon:'❝',label:'인용구'},{type:'code',icon:'</>',label:'코드 블록'},
+  {type:'toggle',icon:'▶',label:'토글'},{type:'divider',icon:'—',label:'구분선'},
+  {type:'table',icon:'⊞',label:'표'},
+];
+
+function bShowSlash(el,postId){
+  let m=document.getElementById('slash-menu');
+  if(!m){m=document.createElement('div');m.id='slash-menu';m.className='slash-menu';document.body.appendChild(m);}
+  m._postId=postId;
+  const rect=el.getBoundingClientRect();
+  m.style.top=(rect.bottom+2)+'px';m.style.left=rect.left+'px';m.style.display='block';
+  bUpdateSlash();
+}
+function bUpdateSlash(){
+  const m=document.getElementById('slash-menu');if(!m)return;
+  const q=_slashQ;
+  const items=B_SLASH.filter(x=>!q||x.label.includes(q)||x.type.includes(q));
+  _slashSel=0;
+  m.innerHTML=items.map((x,i)=>`<div class="slash-item${i===0?' sel':''}" data-type="${x.type}">
+    <span style="width:28px;font-size:12px;font-weight:700;color:var(--sub);text-align:center">${x.icon}</span>${x.label}</div>`).join('');
+  m.querySelectorAll('.slash-item').forEach(it=>it.addEventListener('mousedown',e=>{e.preventDefault();const bid=_slashId;const pid=m._postId;if(bid)bChangeBlockType(bid,pid,it.dataset.type);bHideSlash();}));
+}
+function bSlashNav(d){
+  const m=document.getElementById('slash-menu');if(!m)return;
+  const items=m.querySelectorAll('.slash-item');
+  items[_slashSel]?.classList.remove('sel');
+  _slashSel=Math.max(0,Math.min(items.length-1,_slashSel+d));
+  items[_slashSel]?.classList.add('sel');
+  items[_slashSel]?.scrollIntoView({block:'nearest'});
+}
+function bSlashPick(blkId,postId){
+  const m=document.getElementById('slash-menu');if(!m)return;
+  const sel=m.querySelector('.slash-item.sel');
+  if(sel)bChangeBlockType(blkId,postId,sel.dataset.type);
+  bHideSlash();
+}
+function bTblCell(e,blkId,postId,r,c){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;
+  blk.tableData[r][c]=e.target.innerHTML;p.updatedAt=today();_bSave();
+}
+function bTblAddRow(blkId,postId){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;
+  const cols=blk.tableData[0]?.length||3;
+  blk.tableData.push(Array(cols).fill(''));p.updatedAt=today();_bSave();
+  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
+}
+function bTblAddCol(blkId,postId){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;
+  blk.tableData.forEach(row=>row.push(''));p.updatedAt=today();_bSave();
+  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
+}
+function bTblDelRow(blkId,postId){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData||blk.tableData.length<=1)return;
+  blk.tableData.pop();p.updatedAt=today();_bSave();
+  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
+}
+function bTblDelCol(blkId,postId){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData||blk.tableData[0]?.length<=1)return;
+  blk.tableData.forEach(row=>row.pop());p.updatedAt=today();_bSave();
+  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
+}
+function bChangeBlockType(blkId,postId,type){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
+  blk.type=type;blk.content='';
+  if(type==='table'&&!blk.tableData)blk.tableData=[['','',''],['','',''],['','','']];
+  p.updatedAt=today();_bSave();
+  const bEl=document.getElementById('b-blocks');
+  if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
+  setTimeout(()=>{const ne=document.querySelector(`[data-id="${blkId}"] .bk-content`);if(ne)ne.focus();},20);
+}
+function bHideSlash(){_slashId=null;_slashQ='';const m=document.getElementById('slash-menu');if(m)m.style.display='none';}
+
+// + Add menu (shows slash menu below clicked block)
+function bShowAddMenu(blkId,postId){
+  const el=document.querySelector(`[data-id="${blkId}"] .bk-content`);
+  if(el){_slashId=blkId;_slashQ='';_slashSel=0;bShowSlash(el,postId);}
+}
+
+// Selection format toolbar
+function bSelChange(){
+  setTimeout(()=>{
+    const sel=window.getSelection();
+    if(!sel||sel.isCollapsed){bHideFmt();return}
+    const range=sel.getRangeAt(0);
+    const rect=range.getBoundingClientRect();
+    if(!rect.width){bHideFmt();return}
+    let tb=document.getElementById('fmt-toolbar');
+    if(!tb){
+      tb=document.createElement('div');tb.id='fmt-toolbar';tb.className='fmt-toolbar';
+      [['B','볼드'],['I','이탤릭'],['U','밑줄'],['code','코드']].forEach(([cmd,lbl])=>{
+        const btn=document.createElement('button');btn.className='fmt-btn';
+        btn.textContent=lbl;btn.onmousedown=e=>{e.preventDefault();bApplyFmt(cmd);};
+        tb.appendChild(btn);
+      });
+      document.body.appendChild(tb);
+    }
+    tb.style.top=(rect.top-44+window.scrollY)+'px';
+    tb.style.left=(rect.left+rect.width/2-tb.offsetWidth/2||0)+window.scrollX+'px';
+    tb.style.display='flex';
+  },10);
+}
+function bHideFmt(){const t=document.getElementById('fmt-toolbar');if(t)t.style.display='none';}
+function bApplyFmt(cmd){
+  if(cmd==='B')document.execCommand('bold');
+  else if(cmd==='I')document.execCommand('italic');
+  else if(cmd==='U')document.execCommand('underline');
+  else if(cmd==='code'){const txt=window.getSelection()?.toString();if(txt)document.execCommand('insertHTML',false,`<code style="background:var(--hover);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.88em">${txt}</code>`);}
+  // save
+  const bEl=document.activeElement?.closest('.bk-wrap');
+  if(bEl){const bid=bEl.dataset.id;const p=_bPosts.find(x=>x.id===_bActiveId);if(p){const blk=p.blocks.find(x=>x.id===bid);if(blk){blk.content=bEl.querySelector('.bk-content')?.innerHTML||'';_bSave();}}}
+}
+
+// Drag & drop
+function bDragStart(e,id){_bDragId=id;e.dataTransfer.effectAllowed='move';setTimeout(()=>e.target.style.opacity='.4',0);}
+function bDragOver(e,id){e.preventDefault();e.dataTransfer.dropEffect='move';document.querySelectorAll('.bk-wrap').forEach(el=>el.style.borderTop='');if(id!==_bDragId){const el=document.querySelector(`[data-id="${id}"]`);if(el)el.style.borderTop='2px solid var(--ac)';}}
+function bDrop(e,targetId,postId){
+  e.preventDefault();
+  document.querySelectorAll('.bk-wrap').forEach(el=>{el.style.opacity='';el.style.borderTop='';});
+  if(!_bDragId||_bDragId===targetId)return;
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  const si=p.blocks.findIndex(x=>x.id===_bDragId),ti=p.blocks.findIndex(x=>x.id===targetId);
+  if(si<0||ti<0)return;
+  const[blk]=p.blocks.splice(si,1);p.blocks.splice(ti,0,blk);
+  p.updatedAt=today();_bSave();
+  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
+  _bDragId=null;
+}
+
+// Tags, icon, cover
+function bAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_bPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_bSave();bOpenPost(postId);bRenderSb();}
+function bRemoveTag(postId,tag){const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_bSave();bOpenPost(postId);bRenderSb();}
+function bPickIcon(postId){const icons='📄📝📊💡🔗📌⭐🎨🔧📐💬📅🗂🏆🚀📋🎯📎🗒🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'📄';const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'📄';_bSave();bOpenPost(postId);bRenderSb();}
+function bLoadCover(e,postId){const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.cover=ev.target.result;_bSave();bOpenPost(postId);};r.readAsDataURL(file);}
+function bRemoveCover(postId){const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.cover=null;_bSave();bOpenPost(postId);}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#slash-menu')&&!e.target.closest('.bk-content')&&!e.target.closest('.bk-add-btn'))bHideSlash();
+  if(!e.target.closest('#fmt-toolbar')&&!e.target.closest('.bk-content'))bHideFmt();
+});
+
+// ─── PROJECTS ─────────────────────────────────────
+let _pPosts=[],_pActiveId=null,_pSearch='',_pStatusFilter=null,_pDragId=null;
+const PRJ_STATUSES=['진행중','완료','대기','보류'];
+function _pLoad(){try{_pPosts=JSON.parse(localStorage.getItem('nds_projects')||'[]')}catch{_pPosts=[]}}
+function _pSave(){localStorage.setItem('nds_projects',JSON.stringify(_pPosts))}
+function _pNewId(){return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+
+function renderProjects(){
+  _pLoad();
+  const p=document.getElementById('page-projects');
+  p.innerHTML=`<div class="board-wrap">
+    <div class="board-sb">
+      <div class="board-sb-hd">
+        <span style="font-weight:700;font-size:14px">프로젝트</span>
+        <button class="btn btn-p btn-sm" onclick="pNewPost()">+ 새 프로젝트</button>
+      </div>
+      <div style="padding:0 12px 8px">
+        <input class="board-search-box" placeholder="검색..." value="${_pSearch}" oninput="_pSearch=this.value;pRenderSb()">
+      </div>
+      <div style="display:flex;gap:4px;padding:0 12px 8px;flex-wrap:wrap">
+        <button class="btag${_pStatusFilter===null?' on':''}" onclick="pSetStatusFilter(null)">전체</button>
+        ${PRJ_STATUSES.map(s=>`<button class="btag${_pStatusFilter===s?' on':''}" onclick="pSetStatusFilter('${s}')">${s}</button>`).join('')}
+      </div>
+      <div class="board-list-wrap" id="p-sb-list"></div>
+    </div>
+    <div class="board-editor-area" id="p-editor"><div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--sub);font-size:14px">프로젝트를 선택하거나 새로 만드세요</div></div>
+  </div>`;
+  pRenderSb();
+  if(_pActiveId)pOpenPost(_pActiveId);
+}
+
+function pRenderSb(){
+  const el=document.getElementById('p-sb-list');if(!el)return;
+  const q=_pSearch.trim().toLowerCase();
+  let list=_pPosts.filter(p=>(!q||(p.name||'').toLowerCase().includes(q))&&(!_pStatusFilter||p.status===_pStatusFilter));
+  el.innerHTML=list.length?list.map(p=>`<div class="board-li${p.id===_pActiveId?' active':''}" onclick="pOpenPost('${p.id}')" style="display:flex;align-items:center;gap:6px">
+    <span style="font-size:18px;flex-shrink:0">${p.icon||'🗃'}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name||'제목 없음'}</div>
+      <span class="prj-status ps-${p.status||'대기'}">${p.status||'대기'}</span>
+    </div>
+    <button class="btn btn-d btn-sm" style="flex-shrink:0;padding:2px 7px" onclick="event.stopPropagation();pDeletePost('${p.id}')">삭제</button>
+  </div>`).join(''):'<div style="padding:16px;color:var(--sub);font-size:13px;text-align:center">프로젝트가 없습니다</div>';
+}
+
+function pSetStatusFilter(s){_pStatusFilter=s;renderProjects();if(_pActiveId)pOpenPost(_pActiveId);}
+
+function pNewPost(){
+  _pLoad();
+  const post={id:_pNewId(),name:'',status:'대기',dueDate:'',assignees:[],icon:'🗃',cover:null,tags:[],createdAt:today(),updatedAt:today(),
+    blocks:[{id:_pNewId(),type:'paragraph',content:''}]};
+  _pPosts.unshift(post);_pSave();_pActiveId=post.id;renderProjects();pOpenPost(post.id);
+}
+
+function pDeletePost(id){
+  if(!confirm('이 프로젝트를 삭제하시겠습니까?'))return;
+  _pPosts=_pPosts.filter(x=>x.id!==id);
+  if(_pActiveId===id)_pActiveId=null;
+  _pSave();renderProjects();
+}
+
+function pOpenPost(id){
+  _pActiveId=id;
+  const post=_pPosts.find(x=>x.id===id);
+  const el=document.getElementById('p-editor');if(!el)return;
+  pRenderSb();
+  if(!post){el.innerHTML='';return;}
+  const coverHtml=post.cover?`<div style="width:100%;height:180px;background:url('${post.cover}') center/cover;border-radius:8px 8px 0 0;position:relative">
+    <button class="btn btn-o btn-sm" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.85)" onclick="pRemoveCover('${id}')">커버 삭제</button></div>`
+    :`<div style="padding-top:24px;display:flex;gap:8px;align-items:center">
+    <label class="btn-g" style="cursor:pointer;font-size:12px">📷 커버 추가<input type="file" style="display:none" accept="image/*" onchange="pLoadCover(event,'${id}')"></label></div>`;
+  el.innerHTML=`<div style="max-width:760px;margin:0 auto;padding:0 24px 48px">
+    ${coverHtml}
+    <div style="display:flex;align-items:center;gap:8px;margin:16px 0 4px">
+      <span style="font-size:36px;cursor:pointer" onclick="pPickIcon('${id}')">${post.icon||'🗃'}</span>
+      <input class="board-title-input" placeholder="프로젝트 이름" value="${(post.name||'').replace(/"/g,'&quot;')}" oninput="pUpdateTitle('${id}',this.value)" style="flex:1">
+      <button class="btn btn-d btn-sm" onclick="pDeletePost('${id}')">삭제</button>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--bd)">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:12px;color:var(--sub)">상태</span>
+        <select style="border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;background:var(--card)" onchange="pUpdateStatus('${id}',this.value)">
+          ${PRJ_STATUSES.map(s=>`<option value="${s}"${post.status===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:12px;color:var(--sub)">마감일</span>
+        <input type="date" style="border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;background:var(--card)" value="${post.dueDate||''}" onchange="pUpdateDue('${id}',this.value)">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:12px;color:var(--sub)">담당자</span>
+        <span style="font-size:12px">${(post.assignees||[]).join(', ')||'—'}</span>
+        <button class="btn-g" style="font-size:11px" onclick="pEditAssignees('${id}')">편집</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        ${(post.tags||[]).map(t=>`<span class="btag on">${t}<button onclick="pRemoveTag('${id}','${t.replace(/'/g,"\\'")}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#999;padding:0 0 0 2px;font-size:10px">×</button></span>`).join('')}
+        <button class="btn-g" style="font-size:11px" onclick="pAddTag('${id}')">+ 태그</button>
+      </div>
+    </div>
+    <div id="p-blocks">${pRenderBlocks(post.blocks,id)}</div>
+    <div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="pAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>
+  </div>`;
+}
+
+function pRenderBlocks(blocks,postId){
+  return (blocks||[]).map(blk=>pBlockHtml(blk,postId)).join('');
+}
+
+function pBlockHtml(blk,postId){
+  if(blk.type==='divider'){
+    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
+      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
+      <div class="bk-divider"></div>
+      <button class="btn-g" style="font-size:11px;align-self:center" onclick="pDelBlock('${blk.id}','${postId}')">×</button></div>`;
+  }
+  if(blk.type==='image'){
+    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
+      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
+      <div style="width:100%">
+        ${blk.imageData?`<img src="${blk.imageData}" style="max-width:100%;border-radius:6px;display:block">`
+          :`<label style="display:flex;align-items:center;justify-content:center;height:120px;border:2px dashed var(--bd);border-radius:8px;cursor:pointer;color:var(--sub);font-size:13px;gap:8px">
+            📷 이미지 업로드<input type="file" style="display:none" accept="image/*" onchange="pImgUpload(event,'${blk.id}','${postId}')"></label>`}
+        <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+          ${blk.imageData?`<label class="btn-g" style="cursor:pointer;font-size:11px">변경<input type="file" style="display:none" accept="image/*" onchange="pImgUpload(event,'${blk.id}','${postId}')"></label>`:''}
+          <input style="flex:1;border:none;border-bottom:1px solid var(--bd);font-size:12px;color:var(--sub);background:transparent;outline:none" placeholder="캡션 입력..." value="${(blk.caption||'').replace(/"/g,'&quot;')}" onblur="pSaveCaption(event,'${blk.id}','${postId}')">
+          <button class="btn-g" style="font-size:11px" onclick="pDelBlock('${blk.id}','${postId}')">×</button>
+        </div>
+      </div></div>`;
+  }
+  if(blk.type==='table'){
+    if(!blk.tableData||!blk.tableData.length)blk.tableData=[['','',''],['','',''],['','','']];
+    const rows=blk.tableData;
+    const tRows=rows.map((row,ri)=>`<tr>${row.map((cell,ci)=>{
+      const tag=ri===0?'th':'td';
+      return `<${tag} contenteditable="true" onblur="pTblCell(event,'${blk.id}','${postId}',${ri},${ci})">${cell}</${tag}>`;
+    }).join('')}</tr>`).join('');
+    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
+      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
+      <div style="overflow-x:auto;padding:2px 0">
+        <table class="bk-table"><tbody>${tRows}</tbody></table>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <button class="btn-g" style="font-size:11px" onclick="pTblAddRow('${blk.id}','${postId}')">+ 행</button>
+          <button class="btn-g" style="font-size:11px" onclick="pTblAddCol('${blk.id}','${postId}')">+ 열</button>
+          <button class="btn-g" style="font-size:11px" onclick="pTblDelRow('${blk.id}','${postId}')">− 행</button>
+          <button class="btn-g" style="font-size:11px" onclick="pTblDelCol('${blk.id}','${postId}')">− 열</button>
+          <button class="btn-g" style="font-size:11px;margin-left:auto" onclick="pDelBlock('${blk.id}','${postId}')">×</button>
+        </div>
+      </div></div>`;
+  }
+  const ph={paragraph:'내용 입력... (/ 로 블록 변경)',heading1:'제목 1',heading2:'제목 2',heading3:'제목 3',bulletedList:'• 항목',numberedList:'1. 항목',toggle:'▶ 토글',quote:'인용구',code:'코드 입력'}[blk.type]||'';
+  return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
+    <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pShowAddMenu('${blk.id}','${postId}')">+</span></div>
+    <div class="bk-content" data-type="${blk.type}" data-ph="${ph}" contenteditable="true"
+      oninput="pContentInput(event,'${blk.id}','${postId}')"
+      onkeydown="pKeydown(event,'${blk.id}','${postId}')"
+      onmouseup="bSelChange()">${blk.content||''}</div></div>`;
+}
+
+let _pSlashId=null,_pSlashQ='',_pSlashSel=0;
+const P_SLASH=[...B_SLASH,{type:'image',icon:'🖼',label:'이미지'}];
+
+function pUpdateTitle(postId,val){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  p.name=val;p.updatedAt=today();_pSave();pRenderSb();
+}
+function pUpdateStatus(postId,val){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  p.status=val;p.updatedAt=today();_pSave();pRenderSb();
+}
+function pUpdateDue(postId,val){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  p.dueDate=val;p.updatedAt=today();_pSave();
+}
+function pEditAssignees(postId){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  const cur=(p.assignees||[]).join(', ');
+  const v=prompt('담당자 (쉼표로 구분):',cur);
+  if(v===null)return;
+  p.assignees=v.split(',').map(s=>s.trim()).filter(Boolean);
+  p.updatedAt=today();_pSave();pOpenPost(postId);
+}
+function pAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_pPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_pSave();pOpenPost(postId);pRenderSb();}
+function pRemoveTag(postId,tag){const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_pSave();pOpenPost(postId);pRenderSb();}
+function pPickIcon(postId){const icons='🗃📁📂🚀🎯💡🔧📊📋🏆⭐🎨🔗📌📅💬🗂📐🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'🗃';const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'🗃';_pSave();pOpenPost(postId);pRenderSb();}
+function pLoadCover(e,postId){const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.cover=ev.target.result;_pSave();pOpenPost(postId);};r.readAsDataURL(file);}
+function pRemoveCover(postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.cover=null;_pSave();pOpenPost(postId);}
+function pImgUpload(e,blkId,postId){const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;blk.imageData=ev.target.result;p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);};r.readAsDataURL(file);}
+function pSaveCaption(e,blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;blk.caption=e.target.value;p.updatedAt=today();_pSave();}
+
+function pTblCell(e,blkId,postId,r,c){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;
+  blk.tableData[r][c]=e.target.innerHTML;p.updatedAt=today();_pSave();
+}
+function pTblAddRow(blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;const cols=blk.tableData[0]?.length||3;blk.tableData.push(Array(cols).fill(''));p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);}
+function pTblAddCol(blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;blk.tableData.forEach(row=>row.push(''));p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);}
+function pTblDelRow(blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData||blk.tableData.length<=1)return;blk.tableData.pop();p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);}
+function pTblDelCol(blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData||blk.tableData[0]?.length<=1)return;blk.tableData.forEach(row=>row.pop());p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);}
+
+function pContentInput(e,blkId,postId){
+  const el=e.target;
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
+  const txt=el.innerText;
+  if(txt==='/'||(_pSlashId===blkId&&txt.startsWith('/'))){
+    if(txt==='/'){_pSlashId=blkId;_pSlashQ='';_pSlashSel=0;pShowSlash(el,postId);}
+    else if(_pSlashId===blkId){_pSlashQ=txt.slice(1).toLowerCase();pUpdateSlash();}
+    return;
+  }
+  if(_pSlashId)pHideSlash();
+  blk.content=el.innerHTML;p.updatedAt=today();_pSave();
+}
+function pKeydown(e,blkId,postId){
+  if(_pSlashId){
+    if(e.key==='ArrowDown'){e.preventDefault();pSlashNav(1);return}
+    if(e.key==='ArrowUp'){e.preventDefault();pSlashNav(-1);return}
+    if(e.key==='Enter'){e.preventDefault();pSlashPick(blkId,postId);return}
+    if(e.key==='Escape'){pHideSlash();return}
+  }
+  if(e.key==='Enter'&&!e.shiftKey){
+    e.preventDefault();
+    const el=e.target;
+    const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+    const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
+    blk.content=el.innerHTML;
+    pInsertAfter(blkId,postId,'paragraph');return;
+  }
+  if(e.key==='Backspace'){
+    const el=e.target;
+    if(!el.innerText.trim()){e.preventDefault();pDelBlock(blkId,postId);}
+  }
+  if((e.ctrlKey||e.metaKey)){
+    if(e.key==='b'){e.preventDefault();document.execCommand('bold');}
+    else if(e.key==='i'){e.preventDefault();document.execCommand('italic');}
+    else if(e.key==='u'){e.preventDefault();document.execCommand('underline');}
+  }
+}
+function pInsertAfter(blkId,postId,type){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  const idx=p.blocks.findIndex(x=>x.id===blkId);
+  const nb={id:_pNewId(),type,content:''};
+  p.blocks.splice(idx+1,0,nb);p.updatedAt=today();_pSave();
+  const bEl=document.getElementById('p-blocks');
+  if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);
+  setTimeout(()=>{const ne=document.querySelector(`[data-id="${nb.id}"] .bk-content`);if(ne)ne.focus();},20);
+}
+function pDelBlock(blkId,postId){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  if(p.blocks.length<=1)return;
+  const idx=p.blocks.findIndex(x=>x.id===blkId);
+  p.blocks.splice(idx,1);p.updatedAt=today();_pSave();
+  const bEl=document.getElementById('p-blocks');
+  if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);
+  const pi=Math.max(0,idx-1);
+  setTimeout(()=>{const pe=document.querySelector(`[data-id="${p.blocks[pi]?.id}"] .bk-content`);if(pe){pe.focus();const r=document.createRange();r.selectNodeContents(pe);r.collapse(false);const s=window.getSelection();s.removeAllRanges();s.addRange(r);}},20);
+}
+function pAddBlock(afterId,postId,type){
+  if(afterId)pInsertAfter(afterId,postId,type);
+  else{const p=_pPosts.find(x=>x.id===postId);if(!p)return;const nb={id:_pNewId(),type,content:''};p.blocks.push(nb);p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);setTimeout(()=>{const ne=document.querySelector(`[data-id="${nb.id}"] .bk-content`);if(ne)ne.focus();},20);}
+}
+function pChangeBlockType(blkId,postId,type){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
+  blk.type=type;blk.content='';
+  if(type==='table'&&!blk.tableData)blk.tableData=[['','',''],['','',''],['','','']];
+  if(type==='image'){blk.imageData=null;blk.caption='';}
+  p.updatedAt=today();_pSave();
+  const bEl=document.getElementById('p-blocks');
+  if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);
+  setTimeout(()=>{const ne=document.querySelector(`[data-id="${blkId}"] .bk-content`);if(ne)ne.focus();},20);
+}
+function pShowAddMenu(blkId,postId){
+  const el=document.querySelector(`[data-id="${blkId}"] .bk-content`);
+  if(el){_pSlashId=blkId;_pSlashQ='';_pSlashSel=0;pShowSlash(el,postId);}
+}
+function pShowSlash(el,postId){
+  let m=document.getElementById('p-slash-menu');
+  if(!m){m=document.createElement('div');m.id='p-slash-menu';m.className='slash-menu';document.body.appendChild(m);}
+  m._postId=postId;
+  const rect=el.getBoundingClientRect();
+  m.style.top=(rect.bottom+2)+'px';m.style.left=rect.left+'px';m.style.display='block';
+  pUpdateSlash();
+}
+function pUpdateSlash(){
+  const m=document.getElementById('p-slash-menu');if(!m)return;
+  const q=_pSlashQ;
+  const items=P_SLASH.filter(x=>!q||x.label.includes(q)||x.type.includes(q));
+  _pSlashSel=0;
+  m.innerHTML=items.map((x,i)=>`<div class="slash-item${i===0?' sel':''}" data-type="${x.type}">
+    <span style="width:28px;font-size:12px;font-weight:700;color:var(--sub);text-align:center">${x.icon}</span>${x.label}</div>`).join('');
+  m.querySelectorAll('.slash-item').forEach(it=>it.addEventListener('mousedown',e=>{e.preventDefault();const bid=_pSlashId;const pid=m._postId;if(bid)pChangeBlockType(bid,pid,it.dataset.type);pHideSlash();}));
+}
+function pSlashNav(d){
+  const m=document.getElementById('p-slash-menu');if(!m)return;
+  const items=m.querySelectorAll('.slash-item');
+  items[_pSlashSel]?.classList.remove('sel');
+  _pSlashSel=Math.max(0,Math.min(items.length-1,_pSlashSel+d));
+  items[_pSlashSel]?.classList.add('sel');
+  items[_pSlashSel]?.scrollIntoView({block:'nearest'});
+}
+function pSlashPick(blkId,postId){
+  const m=document.getElementById('p-slash-menu');if(!m)return;
+  const sel=m.querySelector('.slash-item.sel');
+  if(sel)pChangeBlockType(blkId,postId,sel.dataset.type);
+  pHideSlash();
+}
+function pHideSlash(){_pSlashId=null;_pSlashQ='';const m=document.getElementById('p-slash-menu');if(m)m.style.display='none';}
+
+let _pDragIdV=null;
+function pDragStart(e,id){_pDragIdV=id;e.dataTransfer.effectAllowed='move';setTimeout(()=>e.target.style.opacity='.4',0);}
+function pDragOver(e,id){e.preventDefault();e.dataTransfer.dropEffect='move';document.querySelectorAll('.bk-wrap').forEach(el=>el.style.borderTop='');if(id!==_pDragIdV){const el=document.querySelector(`[data-id="${id}"]`);if(el)el.style.borderTop='2px solid var(--ac)';}}
+function pDrop(e,targetId,postId){
+  e.preventDefault();
+  document.querySelectorAll('.bk-wrap').forEach(el=>{el.style.borderTop='';el.style.opacity='1';});
+  if(!_pDragIdV||_pDragIdV===targetId)return;
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  const fi=p.blocks.findIndex(x=>x.id===_pDragIdV);
+  const ti=p.blocks.findIndex(x=>x.id===targetId);
+  if(fi<0||ti<0)return;
+  const [moved]=p.blocks.splice(fi,1);
+  p.blocks.splice(ti,0,moved);
+  p.updatedAt=today();_pSave();
+  const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);
+  _pDragIdV=null;
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#p-slash-menu')&&!e.target.closest('.bk-content')&&!e.target.closest('.bk-add-btn'))pHideSlash();
+});
+
+// ─── MODAL SYSTEM ─────────────────────────────────
+function showModal(html,size){
+  const overlay=document.getElementById('modal');
+  const box=document.getElementById('modal-box');
+  box.className='mo-box'+(size==='lg'?' lg':size==='sm'?' sm':size==='xl'?' xl':'');
+  box.innerHTML=html;
+  overlay.style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';saveAppData().catch(()=>{});}
+function modalBgClick(e){if(e.target===document.getElementById('modal'))closeModal()}
+
+// ─── DATA PERSISTENCE (Firestore) ──────────────────
+const PERSIST_KEYS=['events','etypes','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','navLabels','nid'];
+
+// Firestore에 저장
+async function saveAppData(){
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    const d={};
+    PERSIST_KEYS.forEach(k=>{d[k]=S[k]});
+    await db.collection('appdata').doc('main').set(d);
+  }catch(e){
+    try{
+      const d={};PERSIST_KEYS.forEach(k=>{d[k]=S[k]});
+      localStorage.setItem('nds_data',JSON.stringify(d));
+    }catch{}
+    console.warn('Firestore 저장 실패, localStorage 백업 사용:', e);
+  }
+}
+
+// Firestore에서 불러오기
+async function loadAppData(){
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    const snap = await db.collection('appdata').doc('main').get();
+    if(snap.exists){
+      const d = snap.data();
+      PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
+      console.log('✅ Firestore에서 데이터 로드 완료');
+    } else {
+      // Firestore에 데이터 없으면 localStorage에서 마이그레이션
+      const raw=localStorage.getItem('nds_data');
+      if(raw){
+        const d=JSON.parse(raw);
+        PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
+        await saveAppData();
+        console.log('✅ localStorage → Firestore 마이그레이션 완료');
+      }
+    }
+  }catch(e){
+    try{
+      const raw=localStorage.getItem('nds_data');
+      if(raw){
+        const d=JSON.parse(raw);
+        PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
+      }
+    }catch{}
+    console.warn('Firestore 로드 실패, localStorage 사용:', e);
+  }
+  migrateSchedHistoryToWeekKey();
+}
+// 구버전(fromWeek 상대 오프셋) 근무스케줄 데이터를 절대 날짜 기준(weekKey)으로 1회 영구 변환.
+// 상대 오프셋은 시간이 지나면 가리키는 주가 달라져 데이터가 보이지 않게 되므로,
+// 로드 시점을 기준으로 한 번 변환해 저장해두면 이후로는 항상 정확하게 유지된다.
+function migrateSchedHistoryToWeekKey(){
+  let changed=false;
+  Object.keys(S.internSchedHistory||{}).forEach(name=>{
+    const list=S.internSchedHistory[name];
+    if(!Array.isArray(list))return;
+    list.forEach(e=>{
+      if(!e.weekKey&&e.fromWeek!==undefined){
+        e.weekKey=legacyFromWeekToKey(e.fromWeek);
+        delete e.fromWeek;
+        changed=true;
+      }
+    });
+    list.sort((a,b)=>(a.weekKey||'').localeCompare(b.weekKey||''));
+  });
+  if(changed)saveAppData().catch(()=>{});
+}
+
+// ─── SIDEBAR RESIZE ────────────────────────────────
+(function initSbResize(){
+  const handle=document.getElementById('sb-resizer');
+  if(!handle)return;
+  let startX,startW;
+  handle.addEventListener('mousedown',e=>{
+    startX=e.clientX;
+    startW=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sw'))||220;
+    handle.classList.add('dragging');
+    document.body.style.userSelect='none';
+    document.body.style.cursor='col-resize';
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+    e.preventDefault();
+  });
+  function onMove(e){
+    const w=Math.min(380,Math.max(160,startW+(e.clientX-startX)));
+    document.documentElement.style.setProperty('--sw',w+'px');
+  }
+  function onUp(){
+    handle.classList.remove('dragging');
+    document.body.style.userSelect='';
+    document.body.style.cursor='';
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+    localStorage.setItem('nds_sb_width',getComputedStyle(document.documentElement).getPropertyValue('--sw').trim());
+  }
+})();
+
+// ─── INIT ──────────────────────────────────────────
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+
+async function _initApp(){
+  // 로딩 표시
+  document.getElementById('login-page').innerHTML=`
+    <div style="text-align:center;color:var(--sub);font-size:14px">
+      <div style="margin-bottom:12px;font-size:24px">⏳</div>
+      데이터를 불러오는 중...
+    </div>`;
+
+  const savedSw=localStorage.getItem('nds_sb_width');
+  if(savedSw)document.documentElement.style.setProperty('--sw',savedSw);
+
+  // Firestore에서 데이터 로드
+  await loadAppData();
+
+  // 로그인 화면 복원
+  document.getElementById('login-page').innerHTML=`
+    <div class="lbox">
+      <h1>NDS 인트라넷</h1>
+      <p>비밀번호를 입력해 로그인하세요</p>
+      <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="new-password"></div>
+      <button class="lbtn" onclick="doLogin()">로그인</button>
+      <div class="lerr" id="lerr">비밀번호가 올바르지 않습니다.</div>
+    </div>`;
+
+  // 엔터키 이벤트 재등록
+  document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+  // 자동완성 값 강제 초기화
+  setTimeout(()=>{const el=document.getElementById('pw-input');if(el)el.value='';},200);
+
+  // 자동 저장
+  window.addEventListener('beforeunload',saveAppData);
+  setInterval(saveAppData,30000);
+
+  // 화면 회전/리사이즈 시 근무스케줄 타임테이블 폭 재계산
+  let _resizeTimer=null;
+  window.addEventListener('resize',()=>{
+    if(_resizeTimer)clearTimeout(_resizeTimer);
+    _resizeTimer=setTimeout(()=>{
+      if(S.page==='workschedule')renderWSTable();
+      if(S.page==='interns'){
+        const panel2=document.getElementById('intern-panel2');
+        if(panel2&&panel2.style.display!=='none')panel2.innerHTML=buildInternGrid('work');
+      }
+    },200);
+  });
+
+  // 세션 복원
+  try{const u=sessionStorage.getItem('nds_user');if(u){S.user=JSON.parse(u);startApp();}}catch{sessionStorage.removeItem('nds_user');}
+}
+
+// Firebase 준비 완료 후 앱 시작
+function _startWhenReady(){
+  if(window._db){
+    _initApp();
+  } else {
+    // _db가 아직 없으면 최대 3초 대기
+    let attempts = 0;
+    const check = setInterval(()=>{
+      attempts++;
+      if(window._db){
+        clearInterval(check);
+        _initApp();
+      } else if(attempts > 30){
+        clearInterval(check);
+        console.warn("Firebase 대기 초과, 앱 시작");
+        _initApp();
+      }
+    }, 100);
+  }
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', _startWhenReady);
+} else {
+  _startWhenReady();
+}
+</script>
+</body>
+</html>
