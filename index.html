@@ -548,7 +548,10 @@ function doLogin(){
   const err=document.getElementById('lerr');
   if(pw==='admin8062'||pw==='intern2026'){
     firebase.auth().signInAnonymously()
-      .then(()=>{
+      .then(async ()=>{
+        // 로그인(인증) 완료 후에야 Firestore 접근 권한이 생기므로,
+        // 여기서 데이터를 다시 불러와야 실제 저장된 내용이 반영됨
+        await loadAppData();
         S.user = pw==='admin8062' ? {name:'Admin',role:'admin'} : {name:'김지현',role:'intern'};
         sessionStorage.setItem('nds_user',JSON.stringify(S.user));
         startApp();
@@ -3167,23 +3170,43 @@ async function _initApp(){
   const savedSw=localStorage.getItem('nds_sb_width');
   if(savedSw)document.documentElement.style.setProperty('--sw',savedSw);
 
-  // Firestore에서 데이터 로드
-  await loadAppData();
+  // Firebase Auth 상태가 확정될 때까지 대기.
+  // (브라우저에 이전 익명 로그인 세션이 남아있는 경우, 이 시점에 자동으로 복원됨)
+  const authUser = await new Promise(resolve=>{
+    const unsub=firebase.auth().onAuthStateChanged(u=>{unsub();resolve(u);});
+  });
 
-  // 로그인 화면 복원
-  document.getElementById('login-page').innerHTML=`
-    <div class="lbox">
-      <h1>NDS 인트라넷</h1>
-      <p>비밀번호를 입력해 로그인하세요</p>
-      <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="new-password"></div>
-      <button class="lbtn" onclick="doLogin()">로그인</button>
-      <div class="lerr" id="lerr">비밀번호가 올바르지 않습니다.</div>
-    </div>`;
+  let sessionUser=null;
+  try{const u=sessionStorage.getItem('nds_user');if(u)sessionUser=JSON.parse(u);}catch{sessionStorage.removeItem('nds_user');}
 
-  // 엔터키 이벤트 재등록
-  document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-  // 자동완성 값 강제 초기화
-  setTimeout(()=>{const el=document.getElementById('pw-input');if(el)el.value='';},200);
+  if(authUser && sessionUser){
+    // 이미 인증되어 있고, 앱 로그인 세션도 남아있는 경우 → 데이터를 불러오고 바로 앱 시작
+    await loadAppData();
+    S.user=sessionUser;
+    startApp();
+    document.getElementById('login-page').innerHTML=`
+      <div class="lbox">
+        <h1>NDS 인트라넷</h1>
+        <p>비밀번호를 입력해 로그인하세요</p>
+        <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="new-password"></div>
+        <button class="lbtn" onclick="doLogin()">로그인</button>
+        <div class="lerr" id="lerr">비밀번호가 올바르지 않습니다.</div>
+      </div>`;
+    document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+  } else {
+    // 인증 전 상태 → 로그인 화면만 표시. 실제 데이터는 doLogin() 성공 후 불러옴.
+    sessionStorage.removeItem('nds_user');
+    document.getElementById('login-page').innerHTML=`
+      <div class="lbox">
+        <h1>NDS 인트라넷</h1>
+        <p>비밀번호를 입력해 로그인하세요</p>
+        <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="new-password"></div>
+        <button class="lbtn" onclick="doLogin()">로그인</button>
+        <div class="lerr" id="lerr">비밀번호가 올바르지 않습니다.</div>
+      </div>`;
+    document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+    setTimeout(()=>{const el=document.getElementById('pw-input');if(el)el.value='';},200);
+  }
 
   // 자동 저장
   window.addEventListener('beforeunload',saveAppData);
@@ -3201,9 +3224,6 @@ async function _initApp(){
       }
     },200);
   });
-
-  // 세션 복원
-  try{const u=sessionStorage.getItem('nds_user');if(u){S.user=JSON.parse(u);startApp();}}catch{sessionStorage.removeItem('nds_user');}
 }
 
 // Firebase 준비 완료 후 앱 시작
