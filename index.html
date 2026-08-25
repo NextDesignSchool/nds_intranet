@@ -210,7 +210,7 @@ tr:hover td{background:var(--hover)}
 .cal-cell.td .dnum{background:var(--ac);color:#fff}
 .cal-cell.sun .dnum{color:var(--re)}
 .cal-cell.sat .dnum{color:#3366AA}
-.cal-hol{font-size:10px;color:#E24B4A;line-height:1.2;word-break:keep-all;overflow:hidden;margin-bottom:1px}
+.cal-hol{font-size:10px;color:#E24B4A;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px}
 .cal-ev{font-size:11.5px;font-weight:500;padding:1px 5px;border-radius:2px;margin-bottom:1px;overflow:hidden;word-break:break-word;white-space:normal;cursor:pointer}
 .ev-행사{background:#F0EFFC;color:#5B5BD6}
 .ev-미팅{background:#EEF6F1;color:var(--gr)}
@@ -253,13 +253,12 @@ tr:hover td{background:var(--hover)}
 .cmt-form input{flex:1}
 .drop-zone{border:1px dashed var(--bd2);border-radius:8px;padding:28px;text-align:center;color:var(--sub);font-size:13px;cursor:pointer;transition:all .15s}
 .drop-zone:hover,.drop-zone.dragover{border-color:var(--sub);background:var(--hover)}
-.tg-table{width:100%;border-collapse:collapse}
+.tg-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .tg-table th,.tg-table td{border:1px solid var(--bd);text-align:center;font-size:12px;padding:0}
 .tg-table th{background:var(--hover);padding:5px;font-weight:500;color:var(--sub)}
 .tg-table tr:hover td{background:transparent}
-.tg-cell{height:30px;cursor:pointer;transition:background .08s}
+.tg-cell{min-height:30px;height:auto;cursor:pointer;transition:background .08s;white-space:normal;word-break:keep-all;overflow-wrap:break-word;line-height:1.3;padding:4px 3px}
 .tg-cell:hover{background:var(--hover) !important}
-.tg-cell:hover{background:var(--hover)}
 .tg-cell.sel{background:#F0EFFC;color:#5B5BD6;font-weight:600}
 #menu-toggle{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--card);border:1px solid var(--bd);border-radius:var(--r-sm);padding:7px 10px;cursor:pointer;font-size:16px}
 .pg-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
@@ -691,16 +690,27 @@ let _sbBoardOpen=true;
 function toggleBoardNav(e){if(e)e.stopPropagation();_sbBoardOpen=!_sbBoardOpen;renderSidebar();}
 function navigateBoardCat(id){_bCatFilter=id;navigate('board');}
 
+const ICONS={
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20a1 1 0 0 0 1 1H9a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1h2.5a1 1 0 0 0 1-1V9.5"/></svg>',
+  schedule:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3.5 9.5h17"/></svg>',
+  employees:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.3"/><path d="M3.5 20v-1.2A4.8 4.8 0 0 1 8.3 14h1.4a4.8 4.8 0 0 1 4.8 4.8V20"/><path d="M16 6.3a3.2 3.2 0 0 1 0 6.2"/><path d="M17.5 14.2a4.6 4.6 0 0 1 3 4.3V20"/></svg>',
+  board:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.3"/><rect x="13" y="3.5" width="7.5" height="7.5" rx="1.3"/><rect x="13" y="13" width="7.5" height="7.5" rx="1.3"/><rect x="3.5" y="13" width="7.5" height="7.5" rx="1.3"/></svg>',
+  projects:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.8" y="7.3" width="18.4" height="12.7" rx="1.8"/><path d="M8.3 7.3V5.6a1.8 1.8 0 0 1 1.8-1.8h3.8a1.8 1.8 0 0 1 1.8 1.8v1.7"/><path d="M2.8 12.2h18.4"/></svg>',
+  interns:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.7" width="12" height="17" rx="1.8"/><path d="M9 8.3h6M9 12.3h6M9 16.3h3.5"/></svg>',
+  workschedule:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12.5" r="8.3"/><path d="M12 8v4.5l3 2"/></svg>',
+  notice:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v3.5a1 1 0 0 0 1 1h1.6l3.6 4V5l-3.6 4H5a1 1 0 0 0-1 1Z"/><path d="M15.5 8.3a5.2 5.2 0 0 1 0 8"/><path d="M18.3 6a8.8 8.8 0 0 1 0 12.6"/></svg>',
+  worklog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 3H7.5a1.8 1.8 0 0 0-1.8 1.8v14.4A1.8 1.8 0 0 0 7.5 21h9a1.8 1.8 0 0 0 1.8-1.8V8.3Z"/><path d="M13.5 3v4.5a1 1 0 0 0 1 1H19M9 12.5h6M9 16h6"/></svg>'
+};
 const PAGES=[
-  {id:'home',label:'홈 대시보드',role:'all',section:'메인',icon:'🏠'},
-  {id:'schedule',label:'일정관리',role:'admin',section:'메인',icon:'📅'},
-  {id:'employees',label:'직원 관리',role:'admin',section:'직원 관리',icon:'👤'},
-  {id:'board',label:'게시판',role:'admin',section:'직원 관리',icon:'🗂'},
-  {id:'projects',label:'프로젝트 관리',role:'admin',section:'직원 관리',icon:'🗃'},
-  {id:'interns',label:'인턴 목록',role:'admin',section:'인턴관리',icon:'📋'},
-  {id:'workschedule',label:'근무스케줄',role:'all',section:'인턴관리',icon:'🗓'},
-  {id:'notice',label:'인턴 공지',role:'all',section:'인턴관리',icon:'📢'},
-  {id:'worklog',label:'근무일지',role:'all',section:'인턴관리',icon:'📝'},
+  {id:'home',label:'홈 대시보드',role:'all',section:'메인',icon:ICONS.home},
+  {id:'schedule',label:'일정관리',role:'admin',section:'메인',icon:ICONS.schedule},
+  {id:'employees',label:'직원 관리',role:'admin',section:'직원 관리',icon:ICONS.employees},
+  {id:'board',label:'게시판',role:'admin',section:'직원 관리',icon:ICONS.board},
+  {id:'projects',label:'프로젝트 관리',role:'admin',section:'직원 관리',icon:ICONS.projects},
+  {id:'interns',label:'인턴 목록',role:'admin',section:'인턴관리',icon:ICONS.interns},
+  {id:'workschedule',label:'근무스케줄',role:'all',section:'인턴관리',icon:ICONS.workschedule},
+  {id:'notice',label:'인턴 공지',role:'all',section:'인턴관리',icon:ICONS.notice},
+  {id:'worklog',label:'근무일지',role:'all',section:'인턴관리',icon:ICONS.worklog},
 ];
 function renderSidebar(){
   const nav=document.getElementById('sb-nav');
@@ -948,8 +958,8 @@ function renderCalendar(container,month,onAddEvent){
     const rowH=22;
     const evLabel=e=>{
       const typePart=e.type?`[${esc(e.type)}] `:'';
-      const timePart=e.time&&e.startTime?`<span style="font-size:9px;opacity:.7;margin-left:4px">${esc(e.startTime)}</span>`:'';
-      return `${typePart}${esc(e.title)}${timePart}`;
+      const timePart=e.time&&e.startTime?`<span style="font-size:9px;opacity:.7;flex-shrink:0;margin-left:3px">${esc(e.startTime)}</span>`:'';
+      return `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${typePart}${esc(e.title)}</span>${timePart}`;
     };
     assigned.forEach(({e,cs,ce,lane,isMulti})=>{
       const left=colW*cs;
@@ -959,9 +969,9 @@ function renderCalendar(container,month,onAddEvent){
         const isFirst=e.start>=wS,isLast=e.end<=wE;
         const r=isFirst&&isLast?'4px':isFirst?'4px 0 0 4px':isLast?'0 4px 4px 0':'0';
         const ml=isFirst?2:0,mr=isLast?2:0;
-        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:20px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;cursor:pointer;font-size:11px;border-radius:${r}" onclick="event.stopPropagation();openEventDetail(${e.id})">${isFirst?evLabel(e):''}</div>`;
+        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:20px;line-height:20px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:11px;border-radius:${r}" onclick="event.stopPropagation();openEventDetail(${e.id})">${isFirst?evLabel(e):''}</div>`;
       } else {
-        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:20px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;cursor:pointer;font-size:11px;border-radius:4px" onclick="event.stopPropagation();openEventDetail(${e.id})">${evLabel(e)}</div>`;
+        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:20px;line-height:20px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:11px;border-radius:4px" onclick="event.stopPropagation();openEventDetail(${e.id})">${evLabel(e)}</div>`;
       }
     });
     html+=`</div></div>`;
@@ -1104,9 +1114,9 @@ function renderMiniCal(){
   }
   panel.innerHTML=`
     <div class="mini-cal-hd">
-      <button class="mini-cal-nav" onclick="mcNav(-1)">‹</button>
+      <button class="mini-cal-nav" onclick="event.stopPropagation();mcNav(-1)">‹</button>
       <span class="mini-cal-title">${y}년 ${m+1}월</span>
-      <button class="mini-cal-nav" onclick="mcNav(1)">›</button>
+      <button class="mini-cal-nav" onclick="event.stopPropagation();mcNav(1)">›</button>
     </div>
     <div class="mini-cal-grid">
       ${['일','월','화','수','목','금','토'].map(d=>`<div class="mini-cal-dn">${d}</div>`).join('')}
@@ -1140,8 +1150,12 @@ function openAddEvent(dateStr){
     <div id="ev-time-row" style="display:none" class="fr">
       <label>시작시간</label><input type="time" id="ev-stime">
     </div>
-    <div class="fr"><label style="display:flex;align-items:center;justify-content:space-between">종류<button class="btn-g" onclick="openEtypeModal(null)">수정</button></label>
-    <select id="ev-type"><option value="">선택</option>${S.etypes.map(t=>`<option>${esc(t)}</option>`).join('')}</select></div>
+    <div class="fr"><label>종류</label>
+    <div style="display:flex;gap:6px">
+      <select id="ev-type" style="flex:1"><option value="">선택</option>${S.etypes.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
+      <button type="button" class="btn btn-o btn-sm" onclick="editSelectedEtype()" title="선택한 종류 이름 수정">수정</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">+ 추가</button>
+    </div></div>
     <div class="fr"><label>내용</label><textarea id="ev-content" rows="3" placeholder="내용 입력"></textarea></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveEvent()">저장</button></div>`);
@@ -1163,8 +1177,12 @@ function openEditEvent(id){
     <div id="ev-time-row" style="display:${e.time?'block':'none'}" class="fr">
       <label>시작시간</label><input type="time" id="ev-stime" value="${e.startTime||''}">
     </div>
-    <div class="fr"><label style="display:flex;align-items:center;justify-content:space-between">종류<button class="btn-g" onclick="openEtypeModal(${id})">수정</button></label>
-    <select id="ev-type"><option value="">선택</option>${S.etypes.map(t=>`<option${t===e.type?' selected':''}>${esc(t)}</option>`).join('')}</select></div>
+    <div class="fr"><label>종류</label>
+    <div style="display:flex;gap:6px">
+      <select id="ev-type" style="flex:1"><option value="">선택</option>${S.etypes.map(t=>`<option${t===e.type?' selected':''}>${esc(t)}</option>`).join('')}</select>
+      <button type="button" class="btn btn-o btn-sm" onclick="editSelectedEtype()" title="선택한 종류 이름 수정">수정</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">+ 추가</button>
+    </div></div>
     <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${esc(e.content)}</textarea></div>
   </div>
   <div class="mo-ft"><button class="btn btn-d btn-sm" onclick="deleteEvent(${id});closeModal()">삭제</button>
@@ -1207,77 +1225,31 @@ function deleteEvent(id){
   else if(S.page==='schedule')renderSchedulePage();
   saveAppData().catch(()=>{});
 }
-let _evFormBackup=null,_evFormBackupId=null;
-function _captureEventForm(){
-  const g=x=>document.getElementById(x);
-  if(!g('ev-title'))return null;
-  return{
-    title:g('ev-title').value,start:g('ev-start').value,end:g('ev-end').value,
-    time:g('ev-time').checked,stime:g('ev-stime')?g('ev-stime').value:'',
-    type:g('ev-type').value,content:g('ev-content').value
-  };
+// 종류(일정 유형)를 수정/추가할 때 별도 모달을 띄우지 않고, 지금 열려있는
+// 일정 추가/수정 모달 안에서 바로 처리함. (모달을 하나만 띄울 수 있는 구조라
+// 예전처럼 별도 "종류 관리" 모달을 열면 일정 폼이 사라지는 문제가 있었음 — 그
+// 문제를 원천적으로 피하기 위해 모달을 새로 열지 않는 방식으로 변경함)
+function refreshEtypeSelect(selectVal){
+  const sel=document.getElementById('ev-type');if(!sel)return;
+  sel.innerHTML='<option value="">선택</option>'+S.etypes.map(t=>`<option${t===selectVal?' selected':''}>${esc(t)}</option>`).join('');
 }
-function openEtypeModal(id){
-  // 종류 관리 모달을 열기 전, 지금 작성 중이던 일정 폼 내용을 잠깐 저장해둠.
-  // (이 앱은 모달을 한 번에 하나만 띄울 수 있는 구조라, 종류 관리 모달을 닫을 때
-  //  원래 쓰던 일정 추가/수정 모달로 그대로 돌아가려면 내용을 복원해줘야 함)
-  _evFormBackup=_captureEventForm();
-  _evFormBackupId=id||null;
-  showModal(`<div class="mo-hd"><h3>종류 관리</h3><button class="mo-cl" onclick="closeEtypeModal()">×</button></div>
-  <div class="mo-bd">
-    <div id="etype-list">${renderEtypeList()}</div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <input id="new-etype" placeholder="새 종류 이름" style="flex:1">
-      <button class="btn btn-p" onclick="addEtype()">추가</button>
-    </div>
-  </div>
-  <div class="mo-ft"><button class="btn btn-p" onclick="closeEtypeModal()">완료</button></div>`,'sm');
-}
-function closeEtypeModal(){
-  closeModal();
-  const backup=_evFormBackup;
-  const backupId=_evFormBackupId;
-  _evFormBackup=null;_evFormBackupId=null;
-  if(!backup)return;
-  if(backupId)openEditEvent(backupId);
-  else openAddEvent(backup.start||null);
-  setTimeout(()=>{
-    const g=x=>document.getElementById(x);
-    if(!g('ev-title'))return;
-    g('ev-title').value=backup.title;
-    g('ev-start').value=backup.start;
-    g('ev-end').value=backup.end;
-    g('ev-time').checked=backup.time;
-    toggleEvTime();
-    if(g('ev-stime'))g('ev-stime').value=backup.stime;
-    g('ev-type').value=backup.type;
-    g('ev-content').value=backup.content;
-  },20);
-}
-function renderEtypeList(){
-  return S.etypes.map((t,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bd)">
-    <span>${esc(t)}</span>
-    <span style="display:flex;gap:4px">
-      <button class="btn btn-o btn-sm" onclick="editEtype(${i})">수정</button>
-      ${i>3?`<button class="btn btn-d btn-sm" onclick="delEtype(${i})">삭제</button>`:''}
-    </span>
-  </div>`).join('');
-}
-function editEtype(i){
-  const cur=S.etypes[i];
+function editSelectedEtype(){
+  const sel=document.getElementById('ev-type');if(!sel)return;
+  const cur=sel.value;
+  if(!cur){alert('수정할 종류를 먼저 선택해주세요.');return;}
+  const idx=S.etypes.indexOf(cur);
+  if(idx===-1)return;
   const v=prompt('종류 이름 수정:',cur);
   if(v===null||!v.trim())return;
-  S.etypes[i]=v.trim();
-  document.getElementById('etype-list').innerHTML=renderEtypeList();
+  S.etypes[idx]=v.trim();
+  refreshEtypeSelect(v.trim());
 }
-function addEtype(){
-  const v=document.getElementById('new-etype').value.trim();
-  if(!v)return;
-  S.etypes.push(v);
-  document.getElementById('etype-list').innerHTML=renderEtypeList();
-  document.getElementById('new-etype').value='';
+function addEtypeInline(){
+  const v=prompt('새 종류 이름:');
+  if(v===null||!v.trim())return;
+  if(!S.etypes.includes(v.trim()))S.etypes.push(v.trim());
+  refreshEtypeSelect(v.trim());
 }
-function delEtype(i){S.etypes.splice(i,1);document.getElementById('etype-list').innerHTML=renderEtypeList()}
 
 // ─── EMPLOYEES ────────────────────────────────────
 function calcAutoLeave(startDateStr){
@@ -1339,6 +1311,22 @@ function renderEmployees(){
         </td>
       </tr>`).join('')}
       </tbody></table></div>`:'<div style="color:var(--sub);font-size:13px">내역 없음</div>'}
+    </div>
+    <div style="margin-top:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="ctitle" style="margin:0;font-size:13px">이슈</div>
+        <button class="btn btn-g" style="font-size:12px" onclick="toggleEmpIssueForm(${e.id})">+ 이슈 추가</button>
+      </div>
+      <div id="emp-issue-form-${e.id}" style="display:none;gap:8px;margin-bottom:10px" class="fr-row">
+        <div style="flex:0 0 150px"><input type="date" id="emp-issue-date-${e.id}" value="${today()}"></div>
+        <div style="flex:1"><input id="emp-issue-content-${e.id}" placeholder="이슈 내용 입력"></div>
+        <button class="btn btn-p btn-sm" style="flex:0 0 auto" onclick="saveEmpIssue(${e.id})">저장</button>
+      </div>
+      ${(e.issues||[]).length?(e.issues||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).map(iss=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:13px">
+        <span style="color:var(--sub);flex:0 0 auto">${fmtDisp(iss.date)}</span>
+        <span style="flex:1">${esc(iss.content)}</span>
+        <button class="btn btn-g" style="font-size:11px;flex:0 0 auto" onclick="deleteEmpIssue(${e.id},${iss.id})">삭제</button>
+      </div>`).join(''):'<div style="color:var(--sub);font-size:13px">등록된 이슈가 없습니다</div>'}
     </div>
   </div>`).join('');
   p.innerHTML=`<div class="pg-hd">
@@ -1437,6 +1425,29 @@ function deleteEmployee(id){
   if(!confirm('직원을 삭제하시겠습니까?'))return;
   S.employees=S.employees.filter(x=>x.id!==id);
   closeModal();renderEmployees();
+}
+function toggleEmpIssueForm(empId){
+  const el=document.getElementById(`emp-issue-form-${empId}`);
+  if(!el)return;
+  const showing=el.style.display==='flex';
+  el.style.display=showing?'none':'flex';
+  if(!showing){const inp=document.getElementById(`emp-issue-content-${empId}`);if(inp)setTimeout(()=>inp.focus(),20);}
+}
+function saveEmpIssue(empId){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const date=document.getElementById(`emp-issue-date-${empId}`).value;
+  const content=document.getElementById(`emp-issue-content-${empId}`).value.trim();
+  if(!content){alert('이슈 내용을 입력해주세요');return}
+  if(!e.issues)e.issues=[];
+  e.issues.push({id:newId(),date:date||today(),content});
+  renderEmployees();
+  saveAppData().catch(()=>{});
+}
+function deleteEmpIssue(empId,issueId){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  e.issues=(e.issues||[]).filter(x=>x.id!==issueId);
+  renderEmployees();
+  saveAppData().catch(()=>{});
 }
 function openEditLeave(empId,leaveId){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
@@ -1786,7 +1797,7 @@ function buildTTGridHtml(internId){
   const DAYS=['월','화','수','목','금'];
   const TIMES=['10','11','12','13','14','15','16','17','18'];
   const gs=window._ttGridState||{};
-  return `<div style="overflow-x:auto"><table class="tg-table"><thead><tr><th></th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>
+  return `<div style="overflow-x:auto"><table class="tg-table"><colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup><thead><tr><th></th>${DAYS.map(d=>`<th>${d}</th>`).join('')}</tr></thead><tbody>
     ${TIMES.map(h=>`<tr><th style="white-space:nowrap;font-size:11px">${h}:00~${parseInt(h)+1}:00</th>${DAYS.map(d=>{const k=`${d}-${parseInt(h)}`;const st=gs[k];const txt=typeof st==='string'?st:'';const sel=st?' sel':'';return `<td class="tg-cell${sel}" onclick="tgToggle('${d}',${parseInt(h)},${internId})" ondblclick="tgEdit(this,'${d}',${parseInt(h)},${internId})" data-d="${d}" data-h="${parseInt(h)}">${txt}</td>`;}).join('')}</tr>`).join('')}
   </tbody></table></div>`;
 }
