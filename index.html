@@ -1564,7 +1564,7 @@ function openManualLeaveGrant(){
     <div class="fr"><label>직원</label><select id="mg-emp">${S.employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}</select></div>
     <div class="fr"><label>종류</label><select id="mg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
     <div class="fr fr-row">
-      <div><label>사용 일수</label><input type="number" id="mg-days" value="1" min="0.5" step="0.5"></div>
+      <div><label>부여 일수</label><input type="number" id="mg-days" value="1" min="0.5" step="0.5"></div>
       <div><label>사용 기한</label><input type="date" id="mg-expiry"></div>
     </div>
     <div class="fr"><label>사유</label><input id="mg-reason" placeholder="사유 입력"></div>
