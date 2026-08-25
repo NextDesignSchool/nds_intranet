@@ -1894,7 +1894,10 @@ function buildInternGrid(mode){
     });
   });
   const trows=TIMES.map(h=>`<tr style="height:${RH}px">
-    <td style="width:90px;min-width:90px;font-size:11px;color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;height:${RH}px;padding:0">${h}:00~${parseInt(h)+1}:00</td>
+    <td style="width:90px;min-width:90px;font-size:11px;color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;height:${RH}px;padding:0">
+      <div>${h}:00~${parseInt(h)+1}:00</div>
+      <div style="font-size:10px;color:var(--sub2);margin-top:2px">${parseInt(h)-8}교시</div>
+    </td>
     ${DAYS.map(d=>{
       const list=slots[`${d}-${parseInt(h)}`]||[];
       const chips=list.map(x=>`<span style="display:inline-block;background:${COLORS[x.ci]};color:${TXCOLORS[x.ci]};border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px;white-space:nowrap">${x.name}</span>`).join('');
