@@ -574,6 +574,14 @@ function isAdmin(){return S.user&&S.user.role==='admin'}
 // 사용자가 입력한 텍스트를 화면에 안전하게 표시하기 위한 이스케이프 함수.
 // 공지/근무일지/댓글처럼 사람이 직접 입력하는 값은 반드시 이 함수를 거쳐서 출력해야
 // <script> 같은 태그가 그대로 실행되는 걸 막을 수 있음 (XSS 방지).
+// 전화번호 입력칸에서 숫자만 남기고 3-4-4(또는 짧은 번호는 3-3-4) 형태로 자동으로 대시를 넣어줌
+function formatPhoneInput(el){
+  let d=el.value.replace(/[^\d]/g,'').slice(0,11);
+  let out=d;
+  if(d.length>=8)out=d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+  else if(d.length>=4)out=d.slice(0,3)+'-'+d.slice(3);
+  el.value=out;
+}
 function esc(str){
   const div=document.createElement('div');
   div.textContent=str==null?'':String(str);
@@ -1449,7 +1457,7 @@ function openEmpDetail(id){
   <div class="mo-bd">
     <div class="fr"><label>이름</label><input id="ed-name" value="${e.name}"></div>
     <div class="fr"><label>입사일</label><input type="date" id="ed-start" value="${e.startDate}"></div>
-    <div class="fr"><label>연락처</label><input id="ed-phone" value="${e.phone}"></div>
+    <div class="fr"><label>연락처</label><input id="ed-phone" value="${e.phone}" oninput="formatPhoneInput(this)"></div>
     <div class="fr"><label>이메일</label><input id="ed-email" value="${e.email}"></div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
       <input type="checkbox" id="ed-auto" style="width:auto;accent-color:var(--ac)" ${autoOn?'checked':''}>
@@ -1549,7 +1557,7 @@ function openAddEmp(){
   <div class="mo-bd">
     <div class="fr"><label>이름</label><input id="ae-name" placeholder="홍길동"></div>
     <div class="fr"><label>입사일</label><input type="date" id="ae-start" value="${today()}" oninput="updateLeavePreview()"></div>
-    <div class="fr"><label>연락처</label><input id="ae-phone" placeholder="010-0000-0000"></div>
+    <div class="fr"><label>연락처</label><input id="ae-phone" placeholder="010-0000-0000" oninput="formatPhoneInput(this)"></div>
     <div class="fr"><label>이메일</label><input id="ae-email" placeholder="email@nds.com"></div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
       <input type="checkbox" id="ae-auto" style="width:auto;accent-color:var(--ac)" checked onchange="updateLeavePreview()">
@@ -1729,7 +1737,7 @@ function openInternDetail(id){
   <div class="mo-bd">
     <div class="fr fr-row"><div><label>이름</label><input id="id-name" value="${i.name}"></div><div><label>생년월일</label><input type="date" id="id-birth" value="${i.birth}"></div></div>
     <div class="fr fr-row"><div><label>학교</label><input id="id-school" value="${i.school}"></div><div><label>전공</label><input id="id-major" value="${i.major}"></div></div>
-    <div class="fr fr-row"><div><label>연락처</label><input id="id-phone" value="${i.phone}"></div><div><label>근무시작일</label><input type="date" id="id-start" value="${i.startDate}"></div></div>
+    <div class="fr fr-row"><div><label>연락처</label><input id="id-phone" value="${i.phone}" oninput="formatPhoneInput(this)"></div><div><label>근무시작일</label><input type="date" id="id-start" value="${i.startDate}"></div></div>
     <div class="fr fr-row"><div><label>근무형태</label><select id="id-type"><option${i.type==='국가근로'?' selected':''}>국가근로</option><option${i.type==='일반인턴'?' selected':''}>일반인턴</option><option${i.type==='계약직'?' selected':''}>계약직</option></select></div>
     <div><label>월누적시간</label><input type="number" id="id-accum" value="${i.monthAccum}"></div></div>
   </div>
@@ -1753,7 +1761,7 @@ function openAddIntern(){
   <div class="mo-bd">
     <div class="fr fr-row"><div><label>이름</label><input id="ai-name" placeholder="이름"></div><div><label>생년월일</label><input type="date" id="ai-birth"></div></div>
     <div class="fr fr-row"><div><label>학교</label><input id="ai-school" placeholder="학교명"></div><div><label>전공</label><input id="ai-major" placeholder="전공"></div></div>
-    <div class="fr fr-row"><div><label>연락처</label><input id="ai-phone" placeholder="010-0000-0000"></div><div><label>근무시작일</label><input type="date" id="ai-start" value="${today()}"></div></div>
+    <div class="fr fr-row"><div><label>연락처</label><input id="ai-phone" placeholder="010-0000-0000" oninput="formatPhoneInput(this)"></div><div><label>근무시작일</label><input type="date" id="ai-start" value="${today()}"></div></div>
     <div class="fr fr-row"><div><label>근무형태</label><select id="ai-type"><option>국가근로</option><option>일반인턴</option><option>계약직</option></select></div>
     <div><label>학기</label><input id="ai-sem" placeholder="2026년 1학기"></div></div>
   </div>
@@ -2510,12 +2518,25 @@ function saveNotice(id){
   else S.notices.unshift({id:newId(),title,content,pinned,author:S.user.name,date:today(),comments:[]});
   closeModal();renderNotice();
 }
+function renderCmt(c,type,itemId){
+  const canDel=isAdmin()||c.author===S.user.name;
+  return `<div class="cmt">
+    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}${canDel?` · <button class="btn-g" style="font-size:11px;padding:0" onclick="deleteComment('${type}',${itemId},${c.id})">삭제</button>`:''}</div>
+    <div class="cmt-text">${esc(c.text)}</div>
+  </div>`;
+}
+function deleteComment(type,itemId,commentId){
+  if(!confirm('댓글을 삭제하시겠습니까?'))return;
+  const arr=type==='notice'?S.notices:S.workLogs;
+  const item=arr.find(x=>x.id===itemId);if(!item)return;
+  item.comments=item.comments.filter(c=>c.id!==commentId);
+  const el=document.getElementById('cmt-list');
+  if(el)el.innerHTML=item.comments.map(c=>renderCmt(c,type,itemId)).join('');
+  saveAppData().catch(()=>{});
+}
 function openNoticeDetail(id){
   const n=S.notices.find(x=>x.id===id);if(!n)return;
-  const cmts=n.comments.map(c=>`<div class="cmt">
-    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}</div>
-    <div class="cmt-text">${esc(c.text)}</div>
-  </div>`).join('');
+  const cmts=n.comments.map(c=>renderCmt(c,'notice',id)).join('');
   showModal(`<div class="mo-hd"><h3>${n.pinned?'📌 ':''}${esc(n.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${esc(n.author)} · ${fmtDisp(n.date)}${n.pinned?' · <span style="color:var(--or)">고정됨</span>':''}</div>
@@ -2550,7 +2571,7 @@ function renderWorkLog(){
     <div class="bi-meta">${esc(l.author)} · ${fmtDisp(l.date)} · 댓글 ${l.comments.length}</div>
   </div>`).join('');
   p.innerHTML=`<div class="pg-hd" style="justify-content:flex-end">
-    <button class="btn btn-p btn-sm" onclick="openWriteLog()">+ 작성</button>
+    <button class="btn btn-p" onclick="openWriteLog()">+ 작성</button>
   </div>
   <div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 근무일지가 없습니다.</div>'}</div>`;
 }
@@ -2604,10 +2625,7 @@ function openWorkLogDetail(id){
   const l=S.workLogs.find(x=>x.id===id);if(!l)return;
   const canEdit=isAdmin()||(l.author===S.user.name);
   const canDelete=isAdmin();
-  const cmts=l.comments.map(c=>`<div class="cmt">
-    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}</div>
-    <div class="cmt-text">${esc(c.text)}</div>
-  </div>`).join('');
+  const cmts=l.comments.map(c=>renderCmt(c,'worklog',id)).join('');
   const openSubHtml=l.tasks.open&&l.tasks.openItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0 8px">${OPEN_ITEMS.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${l.tasks.openItems[i]?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.openItems[i]?'checked':''} disabled>${item}</div>`).join('')}</div>`:'';
   const closeSubHtml=l.tasks.close&&l.tasks.closeItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0">${CLOSE_ITEMS.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${l.tasks.closeItems[i]?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.closeItems[i]?'checked':''} disabled>${item}</div>`).join('')}</div>`:'';
   showModal(`<div class="mo-hd"><h3>${esc(l.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
@@ -2664,10 +2682,7 @@ function postComment(type,id,text){
   const item=arr.find(x=>x.id===id);
   if(!item)return;
   item.comments.push({id:newId(),author:S.user.name,text,date:today()});
-  const cmts=item.comments.map(c=>`<div class="cmt">
-    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}</div>
-    <div class="cmt-text">${esc(c.text)}</div>
-  </div>`).join('');
+  const cmts=item.comments.map(c=>renderCmt(c,type,id)).join('');
   const el=document.getElementById('cmt-list');
   if(el)el.innerHTML=cmts;
   saveAppData().catch(()=>{});
@@ -3475,10 +3490,10 @@ function renderSettlement(){
   const list=S.settlements.filter(s=>_stTab==='pending'?!s.done:!!s.done);
   const cell=(s,field,ph)=>`<div class="st-cell" contenteditable="true" data-ph="${ph}" onblur="stSetField(${s.id},'${field}',this.innerText.trim())">${esc(s[field]||'')}</div>`;
   const rowHtml=s=>`<tr data-sid="${s.id}">
+    <td style="text-align:center"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${s.done?'checked':''} onchange="stToggleDone(${s.id},this.checked)"></td>
     <td>${cell(s,'content','내용')}</td>
     <td>${cell(s,'name','이름')}</td>
-    <td>${cell(s,'amount','금액')}</td>
-    <td style="text-align:center"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${s.done?'checked':''} onchange="stToggleDone(${s.id},this.checked)"></td>
+    <td><input value="${esc(s.amount||'').replace(/"/g,'&quot;')}" placeholder="금액" inputmode="numeric" oninput="stFormatAmount(this)" onblur="stSetField(${s.id},'amount',this.value)" style="border:none;background:transparent;text-align:center;width:100%"></td>
     <td>${cell(s,'tax','예: 3.3%')}</td>
     <td>${cell(s,'account','계좌번호')}</td>
     <td>${cell(s,'note','비고')}</td>
@@ -3492,14 +3507,20 @@ function renderSettlement(){
   <div class="card" style="padding:0;overflow-x:auto">
     <table class="st-table-fixed">
       <colgroup>
-        <col style="width:26%"><col style="width:8%"><col style="width:11%"><col style="width:56px">
+        <col style="width:56px"><col style="width:26%"><col style="width:8%"><col style="width:11%">
         <col style="width:11%"><col style="width:14%"><col style="width:18%"><col style="width:40px">
       </colgroup>
-      <thead><tr><th style="text-align:center">내용</th><th style="text-align:center">이름</th><th style="text-align:center">금액</th><th style="text-align:center">정산</th><th style="text-align:center">세금 처리 방식</th><th style="text-align:center">계좌번호</th><th style="text-align:center">비고</th><th></th></tr></thead>
+      <thead><tr><th style="text-align:center">정산</th><th style="text-align:center">내용</th><th style="text-align:center">이름</th><th style="text-align:center">금액</th><th style="text-align:center">세금 처리 방식</th><th style="text-align:center">계좌번호</th><th style="text-align:center">비고</th><th></th></tr></thead>
       <tbody>${rows||'<tr><td colspan="8" style="color:var(--sub);text-align:center;padding:24px">항목이 없습니다</td></tr>'}</tbody>
     </table>
     <div style="padding:8px 10px;border-top:1px solid var(--bd)"><button class="btn-g" onclick="stAddRow()">+ 내용 추가</button></div>
   </div>`;
+}
+// 금액 입력칸에 숫자만 남기고 천 단위마다 콤마를 자동으로 넣어줌
+function stFormatAmount(el){
+  const digits=el.value.replace(/[^\d]/g,'');
+  const withComma=digits?Number(digits).toLocaleString('ko-KR'):'';
+  el.value=withComma;
 }
 function stSwitchTab(tab){_stTab=tab;renderSettlement();}
 function stAddRow(){
