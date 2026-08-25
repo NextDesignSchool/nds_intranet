@@ -46,13 +46,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 .sb-logo span{font-size:13px;font-weight:600;color:var(--tx);line-height:1.4;letter-spacing:.01em}
 .sb-nav{flex:1;overflow-y:auto;padding:2px 0 10px}
 .nav-sec-title{font-size:10px;font-weight:600;color:var(--sub2);padding:14px 14px 4px;letter-spacing:.08em;text-transform:uppercase}
-.nv{display:flex;align-items:center;gap:7px;padding:5px 10px;margin:1px 6px;font-size:13px;font-weight:500;cursor:pointer;transition:background .1s;border-radius:6px;color:var(--tx)}
+.nv{display:flex;align-items:center;gap:9px;padding:8px 12px;margin:1px 6px;font-size:14.5px;font-weight:500;cursor:pointer;transition:background .1s;border-radius:6px;color:var(--tx)}
 .nv:hover{background:var(--hover)}
 .nv.active{background:var(--sel);color:var(--tx);font-weight:600}
-.nv-sub{display:flex;align-items:center;padding:4px 10px 4px 30px;margin:0 6px;font-size:12.5px;font-weight:400;cursor:pointer;color:var(--sub);border-radius:6px;transition:background .1s}
+.nv-sub{display:flex;align-items:center;padding:6px 10px 6px 32px;margin:0 6px;font-size:13.5px;font-weight:400;cursor:pointer;color:var(--sub);border-radius:6px;transition:background .1s}
 .nv-sub:hover{background:var(--hover);color:var(--tx)}
 .nv-sub.active{background:var(--sel);color:var(--tx);font-weight:500}
-.nv svg{width:14px;height:14px;flex-shrink:0;opacity:.45}
+.nv svg{width:16px;height:16px;flex-shrink:0;opacity:.45}
 .nv.active svg{opacity:.7}
 .nv-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .nv-label-input{outline:none}
@@ -62,7 +62,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 .lout-btn{width:100%;margin-top:10px;padding:7px;background:transparent;border:1px solid var(--bd);border-radius:6px;font-size:12px;color:var(--sub);transition:all .15s}
 .lout-btn:hover{background:var(--hover);color:var(--re);border-color:var(--re)}
 #main{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column}
-#topbar{background:var(--card);border-bottom:1px solid var(--bd);padding:13px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+#topbar{background:transparent;border-bottom:none;padding:14px 28px 6px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
 #topbar h2{font-size:14.5px;font-weight:600;color:var(--tx)}
 #topbar .tdate{font-size:12px;color:var(--sub)}
 #content{padding:28px 32px;flex:1}
@@ -550,6 +550,12 @@ function esc(str){
   div.textContent=str==null?'':String(str);
   return div.innerHTML;
 }
+// 게시판/프로젝트 에디터(contentEditable)에서 브라우저가 종종 남기는 보이지 않는 문자(zero-width space 등)를
+// 제거한 텍스트를 돌려줌. 이게 남아있으면 "블록이 비어있다"는 판정이 안 돼서 백스페이스로 삭제가 안 되거나,
+// "/"만 입력한 것으로 인식이 안 돼 슬래시 메뉴가 안 뜨는 문제가 생김.
+function _cleanEditText(s){
+  return (s||'').replace(/[\u200B\u200C\u200D\uFEFF]/g,'');
+}
 
 // 로그인 폼을 화면에 그림 (매번 완전히 새로 그려서, 아이디/비밀번호 칸에
 // 이전 로그인 시도의 값이 남아있는 일이 없도록 함)
@@ -918,6 +924,10 @@ function renderCalendar(container,month,onAddEvent){
     for(let ci=0;ci<7;ci++)html+=`<div class="cal-evcol"></div>`;
     const colW=100/7;
     const rowH=22;
+    const evLabel=e=>{
+      const t=e.time&&e.startTime?esc(e.startTime)+' ':'';
+      return `${t}[${esc(e.type)}] ${esc(e.title)}`;
+    };
     assigned.forEach(({e,cs,ce,lane,isMulti})=>{
       const left=colW*cs;
       const width=colW*(ce-cs+1);
@@ -926,9 +936,9 @@ function renderCalendar(container,month,onAddEvent){
         const isFirst=e.start>=wS,isLast=e.end<=wE;
         const r=isFirst&&isLast?'4px':isFirst?'4px 0 0 4px':isLast?'0 4px 4px 0':'0';
         const ml=isFirst?2:0,mr=isLast?2:0;
-        html+=`<div class="cal-ev ev-${e.type}" style="position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:20px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;cursor:pointer;font-size:11px;border-radius:${r}" onclick="event.stopPropagation();openEventDetail(${e.id})">${isFirst?e.title:''}</div>`;
+        html+=`<div class="cal-ev ev-${e.type}" style="position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:20px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;cursor:pointer;font-size:11px;border-radius:${r}" onclick="event.stopPropagation();openEventDetail(${e.id})">${isFirst?evLabel(e):''}</div>`;
       } else {
-        html+=`<div class="cal-ev ev-${e.type}" style="position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:20px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;cursor:pointer;font-size:11px;border-radius:4px" onclick="event.stopPropagation();openEventDetail(${e.id})">${e.title}</div>`;
+        html+=`<div class="cal-ev ev-${e.type}" style="position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:20px;line-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 6px;cursor:pointer;font-size:11px;border-radius:4px" onclick="event.stopPropagation();openEventDetail(${e.id})">${evLabel(e)}</div>`;
       }
     });
     html+=`</div></div>`;
@@ -1019,10 +1029,10 @@ function renderScheduleTable(){
   const evs=[...S.events].sort(sortFn);
   tb.innerHTML=evs.map(e=>`<tr>
     <td>${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''}</td>
-    <td>${e.time?`${e.startTime||''}~${e.endTime||''}`:'-'}</td>
-    <td>${e.title}</td>
-    <td><span class="chip ev-${e.type}">${e.type}</span></td>
-    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.content||'-'}</td>
+    <td>${e.time?(e.startTime||''):'-'}</td>
+    <td>${esc(e.title)}</td>
+    <td><span class="chip ev-${e.type}">${esc(e.type)}</span></td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.content)||'-'}</td>
     <td><button class="btn btn-o btn-sm" onclick="openEditEvent(${e.id})">수정</button>
     <button class="btn btn-d btn-sm" style="margin-left:4px" onclick="deleteEvent(${e.id})">삭제</button></td>
   </tr>`).join('');
@@ -1038,9 +1048,8 @@ function openAddEvent(dateStr){
       <div><label>종료일</label><input type="date" id="ev-end" value="${dateStr||today()}"></div>
     </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" onchange="toggleEvTime()"> 시간 설정</label></div>
-    <div id="ev-time-row" style="display:none" class="fr fr-row">
-      <div><label>시작시간</label><input type="time" id="ev-stime"></div>
-      <div><label>종료시간</label><input type="time" id="ev-etime"></div>
+    <div id="ev-time-row" style="display:none" class="fr">
+      <label>시작시간</label><input type="time" id="ev-stime">
     </div>
     <div class="fr"><label style="display:flex;align-items:center;justify-content:space-between">종류<button class="btn-g" onclick="openEtypeModal()">수정</button></label>
     <select id="ev-type">${S.etypes.map(t=>`<option>${t}</option>`).join('')}</select></div>
@@ -1050,25 +1059,24 @@ function openAddEvent(dateStr){
 }
 function toggleEvTime(){
   const chk=document.getElementById('ev-time');
-  document.getElementById('ev-time-row').style.display=chk.checked?'flex':'none';
+  document.getElementById('ev-time-row').style.display=chk.checked?'block':'none';
 }
 function openEditEvent(id){
   const e=S.events.find(x=>x.id===id);if(!e)return;
   showModal(`<div class="mo-hd"><h3>일정 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div class="fr"><label>제목</label><input id="ev-title" value="${e.title}"></div>
+    <div class="fr"><label>제목</label><input id="ev-title" value="${esc(e.title).replace(/"/g,'&quot;')}"></div>
     <div class="fr fr-row">
       <div><label>시작일</label><input type="date" id="ev-start" value="${e.start}"></div>
       <div><label>종료일</label><input type="date" id="ev-end" value="${e.end}"></div>
     </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" ${e.time?'checked':''} onchange="toggleEvTime()"> 시간 설정</label></div>
-    <div id="ev-time-row" style="display:${e.time?'flex':'none'}" class="fr fr-row">
-      <div><label>시작시간</label><input type="time" id="ev-stime" value="${e.startTime||''}"></div>
-      <div><label>종료시간</label><input type="time" id="ev-etime" value="${e.endTime||''}"></div>
+    <div id="ev-time-row" style="display:${e.time?'block':'none'}" class="fr">
+      <label>시작시간</label><input type="time" id="ev-stime" value="${e.startTime||''}">
     </div>
     <div class="fr"><label style="display:flex;align-items:center;justify-content:space-between">종류<button class="btn-g" onclick="openEtypeModal()">수정</button></label>
     <select id="ev-type">${S.etypes.map(t=>`<option${t===e.type?' selected':''}>${t}</option>`).join('')}</select></div>
-    <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${e.content||''}</textarea></div>
+    <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${esc(e.content)}</textarea></div>
   </div>
   <div class="mo-ft"><button class="btn btn-d btn-sm" onclick="deleteEvent(${id});closeModal()">삭제</button>
   <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveEvent(${id})">저장</button></div>`);
@@ -1076,11 +1084,11 @@ function openEditEvent(id){
 function openEventDetail(id){
   if(typeof id==='string'&&id.startsWith('h'))return;
   const e=S.events.find(x=>x.id===id);if(!e)return;
-  showModal(`<div class="mo-hd"><h3>${e.title}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  showModal(`<div class="mo-hd"><h3>${esc(e.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div style="margin-bottom:10px"><span class="chip ev-${e.type}">${e.type}</span></div>
-    <div style="font-size:13px;color:var(--sub);margin-bottom:8px">📅 ${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''} ${e.time?`${e.startTime||''}~${e.endTime||''}`:'(종일)'}</div>
-    ${e.content?`<div style="font-size:14px;white-space:pre-wrap">${e.content}</div>`:''}
+    <div style="margin-bottom:10px"><span class="chip ev-${e.type}">${esc(e.type)}</span></div>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:8px">📅 ${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''} ${e.time?(e.startTime||''):'(종일)'}</div>
+    ${e.content?`<div style="font-size:14px;white-space:pre-wrap">${esc(e.content)}</div>`:''}
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">닫기</button>
@@ -1096,10 +1104,9 @@ function saveEvent(id){
   const content=document.getElementById('ev-content').value.trim();
   const time=document.getElementById('ev-time').checked;
   const startTime=time?document.getElementById('ev-stime').value:'';
-  const endTime=time?document.getElementById('ev-etime').value:'';
   if(!title||!start||!end){alert('제목과 날짜를 입력해주세요');return}
-  if(id){const e=S.events.find(x=>x.id===id);Object.assign(e,{title,start,end,type,content,time,startTime,endTime})}
-  else S.events.push({id:newId(),title,start,end,type,content,time,startTime,endTime});
+  if(id){const e=S.events.find(x=>x.id===id);Object.assign(e,{title,start,end,type,content,time,startTime});delete e.endTime;}
+  else S.events.push({id:newId(),title,start,end,type,content,time,startTime});
   closeModal();
   if(S.page==='home')renderHome();
   else if(S.page==='schedule')renderSchedulePage();
@@ -2610,18 +2617,18 @@ function bContentInput(e,blkId,postId){
   const el=e.target;
   const p=_bPosts.find(x=>x.id===postId);if(!p)return;
   const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
-  const txt=el.innerText;
+  const txt=_cleanEditText(el.innerText).trim();
   if(txt==='/'||(_slashId===blkId&&txt.startsWith('/'))){
     if(txt==='/'){_slashId=blkId;_slashQ='';_slashSel=0;bShowSlash(el,postId);}
     else if(_slashId===blkId){_slashQ=txt.slice(1).toLowerCase();bUpdateSlash();}
     return;
   }
-  if(_slashId)bHideSlash();
+  if(_slashId===blkId)bHideSlash();
   blk.content=el.innerHTML;p.updatedAt=today();_bSave();
 }
 
 function bKeydown(e,blkId,postId){
-  if(_slashId){
+  if(_slashId===blkId){
     if(e.key==='ArrowDown'){e.preventDefault();bSlashNav(1);return}
     if(e.key==='ArrowUp'){e.preventDefault();bSlashNav(-1);return}
     if(e.key==='Enter'){e.preventDefault();bSlashPick(blkId,postId);return}
@@ -2638,7 +2645,7 @@ function bKeydown(e,blkId,postId){
   }
   if(e.key==='Backspace'){
     const el=e.target;
-    if(!el.innerText.trim()){e.preventDefault();bDelBlock(blkId,postId);}
+    if(!_cleanEditText(el.innerText).trim()){e.preventDefault();bDelBlock(blkId,postId);}
   }
   if((e.ctrlKey||e.metaKey)){
     if(e.key==='b'){e.preventDefault();document.execCommand('bold');}
@@ -2820,7 +2827,12 @@ function bLoadCover(e,postId){const file=e.target.files[0];if(!file)return;const
 function bRemoveCover(postId){const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.cover=null;_bSave();bOpenPost(postId);}
 
 document.addEventListener('click',e=>{
-  if(!e.target.closest('#slash-menu')&&!e.target.closest('.bk-content')&&!e.target.closest('.bk-add-btn'))bHideSlash();
+  // 슬래시 메뉴가 열려있는 블록이 아닌 다른 곳(다른 블록 포함)을 클릭하면 메뉴를 닫음.
+  // (예전엔 "다른 블록 안"을 클릭해도 닫히지 않아서, 이후 Enter/방향키 입력이 엉뚱한 블록에 적용되는 원인이 됐음)
+  if(_slashId){
+    const ownerEl=document.querySelector(`[data-id="${_slashId}"] .bk-content`);
+    if(e.target!==ownerEl && !e.target.closest('#slash-menu')) bHideSlash();
+  }
   if(!e.target.closest('#fmt-toolbar')&&!e.target.closest('.bk-content'))bHideFmt();
 });
 
@@ -2904,7 +2916,7 @@ function pSetStatusFilter(s){_pStatusFilter=s;renderProjects();if(_pActiveId)pOp
 
 function pNewPost(){
   _pLoad();
-  const post={id:_pNewId(),name:'',status:'대기',dueDate:'',assignees:[],icon:'🗃',cover:null,tags:[],createdAt:today(),updatedAt:today(),
+  const post={id:_pNewId(),name:'',status:'대기',dueDate:'',icon:'🗃',cover:null,tags:[],createdAt:today(),updatedAt:today(),
     blocks:[{id:_pNewId(),type:'paragraph',content:''}]};
   _pPosts.unshift(post);_pSave();_pActiveId=post.id;renderProjects();pOpenPost(post.id);
 }
@@ -2943,11 +2955,6 @@ function pOpenPost(id){
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-size:12px;color:var(--sub)">마감일</span>
         <input type="date" style="border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;background:var(--card)" value="${post.dueDate||''}" onchange="pUpdateDue('${id}',this.value)">
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:12px;color:var(--sub)">담당자</span>
-        <span style="font-size:12px">${(post.assignees||[]).join(', ')||'—'}</span>
-        <button class="btn-g" style="font-size:11px" onclick="pEditAssignees('${id}')">편집</button>
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
         ${(post.tags||[]).map(t=>`<span class="btag on">${t}<button onclick="pRemoveTag('${id}','${t.replace(/'/g,"\\'")}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#999;padding:0 0 0 2px;font-size:10px">×</button></span>`).join('')}
@@ -3028,14 +3035,6 @@ function pUpdateDue(postId,val){
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
   p.dueDate=val;p.updatedAt=today();_pSave();
 }
-function pEditAssignees(postId){
-  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  const cur=(p.assignees||[]).join(', ');
-  const v=prompt('담당자 (쉼표로 구분):',cur);
-  if(v===null)return;
-  p.assignees=v.split(',').map(s=>s.trim()).filter(Boolean);
-  p.updatedAt=today();_pSave();pOpenPost(postId);
-}
 function pAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_pPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_pSave();pOpenPost(postId);pRenderSb();}
 function pRemoveTag(postId,tag){const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_pSave();pOpenPost(postId);pRenderSb();}
 function pPickIcon(postId){const icons='🗃📁📂🚀🎯💡🔧📊📋🏆⭐🎨🔗📌📅💬🗂📐🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'🗃';const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'🗃';_pSave();pOpenPost(postId);pRenderSb();}
@@ -3058,17 +3057,17 @@ function pContentInput(e,blkId,postId){
   const el=e.target;
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
   const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
-  const txt=el.innerText;
+  const txt=_cleanEditText(el.innerText).trim();
   if(txt==='/'||(_pSlashId===blkId&&txt.startsWith('/'))){
     if(txt==='/'){_pSlashId=blkId;_pSlashQ='';_pSlashSel=0;pShowSlash(el,postId);}
     else if(_pSlashId===blkId){_pSlashQ=txt.slice(1).toLowerCase();pUpdateSlash();}
     return;
   }
-  if(_pSlashId)pHideSlash();
+  if(_pSlashId===blkId)pHideSlash();
   blk.content=el.innerHTML;p.updatedAt=today();_pSave();
 }
 function pKeydown(e,blkId,postId){
-  if(_pSlashId){
+  if(_pSlashId===blkId){
     if(e.key==='ArrowDown'){e.preventDefault();pSlashNav(1);return}
     if(e.key==='ArrowUp'){e.preventDefault();pSlashNav(-1);return}
     if(e.key==='Enter'){e.preventDefault();pSlashPick(blkId,postId);return}
@@ -3084,7 +3083,7 @@ function pKeydown(e,blkId,postId){
   }
   if(e.key==='Backspace'){
     const el=e.target;
-    if(!el.innerText.trim()){e.preventDefault();pDelBlock(blkId,postId);}
+    if(!_cleanEditText(el.innerText).trim()){e.preventDefault();pDelBlock(blkId,postId);}
   }
   if((e.ctrlKey||e.metaKey)){
     if(e.key==='b'){e.preventDefault();document.execCommand('bold');}
@@ -3182,7 +3181,10 @@ function pDrop(e,targetId,postId){
 }
 
 document.addEventListener('click',e=>{
-  if(!e.target.closest('#p-slash-menu')&&!e.target.closest('.bk-content')&&!e.target.closest('.bk-add-btn'))pHideSlash();
+  if(_pSlashId){
+    const ownerEl=document.querySelector(`[data-id="${_pSlashId}"] .bk-content`);
+    if(e.target!==ownerEl && !e.target.closest('#p-slash-menu')) pHideSlash();
+  }
 });
 
 // ─── MODAL SYSTEM ─────────────────────────────────
