@@ -1287,7 +1287,7 @@ function renderEmployees(){
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-o btn-sm" onclick="openLeaveAdjust(${e.id})">휴가 조정</button>
         <button class="btn btn-o btn-sm" onclick="openManualLeaveGrant(${e.id})">휴가 수동 부여</button>
-        <button class="btn btn-o btn-sm" onclick="openEmpLeaveGrant(${e.id})">휴가 등록</button>
+        <button class="btn btn-o btn-sm" onclick="openEmpLeaveGrant(${e.id})">휴가 사용</button>
       </div>
     </div>
     <div style="font-size:12px;color:var(--sub);margin-bottom:10px;display:flex;flex-direction:column;gap:3px">
@@ -1305,9 +1305,9 @@ function renderEmployees(){
       <div class="ctitle" style="font-size:13px">휴가 내역</div>
       ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm)"><table><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
       ${e.leaveHistory.map(l=>`<tr>
-        <td><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':''}</span></td>
+        <td><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
         <td>${fmtDisp(l.date)}</td><td>${l.days}일</td><td>${l.reason||'-'}</td>
-        <td style="white-space:nowrap;display:flex;gap:4px">
+        <td style="white-space:nowrap;display:flex;gap:4px;justify-content:flex-end">
           <button class="btn btn-o btn-sm" onclick="openEditLeave(${e.id},${l.id})">수정</button>
           <button class="btn btn-d btn-sm" onclick="deleteLeave(${e.id},${l.id})">삭제</button>
         </td>
@@ -1334,7 +1334,6 @@ function renderEmployees(){
   p.innerHTML=`<div class="pg-hd">
     <h3>직원 관리</h3>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-o" onclick="openManualLeaveGrant()">휴가 수동 부여</button>
       <button class="btn btn-p" onclick="openAddEmp()">+ 직원 추가</button>
     </div>
   </div>
@@ -1592,7 +1591,7 @@ function saveManualLeaveGrant(){
 }
 function openEmpLeaveGrant(empId){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
-  showModal(`<div class="mo-hd"><h3>${e.name} 휴가 등록</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  showModal(`<div class="mo-hd"><h3>${esc(e.name)} 휴가 사용</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>종류</label><select id="elg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
     <div class="fr fr-row">
@@ -1602,7 +1601,7 @@ function openEmpLeaveGrant(empId){
     <div class="fr"><label>사유</label><input id="elg-reason" placeholder="사유 입력"></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
-  <button class="btn btn-p" onclick="saveEmpLeaveGrant(${empId})">등록</button></div>`,'sm');
+  <button class="btn btn-p" onclick="saveEmpLeaveGrant(${empId})">사용 등록</button></div>`,'sm');
 }
 function saveEmpLeaveGrant(empId){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
@@ -1610,10 +1609,11 @@ function saveEmpLeaveGrant(empId){
   const days=parseFloat(document.getElementById('elg-days').value)||1;
   const expiry=document.getElementById('elg-expiry').value||null;
   const reason=document.getElementById('elg-reason').value;
-  e.leaveHistory.push({id:newId(),type,date:today(),days,reason,expiry,granted:true});
-  if(type==='연차')e.annualLeave+=days;
-  else if(type==='월차')e.monthLeave+=days;
-  else if(type==='특별휴가')e.specialLeave=(e.specialLeave||0)+days;
+  // '휴가 사용'은 부여가 아니라 차감이므로, 기록에는 음수 일수로 남기고 잔여 일수에서 뺌
+  e.leaveHistory.push({id:newId(),type,date:today(),days:-days,reason,expiry,used:true});
+  if(type==='연차')e.annualLeave=Math.max(0,e.annualLeave-days);
+  else if(type==='월차')e.monthLeave=Math.max(0,e.monthLeave-days);
+  else if(type==='특별휴가')e.specialLeave=Math.max(0,(e.specialLeave||0)-days);
   closeModal();renderEmployees();
 }
 // ─── INTERNS ──────────────────────────────────────
