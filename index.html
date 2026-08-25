@@ -1173,7 +1173,8 @@ function openAddEvent(dateStr){
     <div style="display:flex;gap:6px">
       <select id="ev-type" style="flex:1"><option value="">선택</option>${S.etypes.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
       <button type="button" class="btn btn-o btn-sm" onclick="editSelectedEtype()" title="선택한 종류 이름 수정">수정</button>
-      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">+ 추가</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="deleteSelectedEtype()" title="선택한 종류 삭제">삭제</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">추가</button>
     </div></div>
     <div class="fr"><label>내용</label><textarea id="ev-content" rows="3" placeholder="내용 입력"></textarea></div>
   </div>
@@ -1200,7 +1201,8 @@ function openEditEvent(id){
     <div style="display:flex;gap:6px">
       <select id="ev-type" style="flex:1"><option value="">선택</option>${S.etypes.map(t=>`<option${t===e.type?' selected':''}>${esc(t)}</option>`).join('')}</select>
       <button type="button" class="btn btn-o btn-sm" onclick="editSelectedEtype()" title="선택한 종류 이름 수정">수정</button>
-      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">+ 추가</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="deleteSelectedEtype()" title="선택한 종류 삭제">삭제</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">추가</button>
     </div></div>
     <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${esc(e.content)}</textarea></div>
   </div>
@@ -1280,6 +1282,18 @@ function editSelectedEtype(){
   S.etypes[idx]=name;
   if(S.etypeColors&&S.etypeColors[cur]){S.etypeColors[name]=S.etypeColors[cur];delete S.etypeColors[cur];}
   refreshEtypeSelect(name);
+}
+function deleteSelectedEtype(){
+  const sel=document.getElementById('ev-type');if(!sel)return;
+  const cur=sel.value;
+  if(!cur){alert('삭제할 종류를 먼저 선택해주세요.');return;}
+  const idx=S.etypes.indexOf(cur);
+  if(idx===-1)return;
+  if(idx<4){alert('기본 종류(행사/미팅/외근/휴가)는 삭제할 수 없습니다. 이름 수정만 가능해요.');return;}
+  if(!confirm(`'${cur}' 종류를 삭제하시겠습니까?`))return;
+  S.etypes.splice(idx,1);
+  if(S.etypeColors)delete S.etypeColors[cur];
+  refreshEtypeSelect('');
 }
 function addEtypeInline(){
   const v=prompt('새 종류 이름:');
@@ -2491,7 +2505,7 @@ function renderNotice(){
     <div class="bi-meta">${esc(n.author)} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
   </div>`).join('');
   p.innerHTML=`<div class="pg-hd" style="justify-content:flex-end">
-    ${isAdmin()?`<button class="btn btn-p btn-sm" onclick="openWriteNotice()">+ 작성</button>`:''}
+    ${isAdmin()?`<button class="btn btn-p" onclick="openWriteNotice()">+ 작성</button>`:''}
   </div>
   <div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 공지가 없습니다.</div>'}</div>`;
 }
