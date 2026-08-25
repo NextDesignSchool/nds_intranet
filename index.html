@@ -50,7 +50,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 #sb-resizer{position:absolute;right:-3px;top:0;width:6px;height:100%;cursor:col-resize;z-index:101;background:transparent;transition:background .12s}
 #sb-resizer:hover,#sb-resizer.dragging{background:var(--ac);opacity:.12}
 .sb-logo{padding:18px 14px 14px;flex-shrink:0}
-.sb-logo span{font-size:13px;font-weight:600;color:var(--tx);line-height:1.4;letter-spacing:.01em}
+.sb-logo span{font-size:17px;font-weight:700;color:var(--tx);line-height:1.4;letter-spacing:.01em}
 .sb-nav{flex:1;overflow-y:auto;padding:2px 0 10px}
 .nav-sec-title{font-size:10px;font-weight:600;color:var(--sub2);padding:14px 14px 4px;letter-spacing:.08em;text-transform:uppercase}
 .nv{display:flex;align-items:center;gap:9px;padding:8px 12px;margin:1px 6px;font-size:14.5px;font-weight:500;cursor:pointer;transition:background .1s;border-radius:6px;color:var(--tx)}
@@ -217,7 +217,7 @@ tr:hover td{background:var(--hover)}
 .ev-외근{background:#FEF5E9;color:var(--or)}
 .ev-휴가{background:#FEF0EF;color:var(--re)}
 .ev-공휴일{background:#FEF0EF;color:var(--re)}
-.ev-미정{background:var(--hover);color:var(--sub)}
+.ev-미정{background:#F2F1EE;color:#6B6862}
 .dash-grid{display:grid;grid-template-columns:1fr 300px;gap:20px}
 .right-col{display:flex;flex-direction:column;gap:14px}
 .board-item{padding:10px 0;border-bottom:1px solid var(--bd);cursor:pointer}
@@ -260,6 +260,7 @@ tr:hover td{background:var(--hover)}
 .tg-cell{min-height:30px;height:auto;cursor:pointer;transition:background .08s;white-space:normal;word-break:keep-all;overflow-wrap:break-word;line-height:1.3;padding:4px 3px}
 .tg-cell:hover{background:var(--hover) !important}
 .tg-cell.sel{background:#F0EFFC;color:#5B5BD6;font-weight:600}
+.tg-table tr:last-child td{border-bottom:1px solid var(--bd)}
 #menu-toggle{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--card);border:1px solid var(--bd);border-radius:var(--r-sm);padding:7px 10px;cursor:pointer;font-size:16px}
 .pg-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .pg-hd h3{font-size:19px;font-weight:700;color:var(--tx);letter-spacing:-0.01em}
@@ -1295,14 +1296,15 @@ function renderEmployees(){
       <span>휴가 자동 부여: ${e.autoLeave!==false?'<span style="color:var(--gr)">켜짐</span>':'<span style="color:var(--sub2)">꺼짐</span>'}</span>
     </div>
     <div class="leave-bar">
-      <div class="leave-item"><div class="lval">${e.annualLeave}</div><div class="llabel">연차 잔여</div></div>
-      <div class="leave-item"><div class="lval">${e.monthLeave}</div><div class="llabel">월차 잔여</div></div>
+      <div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory(${e.id},'연차')"><div class="lval">${e.annualLeave}</div><div class="llabel">연차 잔여</div></div>
+      <div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory(${e.id},'월차')"><div class="lval">${e.monthLeave}</div><div class="llabel">월차 잔여</div></div>
+      ${e.specialLeave!==undefined?`<div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory(${e.id},'특별휴가')"><div class="lval">${e.specialLeave}</div><div class="llabel">특별휴가 잔여</div></div>`:''}
     </div>
     <div style="margin-top:14px">
       <div class="ctitle" style="font-size:13px">휴가 내역</div>
       ${e.leaveHistory.length?`<div style="overflow-x:auto"><table><thead><tr><th>종류</th><th>날짜</th><th>일수</th><th>사유</th><th>기한</th><th></th></tr></thead><tbody>
       ${e.leaveHistory.map(l=>`<tr>
-        <td><span class="chip ${l.granted?'ch-g':'ch-gray'}">${l.type}${l.granted?' 부여':''}</span></td>
+        <td><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':''}</span></td>
         <td>${fmtDisp(l.date)}</td><td>${l.days}일</td><td>${l.reason||'-'}</td>
         <td style="color:${l.expiry?'var(--or)':'var(--sub)'}">${l.expiry?fmtDisp(l.expiry):'-'}</td>
         <td style="white-space:nowrap;display:flex;gap:4px">
@@ -1342,10 +1344,11 @@ function openLeaveAdjust(empId){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
   showModal(`<div class="mo-hd"><h3>${e.name} — 휴가 조정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div style="background:var(--hover);border:1px solid var(--bd);border-radius:4px;padding:12px;margin-bottom:16px;font-size:13px">
-      <div style="display:flex;gap:24px">
+    <div style="background:var(--hover);border:1px solid var(--bd);border-radius:var(--r-sm);padding:12px;margin-bottom:16px;font-size:13px">
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
         <span>연차 잔여 <b>${e.annualLeave}</b>일</span>
         <span>월차 잔여 <b>${e.monthLeave}</b>일</span>
+        <span>특별휴가 잔여 <b>${e.specialLeave||0}</b>일</span>
       </div>
     </div>
     <div class="fr-row">
@@ -1358,6 +1361,10 @@ function openLeaveAdjust(empId){
         <input type="number" id="la-month" value="0" step="0.5" oninput="updateLeaveAdjPreview(${empId})">
       </div>
     </div>
+    <div class="fr">
+      <label>특별휴가 조정 (+ 증가 / - 차감)</label>
+      <input type="number" id="la-special" value="0" step="0.5" oninput="updateLeaveAdjPreview(${empId})">
+    </div>
     <div id="la-preview" style="font-size:13px;color:var(--sub);padding:8px 0"></div>
   </div>
   <div class="mo-ft">
@@ -1369,19 +1376,41 @@ function updateLeaveAdjPreview(empId){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
   const da=parseFloat(document.getElementById('la-annual').value)||0;
   const dm=parseFloat(document.getElementById('la-month').value)||0;
+  const ds=parseFloat(document.getElementById('la-special')?.value)||0;
   const na=Math.max(0,e.annualLeave+da);
   const nm=Math.max(0,e.monthLeave+dm);
+  const ns=Math.max(0,(e.specialLeave||0)+ds);
   const prev=document.getElementById('la-preview');
-  if(prev)prev.innerHTML=`조정 후 → 연차 <b>${na}</b>일 / 월차 <b>${nm}</b>일`;
+  if(prev)prev.innerHTML=`조정 후 → 연차 <b>${na}</b>일 / 월차 <b>${nm}</b>일 / 특별휴가 <b>${ns}</b>일`;
 }
 function saveLeaveAdjust(empId){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
   const da=parseFloat(document.getElementById('la-annual').value)||0;
   const dm=parseFloat(document.getElementById('la-month').value)||0;
-  if(da===0&&dm===0){closeModal();return;}
+  const ds=parseFloat(document.getElementById('la-special')?.value)||0;
+  if(da===0&&dm===0&&ds===0){closeModal();return;}
   e.annualLeave=Math.max(0,e.annualLeave+da);
   e.monthLeave=Math.max(0,e.monthLeave+dm);
+  e.specialLeave=Math.max(0,(e.specialLeave||0)+ds);
+  e.leaveHistory=e.leaveHistory||[];
+  if(da!==0)e.leaveHistory.push({id:newId(),type:'연차',date:today(),days:da,reason:'수동 조정',adjusted:true});
+  if(dm!==0)e.leaveHistory.push({id:newId(),type:'월차',date:today(),days:dm,reason:'수동 조정',adjusted:true});
+  if(ds!==0)e.leaveHistory.push({id:newId(),type:'특별휴가',date:today(),days:ds,reason:'수동 조정',adjusted:true});
   closeModal();renderEmployees();
+}
+function openLeaveTypeHistory(empId,type){
+  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const list=(e.leaveHistory||[]).filter(l=>l.type===type).sort((a,b)=>b.date.localeCompare(a.date));
+  const rows=list.map(l=>`<tr>
+    <td>${fmtDisp(l.date)}</td>
+    <td style="color:${l.days>=0?'var(--gr)':'var(--re)'};font-weight:600;white-space:nowrap">${l.days>=0?'+':''}${l.days}일</td>
+    <td>${esc(l.reason||'-')}</td>
+  </tr>`).join('');
+  showModal(`<div class="mo-hd"><h3>${esc(e.name)} — ${esc(type)} 기록</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    ${list.length?`<div style="overflow-x:auto"><table><thead><tr><th>날짜</th><th>일수</th><th>사유</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="color:var(--sub);font-size:13px">기록이 없습니다</div>'}
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">닫기</button></div>`,'sm');
 }
 function openEmpDetail(id){
   const e=S.employees.find(x=>x.id===id);if(!e)return;
@@ -1535,7 +1564,7 @@ function openManualLeaveGrant(){
     <div class="fr"><label>직원</label><select id="mg-emp">${S.employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}</select></div>
     <div class="fr"><label>종류</label><select id="mg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
     <div class="fr fr-row">
-      <div><label>부여 일수</label><input type="number" id="mg-days" value="1" min="0.5" step="0.5"></div>
+      <div><label>사용 일수</label><input type="number" id="mg-days" value="1" min="0.5" step="0.5"></div>
       <div><label>사용 기한</label><input type="date" id="mg-expiry"></div>
     </div>
     <div class="fr"><label>사유</label><input id="mg-reason" placeholder="사유 입력"></div>
@@ -1552,6 +1581,7 @@ function saveManualLeaveGrant(){
   e.leaveHistory.push({id:newId(),type,date:today(),days,reason:document.getElementById('mg-reason').value,expiry,granted:true});
   if(type==='연차')e.annualLeave+=days;
   else if(type==='월차')e.monthLeave+=days;
+  else if(type==='특별휴가')e.specialLeave=(e.specialLeave||0)+days;
   closeModal();renderEmployees();
 }
 function openEmpLeaveGrant(empId){
@@ -1560,7 +1590,7 @@ function openEmpLeaveGrant(empId){
   <div class="mo-bd">
     <div class="fr"><label>종류</label><select id="elg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
     <div class="fr fr-row">
-      <div><label>부여 일수</label><input type="number" id="elg-days" value="1" min="0.5" step="0.5"></div>
+      <div><label>사용 일수</label><input type="number" id="elg-days" value="1" min="0.5" step="0.5"></div>
       <div><label>사용 기한</label><input type="date" id="elg-expiry"></div>
     </div>
     <div class="fr"><label>사유</label><input id="elg-reason" placeholder="사유 입력"></div>
@@ -1577,6 +1607,7 @@ function saveEmpLeaveGrant(empId){
   e.leaveHistory.push({id:newId(),type,date:today(),days,reason,expiry,granted:true});
   if(type==='연차')e.annualLeave+=days;
   else if(type==='월차')e.monthLeave+=days;
+  else if(type==='특별휴가')e.specialLeave=(e.specialLeave||0)+days;
   closeModal();renderEmployees();
 }
 // ─── INTERNS ──────────────────────────────────────
@@ -2767,7 +2798,7 @@ function bBlockHtml(blk,postId){
   }
   const ph={paragraph:'내용 입력... (/ 로 블록 변경)',heading1:'제목 1',heading2:'제목 2',heading3:'제목 3',bulletedList:'• 항목',numberedList:'1. 항목',toggle:'▶ 토글',quote:'인용구',code:'코드 입력'}[blk.type]||'';
   return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
-    <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="bShowAddMenu('${blk.id}','${postId}')">+</span></div>
+    <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="event.stopPropagation();bShowAddMenu('${blk.id}','${postId}')">+</span></div>
     <div class="bk-content" data-type="${blk.type}" data-ph="${ph}" contenteditable="true"
       oninput="bContentInput(event,'${blk.id}','${postId}')"
       onkeydown="bKeydown(event,'${blk.id}','${postId}')"
@@ -3095,7 +3126,7 @@ function pSetStatusFilter(s){_pStatusFilter=s;renderProjects();if(_pActiveId)pOp
 
 function pNewPost(){
   _pLoad();
-  const post={id:_pNewId(),name:'',status:'대기',dueDate:'',icon:'🗃',cover:null,tags:[],createdAt:today(),updatedAt:today(),
+  const post={id:_pNewId(),name:'',status:'대기',dueDate:'',icon:'🗃',tags:[],createdAt:today(),updatedAt:today(),
     blocks:[{id:_pNewId(),type:'paragraph',content:''}]};
   _pPosts.unshift(post);_pSave();_pActiveId=post.id;renderProjects();pOpenPost(post.id);
 }
@@ -3113,13 +3144,8 @@ function pOpenPost(id){
   const el=document.getElementById('p-editor');if(!el)return;
   pRenderSb();
   if(!post){el.innerHTML='';return;}
-  const coverHtml=post.cover?`<div style="width:100%;height:180px;background:url('${post.cover}') center/cover;border-radius:8px 8px 0 0;position:relative">
-    <button class="btn btn-o btn-sm" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.85)" onclick="pRemoveCover('${id}')">커버 삭제</button></div>`
-    :`<div style="padding-top:24px;display:flex;gap:8px;align-items:center">
-    <label class="btn-g" style="cursor:pointer;font-size:12px">📷 커버 추가<input type="file" style="display:none" accept="image/*" onchange="pLoadCover(event,'${id}')"></label></div>`;
-  el.innerHTML=`<div style="max-width:760px;margin:0 auto;padding:0 24px 48px">
-    ${coverHtml}
-    <div style="display:flex;align-items:center;gap:8px;margin:16px 0 4px">
+  el.innerHTML=`<div style="max-width:760px;margin:0 auto;padding:24px 24px 48px">
+    <div style="display:flex;align-items:center;gap:8px;margin:0 0 4px">
       <span style="font-size:36px;cursor:pointer" onclick="pPickIcon('${id}')">${post.icon||'🗃'}</span>
       <input class="board-title-input" placeholder="프로젝트 이름" value="${(post.name||'').replace(/"/g,'&quot;')}" oninput="pUpdateTitle('${id}',this.value)" style="flex:1">
       <button class="btn btn-d btn-sm" onclick="pDeletePost('${id}')">삭제</button>
@@ -3192,7 +3218,7 @@ function pBlockHtml(blk,postId){
   }
   const ph={paragraph:'내용 입력... (/ 로 블록 변경)',heading1:'제목 1',heading2:'제목 2',heading3:'제목 3',bulletedList:'• 항목',numberedList:'1. 항목',toggle:'▶ 토글',quote:'인용구',code:'코드 입력'}[blk.type]||'';
   return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
-    <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pShowAddMenu('${blk.id}','${postId}')">+</span></div>
+    <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="event.stopPropagation();pShowAddMenu('${blk.id}','${postId}')">+</span></div>
     <div class="bk-content" data-type="${blk.type}" data-ph="${ph}" contenteditable="true"
       oninput="pContentInput(event,'${blk.id}','${postId}')"
       onkeydown="pKeydown(event,'${blk.id}','${postId}')"
@@ -3217,8 +3243,6 @@ function pUpdateDue(postId,val){
 function pAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_pPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_pSave();pOpenPost(postId);pRenderSb();}
 function pRemoveTag(postId,tag){const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_pSave();pOpenPost(postId);pRenderSb();}
 function pPickIcon(postId){const icons='🗃📁📂🚀🎯💡🔧📊📋🏆⭐🎨🔗📌📅💬🗂📐🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'🗃';const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'🗃';_pSave();pOpenPost(postId);pRenderSb();}
-function pLoadCover(e,postId){const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.cover=ev.target.result;_pSave();pOpenPost(postId);};r.readAsDataURL(file);}
-function pRemoveCover(postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.cover=null;_pSave();pOpenPost(postId);}
 function pImgUpload(e,blkId,postId){const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;blk.imageData=ev.target.result;p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);};r.readAsDataURL(file);}
 function pSaveCaption(e,blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;blk.caption=e.target.value;p.updatedAt=today();_pSave();}
 
