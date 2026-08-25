@@ -542,6 +542,29 @@ function fmtDisp(s){if(!s)return '';const[y,m,d]=s.split('-');return `${y}.${m}.
 function today(){return fmt(new Date())}
 function newId(){return ++S.nid}
 function isAdmin(){return S.user&&S.user.role==='admin'}
+// 사용자가 입력한 텍스트를 화면에 안전하게 표시하기 위한 이스케이프 함수.
+// 공지/근무일지/댓글처럼 사람이 직접 입력하는 값은 반드시 이 함수를 거쳐서 출력해야
+// <script> 같은 태그가 그대로 실행되는 걸 막을 수 있음 (XSS 방지).
+function esc(str){
+  const div=document.createElement('div');
+  div.textContent=str==null?'':String(str);
+  return div.innerHTML;
+}
+
+// 로그인 폼을 화면에 그림 (매번 완전히 새로 그려서, 아이디/비밀번호 칸에
+// 이전 로그인 시도의 값이 남아있는 일이 없도록 함)
+function renderLoginForm(){
+  document.getElementById('login-page').innerHTML=`
+    <div class="lbox">
+      <h1>NDS 인트라넷</h1>
+      <p>아이디와 비밀번호를 입력해 로그인하세요</p>
+      <div class="lf"><label>아이디</label><input type="text" id="id-input" placeholder="아이디 입력" autocomplete="username"></div>
+      <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="current-password"></div>
+      <button class="lbtn" onclick="doLogin()">로그인</button>
+      <div class="lerr" id="lerr">아이디 또는 비밀번호가 올바르지 않습니다.</div>
+    </div>`;
+  document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+}
 
 async function fetchUserProfile(uid){
   const doc = await window._db.collection('users').doc(uid).get();
@@ -630,10 +653,9 @@ function doLogout(){
   S.user=null;
   sessionStorage.removeItem('nds_user');
   firebase.auth().signOut().catch(()=>{});
-  document.getElementById('login-page').style.display='flex';
   document.getElementById('app').style.display='none';
-  document.getElementById('pw-input').value='';
-  document.getElementById('lerr').style.display='none';
+  document.getElementById('login-page').style.display='flex';
+  renderLoginForm(); // 아이디/비밀번호 칸을 포함해 로그인 화면을 완전히 새로 그림
 }
 function toggleSidebar(){document.getElementById('sb').classList.toggle('open')}
 
@@ -961,8 +983,8 @@ function renderRecentLogs(){
   const logs=[...S.workLogs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
   if(!logs.length){el.innerHTML='<div style="color:var(--sub);font-size:13px">등록된 근무일지가 없습니다.</div>';return}
   el.innerHTML=logs.map(l=>`<div class="board-item" onclick="navigate('worklog');setTimeout(()=>openWorkLogDetail(${l.id}),100)">
-    <div class="bi-title">${l.title}</div>
-    <div class="bi-meta">${l.author} · ${fmtDisp(l.date)}</div>
+    <div class="bi-title">${esc(l.title)}</div>
+    <div class="bi-meta">${esc(l.author)} · ${fmtDisp(l.date)}</div>
   </div>`).join('');
 }
 
@@ -2173,13 +2195,13 @@ function renderNotice(){
   const sorted=[...pinned,...regular];
   const pinnedBanner=pinned.length?`<div style="background:#FEF5E9;border:1px solid #E8C49A;border-radius:6px;padding:0;margin-bottom:12px;overflow:hidden">
     ${pinned.map(n=>`<div class="board-item" style="padding:12px 14px;margin:0;background:transparent" onclick="openNoticeDetail(${n.id})">
-      <div class="bi-title">📌 ${n.title}</div>
-      <div class="bi-meta">${n.author} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
+      <div class="bi-title">📌 ${esc(n.title)}</div>
+      <div class="bi-meta">${esc(n.author)} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
     </div>`).join('')}
   </div>`:'';
   const list=sorted.map(n=>`<div class="board-item" onclick="openNoticeDetail(${n.id})">
-    <div class="bi-title">${n.pinned?'📌 ':''}${n.title}</div>
-    <div class="bi-meta">${n.author} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
+    <div class="bi-title">${n.pinned?'📌 ':''}${esc(n.title)}</div>
+    <div class="bi-meta">${esc(n.author)} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
   </div>`).join('');
   p.innerHTML=`<div class="pg-hd">
     <h3>인턴 공지</h3>
@@ -2191,8 +2213,8 @@ function openWriteNotice(id){
   const n=id?S.notices.find(x=>x.id===id):null;
   showModal(`<div class="mo-hd"><h3>${n?'공지 수정':'공지 작성'}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div class="fr"><label>제목</label><input id="nt-title" value="${n?n.title:''}" placeholder="제목 입력"></div>
-    <div class="fr"><label>내용</label><textarea id="nt-content" rows="6" placeholder="내용 입력">${n?n.content:''}</textarea></div>
+    <div class="fr"><label>제목</label><input id="nt-title" value="${n?esc(n.title).replace(/"/g,'&quot;'):''}" placeholder="제목 입력"></div>
+    <div class="fr"><label>내용</label><textarea id="nt-content" rows="6" placeholder="내용 입력">${n?esc(n.content):''}</textarea></div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
       <input type="checkbox" id="nt-pinned" style="width:auto;accent-color:var(--ac)" ${n&&n.pinned?'checked':''}>
       <span>📌 고정 (목록 최상단에 항상 표시)</span>
@@ -2213,13 +2235,13 @@ function saveNotice(id){
 function openNoticeDetail(id){
   const n=S.notices.find(x=>x.id===id);if(!n)return;
   const cmts=n.comments.map(c=>`<div class="cmt">
-    <div class="cmt-meta">${c.author} · ${fmtDisp(c.date)}</div>
-    <div class="cmt-text">${c.text}</div>
+    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}</div>
+    <div class="cmt-text">${esc(c.text)}</div>
   </div>`).join('');
-  showModal(`<div class="mo-hd"><h3>${n.pinned?'📌 ':''}${n.title}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  showModal(`<div class="mo-hd"><h3>${n.pinned?'📌 ':''}${esc(n.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${n.author} · ${fmtDisp(n.date)}${n.pinned?' · <span style="color:var(--or)">고정됨</span>':''}</div>
-    <div style="font-size:14px;white-space:pre-wrap;margin-bottom:20px">${n.content}</div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${esc(n.author)} · ${fmtDisp(n.date)}${n.pinned?' · <span style="color:var(--or)">고정됨</span>':''}</div>
+    <div style="font-size:14px;white-space:pre-wrap;margin-bottom:20px">${esc(n.content)}</div>
     <div style="border-top:1px solid var(--bd);padding-top:14px">
       <div class="ctitle" style="font-size:13px">댓글 ${n.comments.length}</div>
       <div id="cmt-list">${cmts}</div>
@@ -2245,8 +2267,8 @@ function deleteNotice(id){
 function renderWorkLog(){
   const p=document.getElementById('page-worklog');
   const list=S.workLogs.map(l=>`<div class="board-item" onclick="openWorkLogDetail(${l.id})">
-    <div class="bi-title">${l.title} ${l.tasks.close?'<span class="chip ch-g" style="font-size:10px">마감완료</span>':''}</div>
-    <div class="bi-meta">${l.author} · ${fmtDisp(l.date)} · 댓글 ${l.comments.length}</div>
+    <div class="bi-title">${esc(l.title)} ${l.tasks.close?'<span class="chip ch-g" style="font-size:10px">마감완료</span>':''}</div>
+    <div class="bi-meta">${esc(l.author)} · ${fmtDisp(l.date)} · 댓글 ${l.comments.length}</div>
   </div>`).join('');
   p.innerHTML=`<div class="pg-hd">
     <h3>근무일지</h3>
@@ -2268,7 +2290,7 @@ function openWriteLog(id){
   const ci=l&&l.tasks.closeItems||[];
   showModal(`<div class="mo-hd"><h3>${l?'근무일지 수정':'근무일지 작성'}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div class="fr"><label>제목</label><input id="wl-title" value="${defTitle}"></div>
+    <div class="fr"><label>제목</label><input id="wl-title" value="${esc(defTitle).replace(/"/g,'&quot;')}"></div>
     <div class="fr">
       <label style="font-weight:600;margin-bottom:8px;display:block">필수 업무</label>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
@@ -2278,7 +2300,7 @@ function openWriteLog(id){
         <input type="checkbox" id="wl-close" style="width:auto;accent-color:var(--ac)" ${l&&l.tasks.close?'checked':''} onchange="toggleWlSub('close')"> 마감</label>
       <div id="wl-close-sub" style="display:${l&&l.tasks.close?'block':'none'};background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0">${renderTaskSubItems('wl-ci',CLOSE_ITEMS,ci)}</div>
     </div>
-    <div class="fr"><label>상세내용</label><textarea id="wl-content" rows="5" placeholder="업무 내용 입력">${l?l.content:''}</textarea></div>
+    <div class="fr"><label>상세내용</label><textarea id="wl-content" rows="5" placeholder="업무 내용 입력">${l?esc(l.content):''}</textarea></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
   <button class="btn btn-p" onclick="saveWorkLog(${id||'null'})">저장</button></div>`);
@@ -2305,14 +2327,14 @@ function openWorkLogDetail(id){
   const canEdit=isAdmin()||(l.author===S.user.name);
   const canDelete=isAdmin();
   const cmts=l.comments.map(c=>`<div class="cmt">
-    <div class="cmt-meta">${c.author} · ${fmtDisp(c.date)}</div>
-    <div class="cmt-text">${c.text}</div>
+    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}</div>
+    <div class="cmt-text">${esc(c.text)}</div>
   </div>`).join('');
   const openSubHtml=l.tasks.open&&l.tasks.openItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0 8px">${OPEN_ITEMS.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${l.tasks.openItems[i]?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.openItems[i]?'checked':''} disabled>${item}</div>`).join('')}</div>`:'';
   const closeSubHtml=l.tasks.close&&l.tasks.closeItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0">${CLOSE_ITEMS.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${l.tasks.closeItems[i]?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.closeItems[i]?'checked':''} disabled>${item}</div>`).join('')}</div>`:'';
-  showModal(`<div class="mo-hd"><h3>${l.title}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  showModal(`<div class="mo-hd"><h3>${esc(l.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${l.author} · ${fmtDisp(l.date)}</div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${esc(l.author)} · ${fmtDisp(l.date)}</div>
     <div style="margin-bottom:14px">
       <div style="font-weight:600;font-size:13px;margin-bottom:8px">필수 업무</div>
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:default"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.open?'checked':''} disabled> 오픈</label>
@@ -2320,7 +2342,7 @@ function openWorkLogDetail(id){
       <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:default"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.close?'checked':''} disabled> 마감</label>
       ${closeSubHtml}
     </div>
-    <div style="font-size:14px;white-space:pre-wrap;margin-bottom:20px">${l.content}</div>
+    <div style="font-size:14px;white-space:pre-wrap;margin-bottom:20px">${esc(l.content)}</div>
     <div style="border-top:1px solid var(--bd);padding-top:14px">
       <div class="ctitle" style="font-size:13px">댓글 ${l.comments.length}</div>
       <div id="cmt-list">${cmts}</div>
@@ -2352,8 +2374,8 @@ function addComment(type,id){
   item.comments.push({id:newId(),author:S.user.name,text,date:today()});
   document.getElementById('cmt-input').value='';
   const cmts=item.comments.map(c=>`<div class="cmt">
-    <div class="cmt-meta">${c.author} · ${fmtDisp(c.date)}</div>
-    <div class="cmt-text">${c.text}</div>
+    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}</div>
+    <div class="cmt-text">${esc(c.text)}</div>
   </div>`).join('');
   const el=document.getElementById('cmt-list');
   if(el)el.innerHTML=cmts;
@@ -2363,10 +2385,47 @@ function addComment(type,id){
 let _bPosts=[],_bActiveId=null,_bSearch='',_bTagFilter=null,_bCatFilter=null,_bCatOpen={};
 let _bDragId=null,_slashId=null,_slashQ='',_slashSel=0;
 let _bCategories=[];
-function _bLoad(){try{_bPosts=JSON.parse(localStorage.getItem('nds_board')||'[]')}catch{_bPosts=[]}}
-function _bSave(){localStorage.setItem('nds_board',JSON.stringify(_bPosts))}
-function _bCatLoad(){try{_bCategories=JSON.parse(localStorage.getItem('nds_board_cats')||'[]')}catch{_bCategories=[]}}
-function _bCatSave(){localStorage.setItem('nds_board_cats',JSON.stringify(_bCategories))}
+// 게시판 데이터: 예전엔 localStorage에만 저장돼서 기기마다 따로 놀았음.
+// 이제 Firestore(appdata/board 문서)에 저장해서 어느 기기에서 접속해도 같은 내용이 보이도록 함.
+// 매 키 입력마다 Firestore에 쓰면 비용/속도 문제가 있어서, 입력이 잠시 멈춘 뒤(1.5초) 저장하는 방식(디바운스)을 씀.
+let _boardSaveTimer=null;
+function _bLoad(){ /* 게시판 데이터는 앱 시작 시 loadAppData()에서 한 번만 불러옴 */ }
+function _bCatLoad(){ /* 위와 동일: 카테고리도 게시글과 함께 한 번에 불러옴 */ }
+function _bSave(){
+  if(_boardSaveTimer)clearTimeout(_boardSaveTimer);
+  _boardSaveTimer=setTimeout(saveBoardData,1500);
+}
+function _bCatSave(){_bSave();}
+async function saveBoardData(){
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    await db.collection('appdata').doc('board').set({posts:_bPosts,categories:_bCategories});
+  }catch(e){
+    try{localStorage.setItem('nds_board',JSON.stringify(_bPosts));localStorage.setItem('nds_board_cats',JSON.stringify(_bCategories));}catch{}
+    console.warn('게시판 Firestore 저장 실패, localStorage 백업 사용:', e);
+  }
+}
+async function loadBoardData(){
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    const snap=await db.collection('appdata').doc('board').get();
+    if(snap.exists){
+      const d=snap.data();
+      _bPosts=d.posts||[];_bCategories=d.categories||[];
+    } else {
+      // Firestore에 없으면 예전 localStorage 데이터를 1회 마이그레이션
+      try{_bPosts=JSON.parse(localStorage.getItem('nds_board')||'[]');}catch{_bPosts=[];}
+      try{_bCategories=JSON.parse(localStorage.getItem('nds_board_cats')||'[]');}catch{_bCategories=[];}
+      if(_bPosts.length||_bCategories.length)await saveBoardData();
+    }
+  }catch(e){
+    try{_bPosts=JSON.parse(localStorage.getItem('nds_board')||'[]');}catch{_bPosts=[];}
+    try{_bCategories=JSON.parse(localStorage.getItem('nds_board_cats')||'[]');}catch{_bCategories=[];}
+    console.warn('게시판 Firestore 로드 실패, localStorage 사용:', e);
+  }
+}
 function _bNewId(){return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
 function bAddCategory(){
   const name=prompt('카테고리 이름:');
@@ -2767,8 +2826,39 @@ document.addEventListener('click',e=>{
 // ─── PROJECTS ─────────────────────────────────────
 let _pPosts=[],_pActiveId=null,_pSearch='',_pStatusFilter=null,_pDragId=null;
 const PRJ_STATUSES=['진행중','완료','대기','보류'];
-function _pLoad(){try{_pPosts=JSON.parse(localStorage.getItem('nds_projects')||'[]')}catch{_pPosts=[]}}
-function _pSave(){localStorage.setItem('nds_projects',JSON.stringify(_pPosts))}
+// 프로젝트 데이터도 게시판과 동일한 이유로 Firestore(appdata/projects 문서)로 전환.
+let _projectSaveTimer=null;
+function _pLoad(){ /* 앱 시작 시 loadAppData()에서 한 번만 불러옴 */ }
+function _pSave(){
+  if(_projectSaveTimer)clearTimeout(_projectSaveTimer);
+  _projectSaveTimer=setTimeout(saveProjectData,1500);
+}
+async function saveProjectData(){
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    await db.collection('appdata').doc('projects').set({posts:_pPosts});
+  }catch(e){
+    try{localStorage.setItem('nds_projects',JSON.stringify(_pPosts));}catch{}
+    console.warn('프로젝트 Firestore 저장 실패, localStorage 백업 사용:', e);
+  }
+}
+async function loadProjectData(){
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    const snap=await db.collection('appdata').doc('projects').get();
+    if(snap.exists){
+      _pPosts=snap.data().posts||[];
+    } else {
+      try{_pPosts=JSON.parse(localStorage.getItem('nds_projects')||'[]');}catch{_pPosts=[];}
+      if(_pPosts.length)await saveProjectData();
+    }
+  }catch(e){
+    try{_pPosts=JSON.parse(localStorage.getItem('nds_projects')||'[]');}catch{_pPosts=[];}
+    console.warn('프로젝트 Firestore 로드 실패, localStorage 사용:', e);
+  }
+}
 function _pNewId(){return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
 
 function renderProjects(){
@@ -3177,6 +3267,9 @@ async function loadAppData(){
     }catch{}
     console.warn('Firestore 로드 실패, localStorage 사용:', e);
   }
+  // 게시판/프로젝트 데이터도 함께 로드 (예전엔 localStorage 전용이라 기기마다 따로 놀았던 부분)
+  await loadBoardData();
+  await loadProjectData();
   migrateSchedHistoryToWeekKey();
 }
 // 구버전(fromWeek 상대 오프셋) 근무스케줄 데이터를 절대 날짜 기준(weekKey)으로 1회 영구 변환.
@@ -3251,19 +3344,6 @@ async function _initApp(){
   let sessionUser=null;
   try{const u=sessionStorage.getItem('nds_user');if(u)sessionUser=JSON.parse(u);}catch{sessionStorage.removeItem('nds_user');}
 
-  function renderLoginForm(){
-    document.getElementById('login-page').innerHTML=`
-      <div class="lbox">
-        <h1>NDS 인트라넷</h1>
-        <p>아이디와 비밀번호를 입력해 로그인하세요</p>
-        <div class="lf"><label>아이디</label><input type="text" id="id-input" placeholder="아이디 입력" autocomplete="username"></div>
-        <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="current-password"></div>
-        <button class="lbtn" onclick="doLogin()">로그인</button>
-        <div class="lerr" id="lerr">아이디 또는 비밀번호가 올바르지 않습니다.</div>
-      </div>`;
-    document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-  }
-
   if(authUser && sessionUser){
     // 이미 인증되어 있고, 앱 로그인 세션(인턴의 경우 이름 선택까지 완료된 상태)도 남아있는 경우
     // → 데이터를 불러오고 바로 앱 시작
@@ -3293,9 +3373,16 @@ async function _initApp(){
     renderLoginForm();
   }
 
-  // 자동 저장
-  window.addEventListener('beforeunload',saveAppData);
-  setInterval(saveAppData,30000);
+  // 자동 저장 (게시판/프로젝트는 디바운스 대기 중일 수 있으므로 함께 즉시 저장해 유실 방지)
+  function saveEverything(){
+    saveAppData();
+    if(_boardSaveTimer){clearTimeout(_boardSaveTimer);_boardSaveTimer=null;}
+    saveBoardData();
+    if(_projectSaveTimer){clearTimeout(_projectSaveTimer);_projectSaveTimer=null;}
+    saveProjectData();
+  }
+  window.addEventListener('beforeunload',saveEverything);
+  setInterval(saveEverything,30000);
 
   // 화면 회전/리사이즈 시 근무스케줄 타임테이블 폭 재계산
   let _resizeTimer=null;
