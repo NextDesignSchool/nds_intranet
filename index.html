@@ -2527,6 +2527,7 @@ function openNoticeDetail(id){
         <input id="cmt-input" placeholder="댓글 입력">
         <button class="btn btn-p btn-sm" onclick="addComment('notice',${id})">등록</button>
       </div>
+      ${quickEmojiBar('notice',id)}
     </div>
   </div>
   <div class="mo-ft">
@@ -2627,6 +2628,7 @@ function openWorkLogDetail(id){
         <input id="cmt-input" placeholder="댓글 입력">
         <button class="btn btn-p btn-sm" onclick="addComment('worklog',${id})">등록</button>
       </div>
+      ${quickEmojiBar('worklog',id)}
     </div>
   </div>
   <div class="mo-ft">
@@ -2642,20 +2644,33 @@ function deleteWorkLog(id){
 }
 
 // ─── COMMENTS ─────────────────────────────────────
+const QUICK_EMOJIS=['❤️','👍','😢','😊'];
+function quickEmojiBar(type,id){
+  return `<div style="display:flex;gap:4px;margin-top:14px">
+    ${QUICK_EMOJIS.map(em=>`<button class="btn btn-o btn-sm" style="font-size:15px;padding:4px 9px" onclick="addQuickComment('${type}',${id},'${em}')">${em}</button>`).join('')}
+  </div>`;
+}
 function addComment(type,id){
   const text=document.getElementById('cmt-input').value.trim();
   if(!text)return;
+  postComment(type,id,text);
+  document.getElementById('cmt-input').value='';
+}
+function addQuickComment(type,id,emoji){
+  postComment(type,id,emoji);
+}
+function postComment(type,id,text){
   const arr=type==='notice'?S.notices:S.workLogs;
   const item=arr.find(x=>x.id===id);
   if(!item)return;
   item.comments.push({id:newId(),author:S.user.name,text,date:today()});
-  document.getElementById('cmt-input').value='';
   const cmts=item.comments.map(c=>`<div class="cmt">
     <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}</div>
     <div class="cmt-text">${esc(c.text)}</div>
   </div>`).join('');
   const el=document.getElementById('cmt-list');
   if(el)el.innerHTML=cmts;
+  saveAppData().catch(()=>{});
 }
 
 // ─── BOARD ────────────────────────────────────────
@@ -3657,7 +3672,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 async function _initApp(){
   // 로딩 표시
   document.getElementById('login-page').innerHTML=`
-    <div style="text-align:center;color:var(--sub);font-size:14px">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--sub);font-size:14px">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-bottom:12px;animation:spinLoader .8s linear infinite;color:var(--sub2)"><path d="M12 3a9 9 0 1 0 9 9"/></svg>
       데이터를 불러오는 중...
     </div>`;
