@@ -258,6 +258,9 @@ tr:hover td{background:var(--hover)}
 .tg-table th{background:var(--hover);padding:5px;font-weight:500;color:var(--sub)}
 .tg-table tr:hover td{background:transparent}
 .tg-cell{min-height:30px;height:auto;cursor:pointer;transition:background .08s;white-space:normal;word-break:keep-all;overflow-wrap:break-word;line-height:1.3;padding:4px 3px}
+.st-cell{outline:none;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.4;padding:8px 10px;min-height:1.4em}
+.st-cell:empty::before{content:attr(data-ph);color:var(--sub2);pointer-events:none}
+.st-table-fixed{table-layout:fixed;width:100%}
 .tg-cell:hover{background:var(--hover) !important}
 .tg-cell.sel{background:#F0EFFC;color:#5B5BD6;font-weight:600}
 .tg-table tr:last-child td{border-bottom:1px solid var(--bd)}
@@ -3427,46 +3430,43 @@ document.addEventListener('click',e=>{
 });
 
 // ─── SETTLEMENT (정산 리스트) ──────────────────────
-// 노션 표처럼 셀을 바로 클릭해서 편집하는 간단한 표. 입력할 때마다 전체를
+// 노션 표처럼 셀을 바로 클릭해서 편집하는 간단한 표. 텍스트 칸은 contenteditable
+// div를 써서 내용이 길어지면 셀 폭은 고정된 채 자동으로 줄바꿈되도록 함(입력창은
+// 원래 한 줄로만 표시되는 한계가 있어서 이 방식으로 바꿈). 입력할 때마다 전체를
 // 다시 그리면 커서 위치가 튀므로, 텍스트 칸은 blur(포커스 아웃) 시점에만 저장함.
 let _stTab='pending'; // 'pending'(정산 리스트) | 'done'(정산 완료)
-function _stIsBlank(s){
-  return !s.content&&!s.name&&!s.amount&&!s.tax&&!s.account&&!s.note;
-}
 function renderSettlement(){
   const p=document.getElementById('page-settlement');
-  // 진행중 탭에는 항상 마지막에 바로 입력할 수 있는 빈 행이 하나 준비되어 있도록 함
-  if(_stTab==='pending'){
-    const pending=S.settlements.filter(s=>!s.done);
-    if(!pending.length||!_stIsBlank(pending[pending.length-1])){
-      S.settlements.push({id:newId(),content:'',name:'',amount:'',done:false,tax:'',account:'',note:''});
-    }
-  }
   const list=S.settlements.filter(s=>_stTab==='pending'?!s.done:!!s.done);
+  const cell=(s,field,ph)=>`<div class="st-cell" contenteditable="true" data-ph="${ph}" onblur="stSetField(${s.id},'${field}',this.innerText.trim())">${esc(s[field]||'')}</div>`;
   const rowHtml=s=>`<tr data-sid="${s.id}">
-    <td><input value="${esc(s.content||'').replace(/"/g,'&quot;')}" placeholder="내용" onblur="stSetField(${s.id},'content',this.value)" style="border:none;background:transparent;min-width:180px;text-align:center"></td>
-    <td><input value="${esc(s.name||'').replace(/"/g,'&quot;')}" placeholder="이름" onblur="stSetField(${s.id},'name',this.value)" style="border:none;background:transparent;min-width:80px;text-align:center"></td>
-    <td><input value="${esc(s.amount||'').replace(/"/g,'&quot;')}" placeholder="금액" onblur="stSetField(${s.id},'amount',this.value)" style="border:none;background:transparent;min-width:100px;text-align:center"></td>
+    <td>${cell(s,'content','내용')}</td>
+    <td>${cell(s,'name','이름')}</td>
+    <td>${cell(s,'amount','금액')}</td>
     <td style="text-align:center"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${s.done?'checked':''} onchange="stToggleDone(${s.id},this.checked)"></td>
-    <td><input value="${esc(s.tax||'').replace(/"/g,'&quot;')}" placeholder="예: 3.3%" onblur="stSetField(${s.id},'tax',this.value)" style="border:none;background:transparent;min-width:80px;text-align:center"></td>
-    <td><input value="${esc(s.account||'').replace(/"/g,'&quot;')}" placeholder="계좌번호" onblur="stSetField(${s.id},'account',this.value)" style="border:none;background:transparent;min-width:140px;text-align:center"></td>
-    <td><input value="${esc(s.note||'').replace(/"/g,'&quot;')}" placeholder="비고" onblur="stSetField(${s.id},'note',this.value)" style="border:none;background:transparent;min-width:160px;text-align:center"></td>
+    <td>${cell(s,'tax','예: 3.3%')}</td>
+    <td>${cell(s,'account','계좌번호')}</td>
+    <td>${cell(s,'note','비고')}</td>
     <td style="text-align:center"><button class="btn-g" onclick="stDeleteRow(${s.id})" title="행 삭제">×</button></td>
   </tr>`;
   const rows=list.map(rowHtml).join('');
   p.innerHTML=`<div class="pg-hd">
     <h3>정산 리스트</h3>
-    <button class="btn btn-p btn-sm" onclick="stAddRow()">+ 새 행</button>
   </div>
   <div class="tabs">
     <button class="tab-btn${_stTab==='pending'?' act':''}" onclick="stSwitchTab('pending')">정산 리스트</button>
     <button class="tab-btn${_stTab==='done'?' act':''}" onclick="stSwitchTab('done')">정산 완료</button>
   </div>
   <div class="card" style="padding:0;overflow-x:auto">
-    <table>
+    <table class="st-table-fixed">
+      <colgroup>
+        <col style="width:26%"><col style="width:8%"><col style="width:11%"><col style="width:56px">
+        <col style="width:11%"><col style="width:14%"><col style="width:18%"><col style="width:40px">
+      </colgroup>
       <thead><tr><th style="text-align:center">내용</th><th style="text-align:center">이름</th><th style="text-align:center">금액</th><th style="text-align:center">정산</th><th style="text-align:center">세금 처리 방식</th><th style="text-align:center">계좌번호</th><th style="text-align:center">비고</th><th></th></tr></thead>
       <tbody>${rows||'<tr><td colspan="8" style="color:var(--sub);text-align:center;padding:24px">항목이 없습니다</td></tr>'}</tbody>
     </table>
+    <div style="padding:8px 10px;border-top:1px solid var(--bd)"><button class="btn-g" onclick="stAddRow()">+ 내용 추가</button></div>
   </div>`;
 }
 function stSwitchTab(tab){_stTab=tab;renderSettlement();}
@@ -3581,6 +3581,10 @@ async function loadAppData(){
   await loadBoardData();
   await loadProjectData();
   migrateSchedHistoryToWeekKey();
+  // 예전 버전에서 자동으로 만들어졌던 빈 정산 행을 1회 정리
+  if(Array.isArray(S.settlements)){
+    S.settlements=S.settlements.filter(s=>s.content||s.name||s.amount||s.tax||s.account||s.note);
+  }
 }
 // 구버전(fromWeek 상대 오프셋) 근무스케줄 데이터를 절대 날짜 기준(weekKey)으로 1회 영구 변환.
 // 상대 오프셋은 시간이 지나면 가리키는 주가 달라져 데이터가 보이지 않게 되므로,
