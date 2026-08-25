@@ -1284,8 +1284,9 @@ function renderEmployees(){
   let cards=S.employees.map(e=>`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <a href="#" style="font-size:16px;font-weight:700;color:var(--tx)" onclick="event.preventDefault();openEmpDetail(${e.id})">${e.name}</a>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-o btn-sm" onclick="openLeaveAdjust(${e.id})">휴가 조정</button>
+        <button class="btn btn-o btn-sm" onclick="openManualLeaveGrant(${e.id})">휴가 수동 부여</button>
         <button class="btn btn-o btn-sm" onclick="openEmpLeaveGrant(${e.id})">휴가 등록</button>
       </div>
     </div>
@@ -1302,11 +1303,10 @@ function renderEmployees(){
     </div>
     <div style="margin-top:14px">
       <div class="ctitle" style="font-size:13px">휴가 내역</div>
-      ${e.leaveHistory.length?`<div style="overflow-x:auto"><table><thead><tr><th>종류</th><th>날짜</th><th>일수</th><th>사유</th><th>기한</th><th></th></tr></thead><tbody>
+      ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm)"><table><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
       ${e.leaveHistory.map(l=>`<tr>
         <td><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':''}</span></td>
         <td>${fmtDisp(l.date)}</td><td>${l.days}일</td><td>${l.reason||'-'}</td>
-        <td style="color:${l.expiry?'var(--or)':'var(--sub)'}">${l.expiry?fmtDisp(l.expiry):'-'}</td>
         <td style="white-space:nowrap;display:flex;gap:4px">
           <button class="btn btn-o btn-sm" onclick="openEditLeave(${e.id},${l.id})">수정</button>
           <button class="btn btn-d btn-sm" onclick="deleteLeave(${e.id},${l.id})">삭제</button>
@@ -1503,8 +1503,14 @@ function saveEditLeave(empId,leaveId){
   closeModal();renderEmployees();
 }
 function deleteLeave(empId,leaveId){
-  if(!confirm('휴가 내역을 삭제하시겠습니까?'))return;
+  if(!confirm('휴가 내역을 삭제하시겠습니까? 부여/조정됐던 일수도 잔여 일수에서 함께 차감됩니다.'))return;
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const l=e.leaveHistory.find(x=>x.id===leaveId);
+  if(l){
+    if(l.type==='연차')e.annualLeave=Math.max(0,e.annualLeave-l.days);
+    else if(l.type==='월차')e.monthLeave=Math.max(0,e.monthLeave-l.days);
+    else if(l.type==='특별휴가')e.specialLeave=Math.max(0,(e.specialLeave||0)-l.days);
+  }
   e.leaveHistory=e.leaveHistory.filter(x=>x.id!==leaveId);
   renderEmployees();saveAppData().catch(()=>{});
 }
@@ -1558,10 +1564,10 @@ function saveNewEmp(){
   });
   closeModal();renderEmployees();
 }
-function openManualLeaveGrant(){
+function openManualLeaveGrant(presetEmpId){
   showModal(`<div class="mo-hd"><h3>휴가 수동 부여</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div class="fr"><label>직원</label><select id="mg-emp">${S.employees.map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}</select></div>
+    <div class="fr"><label>직원</label><select id="mg-emp">${S.employees.map(e=>`<option value="${e.id}"${presetEmpId===e.id?' selected':''}>${esc(e.name)}</option>`).join('')}</select></div>
     <div class="fr"><label>종류</label><select id="mg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
     <div class="fr fr-row">
       <div><label>부여 일수</label><input type="number" id="mg-days" value="1" min="0.5" step="0.5"></div>
