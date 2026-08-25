@@ -87,7 +87,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 .btn-sm{padding:4px 10px;font-size:11.5px;border-radius:var(--r-sm)}
 .btn-g{background:transparent;border:none;color:var(--sub);padding:3px 7px;font-size:12px;border-radius:var(--r-sm)}
 .btn-g:hover{color:var(--tx);background:var(--hover)}
-.chip{display:inline-block;padding:3px 9px;border-radius:var(--r-sm);font-size:11px;font-weight:500;letter-spacing:.01em}
+.chip{display:inline-block;padding:3px 9px;border-radius:var(--r-sm);font-size:11px;font-weight:500;letter-spacing:.01em;white-space:nowrap}
 .ch-p{background:#EEEDFB;color:#5755C9}
 .ch-g{background:#EAF4EE;color:var(--gr)}
 .ch-o{background:#FDF0E6;color:var(--or)}
@@ -1310,9 +1310,9 @@ function renderEmployees(){
       <div class="ctitle" style="font-size:13px">휴가 내역</div>
       ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm)"><table><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
       ${e.leaveHistory.map(l=>`<tr>
-        <td><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
-        <td>${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td><td>${l.days}일</td><td>${l.reason||'-'}</td>
-        <td style="white-space:nowrap;display:flex;gap:4px;justify-content:flex-end">
+        <td style="white-space:nowrap"><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
+        <td style="white-space:nowrap">${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td><td style="white-space:nowrap">${l.days}일</td><td>${l.reason||'-'}</td>
+        <td style="white-space:nowrap;display:flex;gap:4px;justify-content:flex-end;align-items:center">
           <button class="btn btn-o btn-sm" onclick="openEditLeave(${e.id},${l.id})">수정</button>
           <button class="btn btn-d btn-sm" onclick="deleteLeave(${e.id},${l.id})">삭제</button>
         </td>
@@ -3429,31 +3429,49 @@ document.addEventListener('click',e=>{
 // ─── SETTLEMENT (정산 리스트) ──────────────────────
 // 노션 표처럼 셀을 바로 클릭해서 편집하는 간단한 표. 입력할 때마다 전체를
 // 다시 그리면 커서 위치가 튀므로, 텍스트 칸은 blur(포커스 아웃) 시점에만 저장함.
+let _stTab='pending'; // 'pending'(정산 리스트) | 'done'(정산 완료)
+function _stIsBlank(s){
+  return !s.content&&!s.name&&!s.amount&&!s.tax&&!s.account&&!s.note;
+}
 function renderSettlement(){
   const p=document.getElementById('page-settlement');
-  const rows=S.settlements.map(s=>`<tr data-sid="${s.id}">
-    <td><input value="${esc(s.content||'').replace(/"/g,'&quot;')}" placeholder="내용" onblur="stSetField(${s.id},'content',this.value)" style="border:none;background:transparent;min-width:180px"></td>
-    <td><input value="${esc(s.name||'').replace(/"/g,'&quot;')}" placeholder="이름" onblur="stSetField(${s.id},'name',this.value)" style="border:none;background:transparent;min-width:80px"></td>
-    <td><input value="${esc(s.amount||'').replace(/"/g,'&quot;')}" placeholder="금액" onblur="stSetField(${s.id},'amount',this.value)" style="border:none;background:transparent;min-width:100px;text-align:right"></td>
+  // 진행중 탭에는 항상 마지막에 바로 입력할 수 있는 빈 행이 하나 준비되어 있도록 함
+  if(_stTab==='pending'){
+    const pending=S.settlements.filter(s=>!s.done);
+    if(!pending.length||!_stIsBlank(pending[pending.length-1])){
+      S.settlements.push({id:newId(),content:'',name:'',amount:'',done:false,tax:'',account:'',note:''});
+    }
+  }
+  const list=S.settlements.filter(s=>_stTab==='pending'?!s.done:!!s.done);
+  const rowHtml=s=>`<tr data-sid="${s.id}">
+    <td><input value="${esc(s.content||'').replace(/"/g,'&quot;')}" placeholder="내용" onblur="stSetField(${s.id},'content',this.value)" style="border:none;background:transparent;min-width:180px;text-align:center"></td>
+    <td><input value="${esc(s.name||'').replace(/"/g,'&quot;')}" placeholder="이름" onblur="stSetField(${s.id},'name',this.value)" style="border:none;background:transparent;min-width:80px;text-align:center"></td>
+    <td><input value="${esc(s.amount||'').replace(/"/g,'&quot;')}" placeholder="금액" onblur="stSetField(${s.id},'amount',this.value)" style="border:none;background:transparent;min-width:100px;text-align:center"></td>
     <td style="text-align:center"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${s.done?'checked':''} onchange="stToggleDone(${s.id},this.checked)"></td>
-    <td><input value="${esc(s.tax||'').replace(/"/g,'&quot;')}" placeholder="예: 3.3%" onblur="stSetField(${s.id},'tax',this.value)" style="border:none;background:transparent;min-width:80px"></td>
-    <td><input value="${esc(s.account||'').replace(/"/g,'&quot;')}" placeholder="계좌번호" onblur="stSetField(${s.id},'account',this.value)" style="border:none;background:transparent;min-width:140px"></td>
-    <td><input value="${esc(s.note||'').replace(/"/g,'&quot;')}" placeholder="비고" onblur="stSetField(${s.id},'note',this.value)" style="border:none;background:transparent;min-width:160px"></td>
-    <td><button class="btn-g" onclick="stDeleteRow(${s.id})" title="행 삭제">×</button></td>
-  </tr>`).join('');
+    <td><input value="${esc(s.tax||'').replace(/"/g,'&quot;')}" placeholder="예: 3.3%" onblur="stSetField(${s.id},'tax',this.value)" style="border:none;background:transparent;min-width:80px;text-align:center"></td>
+    <td><input value="${esc(s.account||'').replace(/"/g,'&quot;')}" placeholder="계좌번호" onblur="stSetField(${s.id},'account',this.value)" style="border:none;background:transparent;min-width:140px;text-align:center"></td>
+    <td><input value="${esc(s.note||'').replace(/"/g,'&quot;')}" placeholder="비고" onblur="stSetField(${s.id},'note',this.value)" style="border:none;background:transparent;min-width:160px;text-align:center"></td>
+    <td style="text-align:center"><button class="btn-g" onclick="stDeleteRow(${s.id})" title="행 삭제">×</button></td>
+  </tr>`;
+  const rows=list.map(rowHtml).join('');
   p.innerHTML=`<div class="pg-hd">
     <h3>정산 리스트</h3>
     <button class="btn btn-p btn-sm" onclick="stAddRow()">+ 새 행</button>
   </div>
+  <div class="tabs">
+    <button class="tab-btn${_stTab==='pending'?' act':''}" onclick="stSwitchTab('pending')">정산 리스트</button>
+    <button class="tab-btn${_stTab==='done'?' act':''}" onclick="stSwitchTab('done')">정산 완료</button>
+  </div>
   <div class="card" style="padding:0;overflow-x:auto">
     <table>
-      <thead><tr><th>내용</th><th>이름</th><th>금액</th><th style="text-align:center">정산</th><th>세금 처리 방식</th><th>계좌번호</th><th>비고</th><th></th></tr></thead>
-      <tbody>${rows||'<tr><td colspan="8" style="color:var(--sub);text-align:center;padding:24px">등록된 정산 내역이 없습니다</td></tr>'}</tbody>
+      <thead><tr><th style="text-align:center">내용</th><th style="text-align:center">이름</th><th style="text-align:center">금액</th><th style="text-align:center">정산</th><th style="text-align:center">세금 처리 방식</th><th style="text-align:center">계좌번호</th><th style="text-align:center">비고</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="8" style="color:var(--sub);text-align:center;padding:24px">항목이 없습니다</td></tr>'}</tbody>
     </table>
   </div>`;
 }
+function stSwitchTab(tab){_stTab=tab;renderSettlement();}
 function stAddRow(){
-  S.settlements.push({id:newId(),content:'',name:'',amount:'',done:false,tax:'',account:'',note:''});
+  S.settlements.push({id:newId(),content:'',name:'',amount:'',done:_stTab==='done',tax:'',account:'',note:''});
   renderSettlement();
   saveAppData().catch(()=>{});
 }
@@ -3466,6 +3484,7 @@ function stSetField(id,field,value){
 function stToggleDone(id,checked){
   const s=S.settlements.find(x=>x.id===id);if(!s)return;
   s.done=checked;
+  renderSettlement(); // 체크하면 목록에서 사라지고 반대편 탭으로 이동해야 하므로 다시 그림
   saveAppData().catch(()=>{});
 }
 function stDeleteRow(id){
