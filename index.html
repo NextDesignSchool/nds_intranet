@@ -560,7 +560,7 @@ function doLogin(){
     err.style.display='block';
     return;
   }
-  const email = id + '@nds-intern.local';
+  const email = id + '@nds-login.local';
   firebase.auth().signInWithEmailAndPassword(email, pw)
     .then(async (cred)=>{
       await loadAppData();
