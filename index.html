@@ -133,7 +133,7 @@ tr:hover td{background:var(--hover)}
 /* 이벤트 레이어: 날짜 셀과 동일한 7열 grid + border로 세로선을 그려 항상 정렬이 맞도록 함 */
 .cal-evlayer{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));height:88px;overflow:hidden;position:relative}
 .cal-evcol{border-right:1px solid var(--bd);background:var(--card)}
-.cal-evlayer .cal-evcol:last-child{border-right:none}
+.cal-evlayer .cal-evcol:nth-child(7){border-right:none}
 .board-wrap{display:flex;height:calc(100vh - 108px);background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);overflow:hidden}
 .board-sb{width:240px;border-right:1px solid var(--bd);display:flex;flex-direction:column;background:var(--sb);flex-shrink:0}
 .board-sb-hd{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
