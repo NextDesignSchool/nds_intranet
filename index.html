@@ -588,6 +588,7 @@ function doLogin(){
     .then(async (cred)=>{
       await loadAppData();
       const profile = await fetchUserProfile(cred.user.uid);
+      console.log('[디버그] 입력한 아이디:', id, '/ 로그인된 uid:', cred.user.uid, '/ Firestore에서 받은 profile:', profile);
       if(!profile){
         err.textContent='사용자 정보를 찾을 수 없습니다. 관리자에게 문의하세요.';
         err.style.display='block';
