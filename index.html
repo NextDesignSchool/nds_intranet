@@ -446,6 +446,7 @@ tr:hover td{background:var(--hover)}
       <div class="page" id="page-employees"></div>
       <div class="page" id="page-board"></div>
       <div class="page" id="page-projects"></div>
+      <div class="page" id="page-settlement"></div>
       <div class="page" id="page-interns"></div>
       <div class="page" id="page-workschedule"></div>
       <div class="page" id="page-notice"></div>
@@ -507,6 +508,7 @@ const COLORS=[
 ];
 const S={
   user:null,page:'home',
+  settlements:[],
   cal:new Date(new Date().getFullYear(),new Date().getMonth(),1),
   weekOffset:0,
   schedSort:'date',
@@ -700,7 +702,8 @@ const ICONS={
   interns:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.7" width="12" height="17" rx="1.8"/><path d="M9 8.3h6M9 12.3h6M9 16.3h3.5"/></svg>',
   workschedule:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12.5" r="8.3"/><path d="M12 8v4.5l3 2"/></svg>',
   notice:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v3.5a1 1 0 0 0 1 1h1.6l3.6 4V5l-3.6 4H5a1 1 0 0 0-1 1Z"/><path d="M15.5 8.3a5.2 5.2 0 0 1 0 8"/><path d="M18.3 6a8.8 8.8 0 0 1 0 12.6"/></svg>',
-  worklog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 3H7.5a1.8 1.8 0 0 0-1.8 1.8v14.4A1.8 1.8 0 0 0 7.5 21h9a1.8 1.8 0 0 0 1.8-1.8V8.3Z"/><path d="M13.5 3v4.5a1 1 0 0 0 1 1H19M9 12.5h6M9 16h6"/></svg>'
+  worklog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 3H7.5a1.8 1.8 0 0 0-1.8 1.8v14.4A1.8 1.8 0 0 0 7.5 21h9a1.8 1.8 0 0 0 1.8-1.8V8.3Z"/><path d="M13.5 3v4.5a1 1 0 0 0 1 1H19M9 12.5h6M9 16h6"/></svg>',
+  settlement:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.8h12v18.4l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6-2.4-1.6Z"/><path d="M8.5 8h7M8.5 11.5h7M8.5 15h4"/></svg>'
 };
 const PAGES=[
   {id:'home',label:'홈 대시보드',role:'all',section:'메인',icon:ICONS.home},
@@ -708,6 +711,7 @@ const PAGES=[
   {id:'employees',label:'직원 관리',role:'admin',section:'직원 관리',icon:ICONS.employees},
   {id:'board',label:'게시판',role:'admin',section:'직원 관리',icon:ICONS.board},
   {id:'projects',label:'프로젝트 관리',role:'admin',section:'직원 관리',icon:ICONS.projects},
+  {id:'settlement',label:'정산 리스트',role:'admin',section:'직원 관리',icon:ICONS.settlement},
   {id:'interns',label:'인턴 목록',role:'admin',section:'인턴관리',icon:ICONS.interns},
   {id:'workschedule',label:'근무스케줄',role:'all',section:'인턴관리',icon:ICONS.workschedule},
   {id:'notice',label:'인턴 공지',role:'all',section:'인턴관리',icon:ICONS.notice},
@@ -787,7 +791,7 @@ function navigate(pg){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('page-'+pg);
   if(el)el.classList.add('active');
-  const titles={home:'홈 대시보드',schedule:'일정관리',employees:'직원 관리',board:'게시판',projects:'프로젝트 관리',interns:'인턴 목록',workschedule:'근무스케줄',notice:'인턴 공지',worklog:'근무일지'};
+  const titles={home:'홈 대시보드',schedule:'일정관리',employees:'직원 관리',board:'게시판',projects:'프로젝트 관리',settlement:'정산 리스트',interns:'인턴 목록',workschedule:'근무스케줄',notice:'인턴 공지',worklog:'근무일지'};
   const roleBadge=allowed.role==='admin'?' <span style="font-size:11.5px;font-weight:400;color:var(--sub2)">· 관리자 전용</span>':'';
   document.getElementById('pg-title').innerHTML=esc(navLabel(pg,titles[pg]||pg))+roleBadge;
   document.getElementById('sb').classList.remove('open');
@@ -803,6 +807,7 @@ function renderPage(pg){
   else if(pg==='worklog')renderWorkLog();
   else if(pg==='board')renderBoard();
   else if(pg==='projects')renderProjects();
+  else if(pg==='settlement')renderSettlement();
 }
 
 // ─── HOLIDAY API ──────────────────────────────────
@@ -1306,7 +1311,7 @@ function renderEmployees(){
       ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm)"><table><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
       ${e.leaveHistory.map(l=>`<tr>
         <td><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
-        <td>${fmtDisp(l.date)}</td><td>${l.days}일</td><td>${l.reason||'-'}</td>
+        <td>${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td><td>${l.days}일</td><td>${l.reason||'-'}</td>
         <td style="white-space:nowrap;display:flex;gap:4px;justify-content:flex-end">
           <button class="btn btn-o btn-sm" onclick="openEditLeave(${e.id},${l.id})">수정</button>
           <button class="btn btn-d btn-sm" onclick="deleteLeave(${e.id},${l.id})">삭제</button>
@@ -1401,7 +1406,7 @@ function openLeaveTypeHistory(empId,type){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
   const list=(e.leaveHistory||[]).filter(l=>l.type===type).sort((a,b)=>b.date.localeCompare(a.date));
   const rows=list.map(l=>`<tr>
-    <td>${fmtDisp(l.date)}</td>
+    <td>${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td>
     <td style="color:${l.days>=0?'var(--gr)':'var(--re)'};font-weight:600;white-space:nowrap">${l.days>=0?'+':''}${l.days}일</td>
     <td>${esc(l.reason||'-')}</td>
   </tr>`).join('');
@@ -1595,22 +1600,47 @@ function openEmpLeaveGrant(empId){
   <div class="mo-bd">
     <div class="fr"><label>종류</label><select id="elg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
     <div class="fr fr-row">
-      <div><label>사용 일수</label><input type="number" id="elg-days" value="1" min="0.5" step="0.5"></div>
-      <div><label>사용 기한</label><input type="date" id="elg-expiry"></div>
+      <div><label>사용 일수</label><input type="number" id="elg-days" value="1" min="0.5" step="0.5" oninput="toggleElgDateRange()"></div>
+      <div><label>사용일</label><input type="date" id="elg-date" value="${today()}" oninput="syncElgEndDate()"></div>
+    </div>
+    <div class="fr" id="elg-enddate-wrap" style="display:none">
+      <label>종료일 <span style="font-weight:400;color:var(--sub);font-size:12px">(연속 사용 시)</span></label>
+      <input type="date" id="elg-enddate">
     </div>
     <div class="fr"><label>사유</label><input id="elg-reason" placeholder="사유 입력"></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
   <button class="btn btn-p" onclick="saveEmpLeaveGrant(${empId})">사용 등록</button></div>`,'sm');
+  setTimeout(toggleElgDateRange,20);
+}
+// 사용 일수가 2일 이상이면 시작일뿐 아니라 종료일도 선택할 수 있게 함
+// (예: 3일 연속 사용 → 8/25~8/27). 종료일은 시작일+일수만큼 자동 계산되지만 직접 수정도 가능함.
+function toggleElgDateRange(){
+  const days=parseFloat(document.getElementById('elg-days')?.value)||1;
+  const wrap=document.getElementById('elg-enddate-wrap');
+  if(!wrap)return;
+  wrap.style.display=days>=2?'block':'none';
+  if(days>=2)syncElgEndDate();
+}
+function syncElgEndDate(){
+  const days=parseFloat(document.getElementById('elg-days')?.value)||1;
+  const startVal=document.getElementById('elg-date')?.value;
+  const endInput=document.getElementById('elg-enddate');
+  if(!startVal||!endInput||days<2)return;
+  const d=new Date(startVal);
+  d.setDate(d.getDate()+Math.max(0,Math.ceil(days)-1));
+  endInput.value=fmt(d);
 }
 function saveEmpLeaveGrant(empId){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
   const type=document.getElementById('elg-type').value;
   const days=parseFloat(document.getElementById('elg-days').value)||1;
-  const expiry=document.getElementById('elg-expiry').value||null;
+  const date=document.getElementById('elg-date').value||today();
+  const endWrap=document.getElementById('elg-enddate-wrap');
+  const endDate=(endWrap&&endWrap.style.display!=='none')?(document.getElementById('elg-enddate').value||null):null;
   const reason=document.getElementById('elg-reason').value;
   // '휴가 사용'은 부여가 아니라 차감이므로, 기록에는 음수 일수로 남기고 잔여 일수에서 뺌
-  e.leaveHistory.push({id:newId(),type,date:today(),days:-days,reason,expiry,used:true});
+  e.leaveHistory.push({id:newId(),type,date,endDate,days:-days,reason,used:true});
   if(type==='연차')e.annualLeave=Math.max(0,e.annualLeave-days);
   else if(type==='월차')e.monthLeave=Math.max(0,e.monthLeave-days);
   else if(type==='특별휴가')e.specialLeave=Math.max(0,(e.specialLeave||0)-days);
@@ -3396,6 +3426,55 @@ document.addEventListener('click',e=>{
   }
 });
 
+// ─── SETTLEMENT (정산 리스트) ──────────────────────
+// 노션 표처럼 셀을 바로 클릭해서 편집하는 간단한 표. 입력할 때마다 전체를
+// 다시 그리면 커서 위치가 튀므로, 텍스트 칸은 blur(포커스 아웃) 시점에만 저장함.
+function renderSettlement(){
+  const p=document.getElementById('page-settlement');
+  const rows=S.settlements.map(s=>`<tr data-sid="${s.id}">
+    <td><input value="${esc(s.content||'').replace(/"/g,'&quot;')}" placeholder="내용" onblur="stSetField(${s.id},'content',this.value)" style="border:none;background:transparent;min-width:180px"></td>
+    <td><input value="${esc(s.name||'').replace(/"/g,'&quot;')}" placeholder="이름" onblur="stSetField(${s.id},'name',this.value)" style="border:none;background:transparent;min-width:80px"></td>
+    <td><input value="${esc(s.amount||'').replace(/"/g,'&quot;')}" placeholder="금액" onblur="stSetField(${s.id},'amount',this.value)" style="border:none;background:transparent;min-width:100px;text-align:right"></td>
+    <td style="text-align:center"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${s.done?'checked':''} onchange="stToggleDone(${s.id},this.checked)"></td>
+    <td><input value="${esc(s.tax||'').replace(/"/g,'&quot;')}" placeholder="예: 3.3%" onblur="stSetField(${s.id},'tax',this.value)" style="border:none;background:transparent;min-width:80px"></td>
+    <td><input value="${esc(s.account||'').replace(/"/g,'&quot;')}" placeholder="계좌번호" onblur="stSetField(${s.id},'account',this.value)" style="border:none;background:transparent;min-width:140px"></td>
+    <td><input value="${esc(s.note||'').replace(/"/g,'&quot;')}" placeholder="비고" onblur="stSetField(${s.id},'note',this.value)" style="border:none;background:transparent;min-width:160px"></td>
+    <td><button class="btn-g" onclick="stDeleteRow(${s.id})" title="행 삭제">×</button></td>
+  </tr>`).join('');
+  p.innerHTML=`<div class="pg-hd">
+    <h3>정산 리스트</h3>
+    <button class="btn btn-p btn-sm" onclick="stAddRow()">+ 새 행</button>
+  </div>
+  <div class="card" style="padding:0;overflow-x:auto">
+    <table>
+      <thead><tr><th>내용</th><th>이름</th><th>금액</th><th style="text-align:center">정산</th><th>세금 처리 방식</th><th>계좌번호</th><th>비고</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="8" style="color:var(--sub);text-align:center;padding:24px">등록된 정산 내역이 없습니다</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+function stAddRow(){
+  S.settlements.push({id:newId(),content:'',name:'',amount:'',done:false,tax:'',account:'',note:''});
+  renderSettlement();
+  saveAppData().catch(()=>{});
+}
+function stSetField(id,field,value){
+  const s=S.settlements.find(x=>x.id===id);if(!s)return;
+  if(s[field]===value)return; // 변경 없으면 저장 스킵
+  s[field]=value;
+  saveAppData().catch(()=>{});
+}
+function stToggleDone(id,checked){
+  const s=S.settlements.find(x=>x.id===id);if(!s)return;
+  s.done=checked;
+  saveAppData().catch(()=>{});
+}
+function stDeleteRow(id){
+  if(!confirm('이 행을 삭제하시겠습니까?'))return;
+  S.settlements=S.settlements.filter(x=>x.id!==id);
+  renderSettlement();
+  saveAppData().catch(()=>{});
+}
+
 // ─── MODAL SYSTEM ─────────────────────────────────
 function showModal(html,size){
   const overlay=document.getElementById('modal');
@@ -3430,7 +3509,7 @@ async function closeModal(){
 function modalBgClick(e){if(e.target===document.getElementById('modal'))closeModal()}
 
 // ─── DATA PERSISTENCE (Firestore) ──────────────────
-const PERSIST_KEYS=['events','etypes','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','navLabels','nid'];
+const PERSIST_KEYS=['events','etypes','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','navLabels','nid','settlements'];
 
 // Firestore에 저장
 async function saveAppData(){
