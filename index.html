@@ -543,29 +543,79 @@ function today(){return fmt(new Date())}
 function newId(){return ++S.nid}
 function isAdmin(){return S.user&&S.user.role==='admin'}
 
+async function fetchUserProfile(uid){
+  const doc = await window._db.collection('users').doc(uid).get();
+  if(!doc.exists) return null;
+  const d = doc.data();
+  return {name:d.name, role:d.role, uid};
+}
+
 function doLogin(){
-  const pw=document.getElementById('pw-input').value.trim();
+  const id=document.getElementById('id-input').value.trim();
+  const pw=document.getElementById('pw-input').value;
   const err=document.getElementById('lerr');
-  if(pw==='admin8062'||pw==='intern2026'){
-    firebase.auth().signInAnonymously()
-      .then(async ()=>{
-        // 로그인(인증) 완료 후에야 Firestore 접근 권한이 생기므로,
-        // 여기서 데이터를 다시 불러와야 실제 저장된 내용이 반영됨
-        await loadAppData();
-        S.user = pw==='admin8062' ? {name:'Admin',role:'admin'} : {name:'김지현',role:'intern'};
+  err.style.display='none';
+  if(!id||!pw){
+    err.textContent='아이디와 비밀번호를 입력해주세요.';
+    err.style.display='block';
+    return;
+  }
+  const email = id + '@nds-intern.local';
+  firebase.auth().signInWithEmailAndPassword(email, pw)
+    .then(async (cred)=>{
+      await loadAppData();
+      const profile = await fetchUserProfile(cred.user.uid);
+      if(!profile){
+        err.textContent='사용자 정보를 찾을 수 없습니다. 관리자에게 문의하세요.';
+        err.style.display='block';
+        firebase.auth().signOut();
+        return;
+      }
+      if(profile.role==='intern'){
+        // 인턴 공용 계정이므로, 실제 작성자 이름을 별도로 선택받음
+        showInternNamePicker();
+      } else {
+        S.user = profile;
         sessionStorage.setItem('nds_user',JSON.stringify(S.user));
         startApp();
-      })
-      .catch(e=>{
-        console.warn('익명 로그인 실패:',e);
-        err.textContent='로그인 처리 중 오류가 발생했습니다.';
-        err.style.display='block';
-      });
-  } else {
-    err.style.display='block';
-  }
+      }
+    })
+    .catch(e=>{
+      console.warn('로그인 실패:',e);
+      err.textContent='아이디 또는 비밀번호가 올바르지 않습니다.';
+      err.style.display='block';
+    });
 }
-// pw-input 엔터 이벤트는 INIT에서 등록됩니다
+
+// 인턴 공용 계정 로그인 후, 실제로 누구인지 선택받는 화면
+function showInternNamePicker(){
+  const active = S.interns.filter(isInternActive);
+  const btns = active.map(i=>
+    `<button class="btn btn-o" style="width:100%;margin-bottom:8px;text-align:left" onclick="confirmInternName('${i.name.replace(/'/g,"\\'")}')">${i.name}</button>`
+  ).join('');
+  document.getElementById('login-page').innerHTML = `
+    <div class="lbox">
+      <h1>NDS 인트라넷</h1>
+      <p>본인 이름을 선택해주세요</p>
+      ${btns || '<div style="color:var(--sub);font-size:13px;margin-bottom:12px">등록된 인턴이 없습니다. 관리자에게 문의하세요.</div>'}
+      <div class="lf" style="margin-top:16px">
+        <label>목록에 없다면 직접 입력</label>
+        <input id="intern-name-other" placeholder="이름 입력">
+      </div>
+      <button class="lbtn" onclick="confirmInternNameOther()">확인</button>
+    </div>`;
+}
+function confirmInternName(name){
+  S.user = {name, role:'intern'};
+  sessionStorage.setItem('nds_user', JSON.stringify(S.user));
+  startApp();
+}
+function confirmInternNameOther(){
+  const v = document.getElementById('intern-name-other').value.trim();
+  if(!v){alert('이름을 입력해주세요');return;}
+  confirmInternName(v);
+}
+// id-input / pw-input 엔터 이벤트는 INIT에서 등록됩니다
 
 function startApp(){
   document.getElementById('login-page').style.display='none';
@@ -1009,10 +1059,10 @@ function openEventDetail(id){
     <div style="font-size:13px;color:var(--sub);margin-bottom:8px">📅 ${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''} ${e.time?`${e.startTime||''}~${e.endTime||''}`:'(종일)'}</div>
     ${e.content?`<div style="font-size:14px;white-space:pre-wrap">${e.content}</div>`:''}
   </div>
-  <div class="mo-ft" style="gap:8px">
-    <button class="btn btn-o" style="flex:1" onclick="closeModal()">닫기</button>
-    <button class="btn btn-p" style="flex:1" onclick="closeModal();openEditEvent(${id})">수정</button>
-    <button class="btn btn-d" style="flex:1" onclick="deleteEvent(${id});closeModal()">삭제</button>
+  <div class="mo-ft">
+    <button class="btn btn-o" onclick="closeModal()">닫기</button>
+    <button class="btn btn-p" onclick="closeModal();openEditEvent(${id})">수정</button>
+    <button class="btn btn-d" onclick="deleteEvent(${id});closeModal()">삭제</button>
   </div>`);
 }
 function saveEvent(id){
@@ -3052,7 +3102,29 @@ function showModal(html,size){
   box.innerHTML=html;
   overlay.style.display='flex';
 }
-function closeModal(){document.getElementById('modal').style.display='none';saveAppData().catch(()=>{});}
+async function closeModal(){
+  const overlay=document.getElementById('modal');
+  // 저장 중 표시 (저장이 끝나기 전에 새로고침/이동해서 데이터가 유실되는 것을 방지)
+  let badge=document.getElementById('saving-badge');
+  if(!badge){
+    badge=document.createElement('div');
+    badge.id='saving-badge';
+    badge.style.cssText='position:fixed;top:16px;right:16px;background:var(--ac);color:#fff;padding:7px 16px;border-radius:7px;font-size:12.5px;font-weight:500;z-index:5000;box-shadow:0 4px 14px rgba(0,0,0,.18);display:flex;align-items:center;gap:6px';
+    badge.innerHTML='<span style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:.9;animation:sbPulse 1s infinite"></span>저장 중...';
+    document.body.appendChild(badge);
+    if(!document.getElementById('sb-pulse-style')){
+      const st=document.createElement('style');
+      st.id='sb-pulse-style';
+      st.textContent='@keyframes sbPulse{0%,100%{opacity:.4}50%{opacity:1}}';
+      document.head.appendChild(st);
+    }
+  }
+  try{
+    await saveAppData();
+  }catch(e){}
+  badge.remove();
+  overlay.style.display='none';
+}
 function modalBgClick(e){if(e.target===document.getElementById('modal'))closeModal()}
 
 // ─── DATA PERSISTENCE (Firestore) ──────────────────
@@ -3179,33 +3251,46 @@ async function _initApp(){
   let sessionUser=null;
   try{const u=sessionStorage.getItem('nds_user');if(u)sessionUser=JSON.parse(u);}catch{sessionStorage.removeItem('nds_user');}
 
+  function renderLoginForm(){
+    document.getElementById('login-page').innerHTML=`
+      <div class="lbox">
+        <h1>NDS 인트라넷</h1>
+        <p>아이디와 비밀번호를 입력해 로그인하세요</p>
+        <div class="lf"><label>아이디</label><input type="text" id="id-input" placeholder="아이디 입력" autocomplete="username"></div>
+        <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="current-password"></div>
+        <button class="lbtn" onclick="doLogin()">로그인</button>
+        <div class="lerr" id="lerr">아이디 또는 비밀번호가 올바르지 않습니다.</div>
+      </div>`;
+    document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+  }
+
   if(authUser && sessionUser){
-    // 이미 인증되어 있고, 앱 로그인 세션도 남아있는 경우 → 데이터를 불러오고 바로 앱 시작
+    // 이미 인증되어 있고, 앱 로그인 세션(인턴의 경우 이름 선택까지 완료된 상태)도 남아있는 경우
+    // → 데이터를 불러오고 바로 앱 시작
     await loadAppData();
     S.user=sessionUser;
     startApp();
-    document.getElementById('login-page').innerHTML=`
-      <div class="lbox">
-        <h1>NDS 인트라넷</h1>
-        <p>비밀번호를 입력해 로그인하세요</p>
-        <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="new-password"></div>
-        <button class="lbtn" onclick="doLogin()">로그인</button>
-        <div class="lerr" id="lerr">비밀번호가 올바르지 않습니다.</div>
-      </div>`;
-    document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+    renderLoginForm();
+  } else if(authUser && !sessionUser){
+    // Firebase 인증은 남아있지만(공용 인턴 계정 등) 이름 선택 세션이 없는 경우
+    // → 데이터를 불러오고 역할을 확인해 필요하면 이름 선택 화면부터 다시 보여줌
+    await loadAppData();
+    const profile = await fetchUserProfile(authUser.uid);
+    if(profile && profile.role==='intern'){
+      showInternNamePicker();
+    } else if(profile){
+      S.user = profile;
+      sessionStorage.setItem('nds_user',JSON.stringify(S.user));
+      startApp();
+      renderLoginForm();
+    } else {
+      firebase.auth().signOut();
+      renderLoginForm();
+    }
   } else {
     // 인증 전 상태 → 로그인 화면만 표시. 실제 데이터는 doLogin() 성공 후 불러옴.
     sessionStorage.removeItem('nds_user');
-    document.getElementById('login-page').innerHTML=`
-      <div class="lbox">
-        <h1>NDS 인트라넷</h1>
-        <p>비밀번호를 입력해 로그인하세요</p>
-        <div class="lf"><label>비밀번호</label><input type="password" id="pw-input" placeholder="비밀번호 입력" autocomplete="new-password"></div>
-        <button class="lbtn" onclick="doLogin()">로그인</button>
-        <div class="lerr" id="lerr">비밀번호가 올바르지 않습니다.</div>
-      </div>`;
-    document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-    setTimeout(()=>{const el=document.getElementById('pw-input');if(el)el.value='';},200);
+    renderLoginForm();
   }
 
   // 자동 저장
