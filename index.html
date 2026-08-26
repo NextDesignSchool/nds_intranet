@@ -120,6 +120,7 @@ tr:hover td{background:var(--hover)}
 .cal-hd-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .cal-nav{background:none;border:1px solid var(--bd);border-radius:var(--r-sm);width:29px;height:29px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--sub);transition:background .1s}
 .cal-nav:hover{background:var(--hover)}
+.cal-nav-sm{width:18px;height:18px;font-size:10px}
 .cal-grid-outer{border:1px solid var(--bd);border-radius:var(--r-md);overflow:hidden;transform:translateZ(0)}
 .cal-header-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--bd);background:var(--sb)}
 .cal-dn{padding:5px;text-align:center;font-size:11.5px;font-weight:500;color:var(--sub)}
@@ -596,6 +597,41 @@ function formatPhoneInput(el){
   else if(d.length>=4)out=d.slice(0,3)+'-'+d.slice(3);
   el.value=out;
 }
+// 게시판/프로젝트 글을 '보기 모드'로 보여줄 때, 본문 안의 URL(http://, https://, www.로 시작하는 텍스트)을
+// 자동으로 클릭 가능한 링크로 바꿔줌. 이미 <a> 태그로 되어있는 부분은 건드리지 않도록 텍스트 노드만 순회함.
+function linkifyHtml(html){
+  if(!html)return html;
+  const div=document.createElement('div');
+  div.innerHTML=html;
+  const urlRe=/((https?:\/\/|www\.)[^\s<]+)/gi;
+  function walk(node){
+    if(node.nodeType===3){
+      const text=node.textContent;
+      urlRe.lastIndex=0;
+      if(!urlRe.test(text))return;
+      urlRe.lastIndex=0;
+      const frag=document.createDocumentFragment();
+      let lastIdx=0,m;
+      while((m=urlRe.exec(text))){
+        if(m.index>lastIdx)frag.appendChild(document.createTextNode(text.slice(lastIdx,m.index)));
+        const url=m[0];
+        const href=url.startsWith('http')?url:'https://'+url;
+        const a=document.createElement('a');
+        a.href=href;a.target='_blank';a.rel='noopener';
+        a.style.color='inherit';a.style.textDecoration='underline';
+        a.textContent=url;
+        frag.appendChild(a);
+        lastIdx=m.index+url.length;
+      }
+      if(lastIdx<text.length)frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+      node.parentNode.replaceChild(frag,node);
+    } else if(node.nodeType===1&&node.tagName!=='A'){
+      Array.from(node.childNodes).forEach(walk);
+    }
+  }
+  Array.from(div.childNodes).forEach(walk);
+  return div.innerHTML;
+}
 function esc(str){
   const div=document.createElement('div');
   div.textContent=str==null?'':String(str);
@@ -912,11 +948,11 @@ function renderCalendar(container,month,onAddEvent){
   const loadingBadge=loading?`<span style="font-size:11px;color:var(--sub);margin-left:6px">공휴일 로딩중…</span>`:
     (S.holidayFallback&&isLoaded?`<span style="font-size:11px;color:var(--or);margin-left:6px" title="API 연결 실패, 기본 데이터 사용">⚠ 오프라인</span>`:'');
   let html=`<div class="cal-hd">
-    <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
       <button class="cal-nav" onclick="calPrev('${container}')">‹</button>
       <h3 class="cal-hd-title" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--sub2);text-underline-offset:3px;flex:0 1 auto;min-width:0" onclick="event.stopPropagation();calJump(this,'${container}')" title="클릭해서 다른 달로 이동">${y}년 ${m+1}월${loadingBadge}</h3>
       <button class="cal-nav" onclick="calNext('${container}')">›</button>
-      <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px;margin-left:4px" onclick="calToday('${container}')">오늘</button>
+      <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px" onclick="calToday('${container}')">오늘</button>
     </div>
     <div class="cal-hd-actions">
       ${onAddEvent?`<button class="btn btn-p btn-sm" onclick="${onAddEvent}">+ 일정추가</button>`:''}
@@ -1948,15 +1984,16 @@ function buildInternGrid(mode){
       });
       row+=`</tr>`;tbody+=row;
     }
-    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    return `<div style="max-width:75%;min-width:400px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
       <button class="cal-nav" onclick="internGridWeek(-1)">‹</button>
       <span style="flex:1;text-align:center;font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
       <button class="cal-nav" onclick="internGridWeek(1)">›</button>
     </div>
-    <div style="overflow-x:auto"><table class="st-table" style="width:75%;min-width:400px;border-collapse:collapse;table-layout:fixed">
+    <div style="overflow-x:auto"><table class="st-table" style="width:100%;border-collapse:collapse;table-layout:fixed">
       <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
       <thead>${theadHtml}</thead><tbody>${tbody}</tbody>
-    </table></div>`;
+    </table></div></div>`;
   }
   // class mode — hourly display
   const RH=56;
@@ -1982,7 +2019,7 @@ function buildInternGrid(mode){
       return `<td style="border:1px solid var(--bd);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
     }).join('')}
   </tr>`).join('');
-  return `<div style="overflow-x:auto"><table style="width:75%;min-width:400px;border-collapse:collapse;table-layout:fixed">
+  return `<div style="max-width:75%;min-width:400px;margin:0 auto;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
     <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
     <thead>${theadHtml}</thead>
     <tbody>${trows}</tbody>
@@ -2300,17 +2337,19 @@ function renderWorkSchedule(){
     <button class="btn btn-sm${!_wsSemFilter?' btn-p':''}" onclick="wsSetSem(null)" style="font-size:12px">전체</button>
     ${sems.map(s=>`<button class="btn btn-sm${_wsSemFilter===s?' btn-p':''}" onclick="wsSetSem('${s}')" style="font-size:12px">${s}</button>`).join('')}
   </div>`;
-  p.innerHTML=`<div class="pg-hd">
-    <div style="display:flex;align-items:center;gap:10px">
-      <button class="cal-nav" onclick="wsWeek(-1)">‹</button>
-      <h3 id="ws-label">${label}</h3>
-      <button class="cal-nav" onclick="wsWeek(1)">›</button>
-    </div>
-  </div>
-  ${semBtns}
+  p.innerHTML=`${semBtns}
   <div class="card" style="margin-bottom:20px">
     <div class="ws-card-inner" style="display:flex;align-items:flex-start;gap:0">
-      <div style="overflow-x:auto;flex:1;min-width:0"><div id="ws-table"></div></div>
+      <div style="overflow-x:auto;flex:1;min-width:0">
+        <div style="max-width:75%;min-width:340px;margin:0 auto">
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px">
+            <button class="cal-nav" onclick="wsWeek(-1)">‹</button>
+            <h3 id="ws-label" style="font-size:14px;font-weight:600">${label}</h3>
+            <button class="cal-nav" onclick="wsWeek(1)">›</button>
+          </div>
+          <div id="ws-table"></div>
+        </div>
+      </div>
       <div id="ws-intern-list" class="ws-intern-list-mobile" style="width:136px;flex-shrink:0;border-left:1px solid var(--bd);padding:12px 14px;align-self:stretch"></div>
     </div>
   </div>
@@ -2485,7 +2524,7 @@ function renderWSTable(){
     tbody+=row;
   }
 
-  el.innerHTML=`<table class="st-table" style="width:75%;min-width:400px;table-layout:fixed;border-collapse:collapse">
+  el.innerHTML=`<table class="st-table" style="width:100%;table-layout:fixed;border-collapse:collapse">
     <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
     <thead>${thead}</thead><tbody>${tbody}</tbody>
   </table>`;
@@ -2904,7 +2943,8 @@ function bSetTag(t){_bTagFilter=_bTagFilter===t?null:t;bRenderSb()}
 
 let _bEditMode=false; // 게시판 글 보기/편집 모드. 글을 열 때마다 기본은 '보기'로 시작함
 function bOpenPost(id){
-  _bActiveId=id;_bEditMode=false;bRenderSb();
+  if(_bActiveId!==id)_bEditMode=false; // 다른 글로 넘어갈 때만 보기 모드로 리셋 (같은 글에서 토글할 땐 유지)
+  _bActiveId=id;bRenderSb();
   const post=_bPosts.find(x=>x.id===id);if(!post)return;
   const el=document.getElementById('b-editor');if(!el)return;
   el.innerHTML=`<div style="max-width:700px;margin:0 auto">
@@ -2973,7 +3013,7 @@ function bBlockHtml(blk,postId){
   if(!editing){
     // 보기 모드: placeholder도, 빈 줄이면 그냥 빈 공백으로만 남고 안내 문구는 절대 안 보임
     return `<div class="bk-wrap" data-id="${blk.id}">
-    <div class="bk-content" data-type="${blk.type}" contenteditable="false">${blk.content||''}</div></div>`;
+    <div class="bk-content" data-type="${blk.type}" contenteditable="false">${linkifyHtml(blk.content||'')}</div></div>`;
   }
   return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
     <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="event.stopPropagation();bShowAddMenu('${blk.id}','${postId}')">+</span></div>
@@ -3313,7 +3353,9 @@ function pDeletePost(id){
   _pSave();renderProjects();
 }
 
+let _pEditMode=false; // 프로젝트 글 보기/편집 모드. 글을 열 때마다 기본은 '보기'로 시작함
 function pOpenPost(id){
+  if(_pActiveId!==id)_pEditMode=false; // 다른 프로젝트로 넘어갈 때만 보기 모드로 리셋
   _pActiveId=id;
   _pCalBase=null; // 다른 프로젝트를 열 때마다 캘린더는 이번 달 기준으로 새로 시작
   const post=_pPosts.find(x=>x.id===id);
@@ -3321,37 +3363,39 @@ function pOpenPost(id){
   pRenderSb();
   if(!post){el.innerHTML='';return;}
   if(!post.calEvents)post.calEvents=[];
+  const editing=_pEditMode;
   el.innerHTML=`<div style="max-width:760px;margin:0 auto;padding:24px 24px 48px">
     <div style="display:flex;align-items:center;gap:8px;margin:0 0 4px">
-      <span style="font-size:36px;cursor:pointer" onclick="pPickIcon('${id}')">${post.icon||'🗃'}</span>
-      <input class="board-title-input" placeholder="프로젝트 이름" value="${(post.name||'').replace(/"/g,'&quot;')}" oninput="pUpdateTitle('${id}',this.value)" style="flex:1">
-      <button class="btn btn-d btn-sm" onclick="pDeletePost('${id}')">삭제</button>
+      <span style="font-size:36px;cursor:${editing?'pointer':'default'}" ${editing?`onclick="pPickIcon('${id}')"`:''}>${post.icon||'🗃'}</span>
+      <input class="board-title-input" placeholder="프로젝트 이름" value="${(post.name||'').replace(/"/g,'&quot;')}" oninput="pUpdateTitle('${id}',this.value)" style="flex:1;font-size:24px" ${editing?'':'readonly'}>
+      <button class="btn btn-o btn-sm" onclick="pToggleEditMode('${id}')">${editing?'수정 완료':'수정'}</button>
+      ${editing?`<button class="btn btn-d btn-sm" onclick="pDeletePost('${id}')">삭제</button>`:''}
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--bd)">
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-size:12px;color:var(--sub)">상태</span>
-        <select style="border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;background:var(--card)" onchange="pUpdateStatus('${id}',this.value)">
+        ${editing?`<select style="border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;background:var(--card)" onchange="pUpdateStatus('${id}',this.value)">
           ${PRJ_STATUSES.map(s=>`<option value="${s}"${post.status===s?' selected':''}>${s}</option>`).join('')}
-        </select>
+        </select>`:`<span class="prj-status ps-${post.status||'대기'}">${esc(post.status||'대기')}</span>`}
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-size:12px;color:var(--sub)">마감일</span>
-        <input type="date" style="border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;background:var(--card)" value="${post.dueDate||''}" onchange="pUpdateDue('${id}',this.value)">
+        ${editing?`<input type="date" style="border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;background:var(--card)" value="${post.dueDate||''}" onchange="pUpdateDue('${id}',this.value)">`:`<span style="font-size:12px">${post.dueDate?fmtDisp(post.dueDate):'-'}</span>`}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
-        ${(post.tags||[]).map(t=>`<span class="btag on">${t}<button onclick="pRemoveTag('${id}','${t.replace(/'/g,"\\'")}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#999;padding:0 0 0 2px;font-size:10px">×</button></span>`).join('')}
-        <button class="btn-g" style="font-size:11px" onclick="pAddTag('${id}')">+ 태그</button>
+        ${(post.tags||[]).map(t=>`<span class="btag on">${esc(t)}${editing?`<button onclick="pRemoveTag('${id}','${t.replace(/'/g,"\\'")}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#999;padding:0 0 0 2px;font-size:10px">×</button>`:''}</span>`).join('')}
+        ${editing?`<button class="btn-g" style="font-size:11px" onclick="pAddTag('${id}')">+ 태그</button>`:''}
       </div>
     </div>
     <div id="p-blocks">${pRenderBlocks(post.blocks,id)}</div>
-    <div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="pAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>
+    ${editing?`<div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="pAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>`:''}
     <div style="margin-top:8px;padding-top:24px;border-top:1px solid var(--bd)">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <button class="cal-nav" onclick="pCalPrev(${id})">‹</button>
-        <span id="p-cal-label" style="font-size:12.5px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
-        <button class="cal-nav" onclick="pCalNext(${id})">›</button>
-        <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px" onclick="pCalToday(${id})">오늘</button>
-        <button class="btn btn-p btn-sm" style="margin-left:auto" onclick="openAddProjectEvent(${id},null)">+ 일정추가</button>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="cal-nav cal-nav-sm" onclick="pCalPrev('${id}')">‹</button>
+        <span id="p-cal-label" style="font-size:10px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
+        <button class="cal-nav cal-nav-sm" onclick="pCalNext('${id}')">›</button>
+        <button class="cal-nav cal-nav-sm" style="padding:0 6px;width:auto;font-size:10px" onclick="pCalToday('${id}')">오늘</button>
+        <button class="btn btn-p btn-sm" style="margin-left:auto" onclick="openAddProjectEvent('${id}',null)">+ 일정추가</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;overflow-x:auto">
         <div id="p-cal-0" style="min-width:220px"></div>
@@ -3362,6 +3406,7 @@ function pOpenPost(id){
   </div>`;
   pCalRenderAll(id);
 }
+function pToggleEditMode(postId){_pEditMode=!_pEditMode;pOpenPost(postId);}
 
 // ─── 프로젝트 전용 캘린더 (메인 일정관리와 별개, 프로젝트 데이터에 함께 저장됨) ──
 let _pCalBase=null;
@@ -3381,10 +3426,10 @@ function pCalRenderAll(postId){
     const el=document.getElementById(`p-cal-${i}`);
     if(!el)continue;
     const y=mDate.getFullYear(),mo=mDate.getMonth();
-    let html=`<div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--tx)">${mo+1}월</div>`;
+    let html=`<div style="font-size:11.5px;font-weight:700;margin-bottom:5px;color:var(--tx)">${mo+1}월</div>`;
     html+=buildMonthGridHtml(p.calEvents,mDate,
-      ds=>`openAddProjectEvent(${postId},'${ds}')`,
-      eid=>`openProjectEventDetail(${postId},${eid})`,
+      ds=>`openAddProjectEvent('${postId}','${ds}')`,
+      eid=>`openProjectEventDetail('${postId}',${eid})`,
       true);
     el.innerHTML=html;
   }
@@ -3413,7 +3458,7 @@ function openAddProjectEvent(postId,dateStr){
     </div></div>
     <div class="fr"><label>내용</label><textarea id="ev-content" rows="3" placeholder="내용 입력"></textarea></div>
   </div>
-  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveProjectEvent(${postId},null)">저장</button></div>`);
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveProjectEvent('${postId}',null)">저장</button></div>`);
 }
 function openEditProjectEvent(postId,id){
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
@@ -3438,8 +3483,8 @@ function openEditProjectEvent(postId,id){
     </div></div>
     <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${esc(e.content)}</textarea></div>
   </div>
-  <div class="mo-ft"><button class="btn btn-d btn-sm" onclick="deleteProjectEvent(${postId},${id})">삭제</button>
-  <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveProjectEvent(${postId},${id})">저장</button></div>`);
+  <div class="mo-ft"><button class="btn btn-d btn-sm" onclick="deleteProjectEvent('${postId}',${id})">삭제</button>
+  <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveProjectEvent('${postId}',${id})">저장</button></div>`);
 }
 function openProjectEventDetail(postId,id){
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
@@ -3452,8 +3497,8 @@ function openProjectEventDetail(postId,id){
   </div>
   <div class="mo-ft" style="gap:8px">
     <button class="btn btn-o" style="flex:1" onclick="closeModal()">닫기</button>
-    <button class="btn btn-p" style="flex:1" onclick="closeModal();openEditProjectEvent(${postId},${id})">수정</button>
-    <button class="btn btn-d" style="flex:1" onclick="deleteProjectEvent(${postId},${id})">삭제</button>
+    <button class="btn btn-p" style="flex:1" onclick="closeModal();openEditProjectEvent('${postId}',${id})">수정</button>
+    <button class="btn btn-d" style="flex:1" onclick="deleteProjectEvent('${postId}',${id})">삭제</button>
   </div>`);
 }
 function saveProjectEvent(postId,id){
@@ -3487,13 +3532,21 @@ function pRenderBlocks(blocks,postId){
 }
 
 function pBlockHtml(blk,postId){
+  const editing=_pEditMode;
   if(blk.type==='divider'){
+    if(!editing)return `<div class="bk-wrap" data-id="${blk.id}"><div class="bk-divider"></div></div>`;
     return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
       <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
       <div class="bk-divider"></div>
       <button class="btn-g" style="font-size:11px;align-self:center" onclick="pDelBlock('${blk.id}','${postId}')">×</button></div>`;
   }
   if(blk.type==='image'){
+    if(!editing){
+      return `<div class="bk-wrap" data-id="${blk.id}"><div style="width:100%">
+        ${blk.imageData?`<img src="${blk.imageData}" style="max-width:100%;border-radius:6px;display:block">`:''}
+        ${blk.caption?`<div style="font-size:12px;color:var(--sub);margin-top:4px">${esc(blk.caption)}</div>`:''}
+      </div></div>`;
+    }
     return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
       <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
       <div style="width:100%">
@@ -3512,8 +3565,11 @@ function pBlockHtml(blk,postId){
     const rows=blk.tableData;
     const tRows=rows.map((row,ri)=>`<tr>${row.map((cell,ci)=>{
       const tag=ri===0?'th':'td';
-      return `<${tag} contenteditable="true" onblur="pTblCell(event,'${blk.id}','${postId}',${ri},${ci})">${cell}</${tag}>`;
+      return editing
+        ?`<${tag} contenteditable="true" onblur="pTblCell(event,'${blk.id}','${postId}',${ri},${ci})">${cell}</${tag}>`
+        :`<${tag}>${cell}</${tag}>`;
     }).join('')}</tr>`).join('');
+    if(!editing)return `<div class="bk-wrap" data-id="${blk.id}"><div style="overflow-x:auto;padding:2px 0"><table class="bk-table"><tbody>${tRows}</tbody></table></div></div>`;
     return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
       <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
       <div style="overflow-x:auto;padding:2px 0">
@@ -3528,6 +3584,10 @@ function pBlockHtml(blk,postId){
       </div></div>`;
   }
   const ph={paragraph:'내용 입력... (/ 로 블록 변경)',heading1:'제목 1',heading2:'제목 2',heading3:'제목 3',bulletedList:'• 항목',numberedList:'1. 항목',toggle:'▶ 토글',quote:'인용구',code:'코드 입력'}[blk.type]||'';
+  if(!editing){
+    return `<div class="bk-wrap" data-id="${blk.id}">
+    <div class="bk-content" data-type="${blk.type}" contenteditable="false">${linkifyHtml(blk.content||'')}</div></div>`;
+  }
   return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
     <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="event.stopPropagation();pShowAddMenu('${blk.id}','${postId}')">+</span></div>
     <div class="bk-content" data-type="${blk.type}" data-ph="${ph}" contenteditable="true"
