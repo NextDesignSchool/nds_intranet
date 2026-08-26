@@ -1830,7 +1830,7 @@ function buildInternGrid(mode){
     const wOff=S.weekOffset; // 근무스케줄 메뉴와 동일한 주차를 사용해 동기화
     const dd=buildWSDayData(activeInterns,wOff);
     const {label}=getWeekInfo(wOff);
-    const {timeW,dayW,compact}=wsColWidths(DAYS.length);
+    const compact=(window.innerWidth||1024)<=600;
     const RH=22;
     let tbody='';
     for(let s=20;s<38;s++){
@@ -1838,7 +1838,7 @@ function buildInternGrid(mode){
       const h=Math.floor(s/2);
       let row=`<tr style="height:${RH}px">`;
       if(isFirst){
-        row+=`<td style="width:${timeW}px;min-width:${timeW}px;font-size:${compact?'9.5px':'11px'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+        row+=`<td style="width:90px;min-width:90px;font-size:${compact?'9.5px':'11px'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
       }
       DAYS.forEach((d,di)=>{
         const {slotMap}=dd[d];
@@ -1869,14 +1869,13 @@ function buildInternGrid(mode){
       });
       row+=`</tr>`;tbody+=row;
     }
-    const totalW=timeW+DAYS.length*dayW;
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
       <button class="cal-nav" onclick="internGridWeek(-1)">‹</button>
       <span style="flex:1;text-align:center;font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
       <button class="cal-nav" onclick="internGridWeek(1)">›</button>
     </div>
-    <div style="overflow-x:auto"><table class="st-table" style="width:${totalW}px;border-collapse:collapse;table-layout:fixed">
-      <colgroup><col style="width:${timeW}px">${DAYS.map(()=>`<col style="width:${dayW}px">`).join('')}</colgroup>
+    <div style="overflow-x:auto"><table class="st-table" style="width:100%;border-collapse:collapse;table-layout:fixed">
+      <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
       <thead>${theadHtml}</thead><tbody>${tbody}</tbody>
     </table></div>`;
   }
@@ -2195,22 +2194,6 @@ function wsToggleEdit(){
   document.querySelectorAll('[data-ws-d]').forEach(el=>{el.style.cursor='pointer'});
 }
 // ─── WORK SCHEDULE PAGE ───────────────────────────
-// 화면 폭에 맞춰 근무스케줄 타임테이블의 시간열/요일열 너비를 계산
-// (모바일에서 불필요하게 넓은 가로 스크롤이 생기지 않도록 함)
-function wsColWidths(numDays){
-  const vw=window.innerWidth||1024;
-  if(vw<=600){
-    // 좁은 화면: 시간열을 줄이고, 남는 폭을 요일 수만큼 균등 분배(최소 44px 보장)
-    const timeW=40;
-    const avail=vw-32-timeW; // 좌우 패딩 대략 감안
-    const dayW=Math.max(44,Math.floor(avail/numDays));
-    return {timeW,dayW,compact:true};
-  }
-  if(vw<=768){
-    return {timeW:70,dayW:70,compact:false};
-  }
-  return {timeW:90,dayW:90,compact:false};
-}
 // 시간 슬롯 라벨: 좁은 화면에서는 "10~11"처럼 짧게, 넓은 화면에서는 "10:00~11:00"
 function wsTimeLabel(h,compact){
   return compact?`${h}~${h+1}`:`${p2(h)}:00~${p2(h+1)}:00`;
@@ -2327,7 +2310,7 @@ function renderWSTable(){
   const {mon}=getWeekInfo(S.weekOffset);
   const DAYS=['월','화','수','목','금'];
   const RH=22; // 30분 슬롯 높이(px)
-  const {timeW,dayW,compact}=wsColWidths(DAYS.length);
+  const compact=(window.innerWidth||1024)<=600;
   const activeInterns=_wsSemFilter
     ?S.interns.filter(i=>i.semester===_wsSemFilter)
     :S.interns.filter(isInternActive);
@@ -2335,7 +2318,7 @@ function renderWSTable(){
 
   // 헤더
   let thead=`<tr>
-    <th style="width:${timeW}px;border:1px solid var(--bd);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
+    <th style="width:90px;border:1px solid var(--bd);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
   DAYS.forEach((d,i)=>{
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
     const hol=getHolidayForDay(fmt(dt));
@@ -2423,9 +2406,8 @@ function renderWSTable(){
     tbody+=row;
   }
 
-  const totalW=timeW+DAYS.length*dayW;
-  el.innerHTML=`<table class="st-table" style="width:${totalW}px;table-layout:fixed;border-collapse:collapse">
-    <colgroup><col style="width:${timeW}px">${DAYS.map(()=>`<col style="width:${dayW}px">`).join('')}</colgroup>
+  el.innerHTML=`<table class="st-table" style="width:100%;table-layout:fixed;border-collapse:collapse">
+    <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
     <thead>${thead}</thead><tbody>${tbody}</tbody>
   </table>`;
   renderWSInternList();
