@@ -163,18 +163,26 @@ tr:hover td{background:var(--hover)}
 .bk-content[data-type=code]{font-family:monospace;background:var(--hover);padding:10px 14px;border-radius:6px;font-size:13px;white-space:pre-wrap}
 .bk-divider{flex:1;height:1px;background:var(--bd);margin:10px 0;align-self:center}
 .slash-menu{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.08);z-index:3000;min-width:200px;max-height:280px;overflow-y:auto;display:none}
-.mini-cal{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:var(--r-md);box-shadow:var(--sh-lg);z-index:3500;padding:10px;width:216px;display:none}
-.mini-cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.mini-cal-nav{width:18px;height:18px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--sub);font-size:11px;cursor:pointer;border-radius:4px;padding:0}
+.mini-cal{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:var(--r-md);box-shadow:var(--sh-lg);z-index:3500;padding:14px;width:248px;display:none}
+.mini-cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.mini-cal-nav{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--sub);font-size:13px;cursor:pointer;border-radius:6px;padding:0;transition:background .12s,color .12s}
 .mini-cal-nav:hover{background:var(--hover);color:var(--tx)}
-.mini-cal-title{font-size:12.5px;font-weight:600;color:var(--tx)}
-.mini-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
-.mini-cal-dn{font-size:10px;color:var(--sub);text-align:center;padding:2px 0}
-.mini-cal-day{font-size:12px;text-align:center;padding:5px 0;border-radius:4px;cursor:pointer;color:var(--tx)}
+.mini-cal-title{font-size:13.5px;font-weight:700;color:var(--tx);cursor:pointer;padding:2px 8px;border-radius:6px;transition:background .12s}
+.mini-cal-title:hover{background:var(--hover)}
+.mini-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.mini-cal-dn{font-size:10.5px;font-weight:600;color:var(--sub2);text-align:center;padding:3px 0 6px}
+.mini-cal-dn.sun{color:#D08A85}
+.mini-cal-dn.sat{color:#7FA3C4}
+.mini-cal-day{font-size:12.5px;text-align:center;padding:6px 0;border-radius:8px;cursor:pointer;color:var(--tx);transition:background .1s}
 .mini-cal-day:hover{background:var(--hover)}
 .mini-cal-day.om{color:var(--sub2)}
-.mini-cal-day.sel{background:var(--ac);color:#fff;font-weight:600}
-.mini-cal-day.td{font-weight:700;text-decoration:underline}
+.mini-cal-day.sel{background:var(--ac);color:#fff;font-weight:700}
+.mini-cal-day.td:not(.sel){color:var(--ac);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--ac)}
+.mini-ym-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.mini-ym-cell{font-size:13px;text-align:center;padding:11px 0;border-radius:8px;cursor:pointer;color:var(--tx);font-weight:500;transition:background .1s}
+.mini-ym-cell:hover{background:var(--hover)}
+.mini-ym-cell.sel{background:var(--ac);color:#fff;font-weight:700}
+.mini-ym-cell.td:not(.sel){color:var(--ac);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--ac)}
 .slash-item{padding:6px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px}
 .slash-item:hover,.slash-item.sel{background:var(--hover)}
 .fmt-toolbar{position:fixed;background:#37352F;border-radius:5px;padding:3px 5px;display:none;gap:2px;z-index:3001;box-shadow:0 3px 10px rgba(55,53,47,.25);align-items:center}
@@ -895,7 +903,7 @@ function renderCalendar(container,month,onAddEvent){
   const loadingBadge=loading?`<span style="font-size:11px;color:var(--sub);margin-left:6px">공휴일 로딩중…</span>`:
     (S.holidayFallback&&isLoaded?`<span style="font-size:11px;color:var(--or);margin-left:6px" title="API 연결 실패, 기본 데이터 사용">⚠ 오프라인</span>`:'');
   let html=`<div class="cal-hd">
-    <h3 class="cal-hd-title">${y}년 ${m+1}월${loadingBadge}</h3>
+    <h3 class="cal-hd-title" style="cursor:pointer" onclick="event.stopPropagation();calJump(this,'${container}')">${y}년 ${m+1}월${loadingBadge}</h3>
     <div class="cal-hd-actions">
       ${onAddEvent?`<button class="btn btn-p btn-sm" onclick="${onAddEvent}">+ 일정추가</button>`:''}
       <button class="cal-nav" onclick="calPrev('${container}')">‹</button>
@@ -1001,6 +1009,14 @@ function renderCalendar(container,month,onAddEvent){
 function calPrev(c){S.cal=new Date(S.cal.getFullYear(),S.cal.getMonth()-1,1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
 function calNext(c){S.cal=new Date(S.cal.getFullYear(),S.cal.getMonth()+1,1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
 function calToday(c){const n=new Date();S.cal=new Date(n.getFullYear(),n.getMonth(),1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
+// 캘린더 제목("2026년 8월")을 눌렀을 때: 연/월을 바로 골라 그 달로 이동
+function calJump(anchorEl,container){
+  openMonthJump(anchorEl,S.cal,(y,m)=>{
+    S.cal=new Date(y,m,1);
+    renderCalendar(container,S.cal,'openAddEvent(null)');
+    if(container==='sched-cal')renderScheduleTable();
+  });
+}
 
 // ─── HOME ─────────────────────────────────────────
 function renderHome(){
@@ -1090,22 +1106,36 @@ function renderScheduleTable(){
   </tr>`).join('');
 }
 
-// ─── 미니 날짜선택 캘린더 (일정 추가/수정 모달의 날짜칸 클릭 시 표시) ──
-let _mcTarget=null,_mcMonth=null;
+// ─── 미니 날짜선택 캘린더 (날짜 입력칸 클릭 시 표시) ──────────
+// 제목("2026년 8월")을 누르면 연/월을 빠르게 고르는 화면으로 전환됨.
+// 날짜 입력칸에서 열었을 때는 월을 고른 뒤 다시 날짜 선택 화면으로 돌아가고,
+// 캘린더 페이지의 월 이동에 쓸 때는 월을 고르자마자 바로 그 달로 이동함(openMonthJump).
+let _mcTarget=null,_mcMonth=null,_mcMode='day',_mcOnMonthPick=null,_mcAnchorEl=null;
 function openMiniCal(inputId,anchorEl){
-  _mcTarget=inputId;
+  _mcTarget=inputId;_mcOnMonthPick=null;_mcMode='day';
   const curVal=document.getElementById(inputId).value||today();
   const parts=curVal.split('-').map(Number);
   _mcMonth=new Date(parts[0],parts[1]-1,1);
+  openMcPanel(anchorEl);
+}
+function openMonthJump(anchorEl,curDate,onPick){
+  _mcTarget=null;_mcOnMonthPick=onPick;_mcMode='ym';
+  _mcMonth=new Date(curDate.getFullYear(),curDate.getMonth(),1);
+  openMcPanel(anchorEl);
+}
+function openMcPanel(anchorEl){
+  _mcAnchorEl=anchorEl;
   let panel=document.getElementById('mini-cal');
   if(!panel){panel=document.createElement('div');panel.id='mini-cal';panel.className='mini-cal';document.body.appendChild(panel);}
   const rect=anchorEl.getBoundingClientRect();
-  panel.style.top=(rect.bottom+4)+'px';
-  panel.style.left=rect.left+'px';
+  const top=rect.bottom+6, left=Math.min(rect.left,window.innerWidth-264);
+  panel.style.top=top+'px';
+  panel.style.left=Math.max(8,left)+'px';
   panel.style.display='block';
   renderMiniCal();
 }
 function renderMiniCal(){
+  if(_mcMode==='ym'){renderMiniCalYM();return;}
   const panel=document.getElementById('mini-cal');if(!panel)return;
   const y=_mcMonth.getFullYear(),m=_mcMonth.getMonth();
   const selEl=document.getElementById(_mcTarget);
@@ -1131,28 +1161,60 @@ function renderMiniCal(){
     const nm=m===11?0:m+1,ny=m===11?y+1:y;
     cells+=`<div class="mini-cal-day om" onclick="mcPick('${ny}-${p2(nm+1)}-${p2(i)}')">${i}</div>`;
   }
+  const dnCls=(i)=>i===0?' sun':i===6?' sat':'';
   panel.innerHTML=`
     <div class="mini-cal-hd">
       <button class="mini-cal-nav" onclick="event.stopPropagation();mcNav(-1)">‹</button>
-      <span class="mini-cal-title">${y}년 ${m+1}월</span>
+      <span class="mini-cal-title" onclick="event.stopPropagation();mcToggleYM()">${y}년 ${m+1}월</span>
       <button class="mini-cal-nav" onclick="event.stopPropagation();mcNav(1)">›</button>
     </div>
     <div class="mini-cal-grid">
-      ${['일','월','화','수','목','금','토'].map(d=>`<div class="mini-cal-dn">${d}</div>`).join('')}
+      ${['일','월','화','수','목','금','토'].map((d,i)=>`<div class="mini-cal-dn${dnCls(i)}">${d}</div>`).join('')}
       ${cells}
     </div>`;
+}
+function mcToggleYM(){_mcMode='ym';renderMiniCal();}
+function renderMiniCalYM(){
+  const panel=document.getElementById('mini-cal');if(!panel)return;
+  const y=_mcMonth.getFullYear(),curM=_mcMonth.getMonth();
+  const now=new Date();
+  const cells=Array.from({length:12},(_,i)=>{
+    const cls=['mini-ym-cell'];
+    if(i===curM)cls.push('sel');
+    if(y===now.getFullYear()&&i===now.getMonth())cls.push('td');
+    return `<div class="${cls.join(' ')}" onclick="event.stopPropagation();mcPickMonth(${y},${i})">${i+1}월</div>`;
+  }).join('');
+  panel.innerHTML=`
+    <div class="mini-cal-hd">
+      <button class="mini-cal-nav" onclick="event.stopPropagation();mcYearNav(-1)">‹</button>
+      <span class="mini-cal-title" style="cursor:default">${y}년</span>
+      <button class="mini-cal-nav" onclick="event.stopPropagation();mcYearNav(1)">›</button>
+    </div>
+    <div class="mini-ym-grid">${cells}</div>`;
+}
+function mcYearNav(d){_mcMonth=new Date(_mcMonth.getFullYear()+d,_mcMonth.getMonth(),1);renderMiniCalYM();}
+function mcPickMonth(y,m){
+  _mcMonth=new Date(y,m,1);
+  if(_mcOnMonthPick){const cb=_mcOnMonthPick;closeMiniCal();cb(y,m);return;}
+  _mcMode='day';renderMiniCal();
 }
 function mcNav(d){_mcMonth=new Date(_mcMonth.getFullYear(),_mcMonth.getMonth()+d,1);renderMiniCal();}
 function mcPick(ds){
   const el=document.getElementById(_mcTarget);
-  if(el)el.value=ds;
+  if(el){
+    el.value=ds;
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  }
   closeMiniCal();
 }
-function closeMiniCal(){const p=document.getElementById('mini-cal');if(p)p.style.display='none';_mcTarget=null;}
+function closeMiniCal(){
+  const p=document.getElementById('mini-cal');if(p)p.style.display='none';
+  _mcTarget=null;_mcMode='day';_mcOnMonthPick=null;_mcAnchorEl=null;
+}
 document.addEventListener('click',e=>{
   const p=document.getElementById('mini-cal');
   if(p&&p.style.display==='block'){
-    if(!e.target.closest('#mini-cal')&&e.target.id!=='ev-start'&&e.target.id!=='ev-end')closeMiniCal();
+    if(!e.target.closest('#mini-cal')&&e.target!==_mcAnchorEl)closeMiniCal();
   }
 });
 
@@ -1357,10 +1419,10 @@ function renderEmployees(){
     </div>
     <div style="margin-top:14px">
       <div class="ctitle" style="font-size:13px">휴가 내역</div>
-      ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm)"><table><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
+      ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm)"><table style="table-layout:fixed;width:100%;min-width:520px"><colgroup><col style="width:88px"><col style="width:110px"><col style="width:50px"><col><col style="width:100px"></colgroup><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
       ${[...e.leaveHistory].sort((a,b)=>b.date.localeCompare(a.date)).map(l=>`<tr>
-        <td style="white-space:nowrap"><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
-        <td style="white-space:nowrap">${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td><td style="white-space:nowrap">${l.days}일</td><td>${l.reason||'-'}</td>
+        <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
+        <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td><td style="white-space:nowrap">${l.days}일</td><td style="word-break:keep-all;overflow-wrap:break-word">${l.reason||'-'}</td>
         <td style="white-space:nowrap;display:flex;gap:4px;justify-content:flex-end;align-items:center">
           <button class="btn btn-o btn-sm" onclick="openEditLeave(${e.id},${l.id})">수정</button>
           <button class="btn btn-d btn-sm" onclick="deleteLeave(${e.id},${l.id})">삭제</button>
@@ -1623,7 +1685,7 @@ function openManualLeaveGrant(presetEmpId){
     <div class="fr"><label>종류</label><select id="mg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
     <div class="fr fr-row">
       <div><label>부여 일수</label><input type="number" id="mg-days" value="1" min="0.5" step="0.5"></div>
-      <div><label>사용 기한</label><input type="date" id="mg-expiry"></div>
+      <div><label>사용 기한</label><input type="text" id="mg-expiry" readonly style="cursor:pointer" onclick="openMiniCal('mg-expiry',this)"></div>
     </div>
     <div class="fr"><label>사유</label><input id="mg-reason" placeholder="사유 입력"></div>
   </div>
@@ -1649,11 +1711,11 @@ function openEmpLeaveGrant(empId){
     <div class="fr"><label>종류</label><select id="elg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
     <div class="fr fr-row">
       <div><label>사용 일수</label><input type="number" id="elg-days" value="1" min="0.5" step="0.5" oninput="toggleElgDateRange()"></div>
-      <div><label>사용일</label><input type="date" id="elg-date" value="${today()}" oninput="syncElgEndDate()"></div>
+      <div><label>사용일</label><input type="text" id="elg-date" value="${today()}" readonly style="cursor:pointer" onclick="openMiniCal('elg-date',this)" oninput="syncElgEndDate()"></div>
     </div>
     <div class="fr" id="elg-enddate-wrap" style="display:none">
       <label>종료일 <span style="font-weight:400;color:var(--sub);font-size:12px">(연속 사용 시)</span></label>
-      <input type="date" id="elg-enddate">
+      <input type="text" id="elg-enddate" readonly style="cursor:pointer" onclick="openMiniCal('elg-enddate',this)">
     </div>
     <div class="fr"><label>사유</label><input id="elg-reason" placeholder="사유 입력"></div>
   </div>
@@ -1749,9 +1811,9 @@ function openInternDetail(id){
   const i=S.interns.find(x=>x.id===id);if(!i)return;
   showModal(`<div class="mo-hd"><h3>인턴 상세</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div class="fr fr-row"><div><label>이름</label><input id="id-name" value="${i.name}"></div><div><label>생년월일</label><input type="date" id="id-birth" value="${i.birth}"></div></div>
+    <div class="fr fr-row"><div><label>이름</label><input id="id-name" value="${i.name}"></div><div><label>생년월일</label><input type="text" id="id-birth" value="${i.birth}" readonly style="cursor:pointer" onclick="openMiniCal('id-birth',this)"></div></div>
     <div class="fr fr-row"><div><label>학교</label><input id="id-school" value="${i.school}"></div><div><label>전공</label><input id="id-major" value="${i.major}"></div></div>
-    <div class="fr fr-row"><div><label>연락처</label><input id="id-phone" value="${i.phone}" oninput="formatPhoneInput(this)"></div><div><label>근무시작일</label><input type="date" id="id-start" value="${i.startDate}"></div></div>
+    <div class="fr fr-row"><div><label>연락처</label><input id="id-phone" value="${i.phone}" oninput="formatPhoneInput(this)"></div><div><label>근무시작일</label><input type="text" id="id-start" value="${i.startDate}" readonly style="cursor:pointer" onclick="openMiniCal('id-start',this)"></div></div>
     <div class="fr fr-row"><div><label>근무형태</label><select id="id-type"><option${i.type==='국가근로'?' selected':''}>국가근로</option><option${i.type==='일반인턴'?' selected':''}>일반인턴</option><option${i.type==='계약직'?' selected':''}>계약직</option></select></div>
     <div><label>월누적시간</label><input type="number" id="id-accum" value="${i.monthAccum}"></div></div>
   </div>
@@ -1773,9 +1835,9 @@ function saveInternDetail(id){
 function openAddIntern(){
   showModal(`<div class="mo-hd"><h3>인턴 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div class="fr fr-row"><div><label>이름</label><input id="ai-name" placeholder="이름"></div><div><label>생년월일</label><input type="date" id="ai-birth"></div></div>
+    <div class="fr fr-row"><div><label>이름</label><input id="ai-name" placeholder="이름"></div><div><label>생년월일</label><input type="text" id="ai-birth" readonly style="cursor:pointer" onclick="openMiniCal('ai-birth',this)"></div></div>
     <div class="fr fr-row"><div><label>학교</label><input id="ai-school" placeholder="학교명"></div><div><label>전공</label><input id="ai-major" placeholder="전공"></div></div>
-    <div class="fr fr-row"><div><label>연락처</label><input id="ai-phone" placeholder="010-0000-0000" oninput="formatPhoneInput(this)"></div><div><label>근무시작일</label><input type="date" id="ai-start" value="${today()}"></div></div>
+    <div class="fr fr-row"><div><label>연락처</label><input id="ai-phone" placeholder="010-0000-0000" oninput="formatPhoneInput(this)"></div><div><label>근무시작일</label><input type="text" id="ai-start" value="${today()}" readonly style="cursor:pointer" onclick="openMiniCal('ai-start',this)"></div></div>
     <div class="fr fr-row"><div><label>근무형태</label><select id="ai-type"><option>국가근로</option><option>일반인턴</option><option>계약직</option></select></div>
     <div><label>학기</label><input id="ai-sem" placeholder="2026년 1학기"></div></div>
   </div>
