@@ -1984,10 +1984,10 @@ function buildInternGrid(mode){
       });
       row+=`</tr>`;tbody+=row;
     }
-    return `<div style="max-width:75%;min-width:400px;margin:0 auto">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    return `<div style="max-width:55%;min-width:380px;margin:0 auto">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px">
       <button class="cal-nav" onclick="internGridWeek(-1)">‹</button>
-      <span style="flex:1;text-align:center;font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
+      <span style="font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
       <button class="cal-nav" onclick="internGridWeek(1)">›</button>
     </div>
     <div style="overflow-x:auto"><table class="st-table" style="width:100%;border-collapse:collapse;table-layout:fixed">
@@ -2019,7 +2019,7 @@ function buildInternGrid(mode){
       return `<td style="border:1px solid var(--bd);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
     }).join('')}
   </tr>`).join('');
-  return `<div style="max-width:75%;min-width:400px;margin:0 auto;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+  return `<div style="max-width:55%;min-width:380px;margin:0 auto;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
     <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
     <thead>${theadHtml}</thead>
     <tbody>${trows}</tbody>
@@ -2341,7 +2341,7 @@ function renderWorkSchedule(){
   <div class="card" style="margin-bottom:20px">
     <div class="ws-card-inner" style="display:flex;align-items:flex-start;gap:0">
       <div style="overflow-x:auto;flex:1;min-width:0">
-        <div style="max-width:75%;min-width:340px;margin:0 auto">
+        <div style="max-width:55%;min-width:340px;margin:0 auto">
           <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px">
             <button class="cal-nav" onclick="wsWeek(-1)">‹</button>
             <h3 id="ws-label" style="font-size:14px;font-weight:600">${label}</h3>
@@ -3340,8 +3340,12 @@ function pSetStatusFilter(s){_pStatusFilter=s;renderProjects();if(_pActiveId)pOp
 
 function pNewPost(){
   _pLoad();
+  const now=new Date();
+  const defaultStart=`${now.getFullYear()}-${p2(now.getMonth()+1)}`;
+  const input=prompt('캘린더 시작 월을 입력해주세요 (예: 2026-07)\n이 달부터 3개월치가 프로젝트 캘린더에 고정으로 표시돼요. (나중에 "월 변경" 버튼으로 바꿀 수 있어요)',defaultStart);
+  const calStartMonth=(input&&/^\d{4}-\d{2}$/.test(input.trim()))?input.trim():defaultStart;
   const post={id:_pNewId(),name:'',status:'대기',dueDate:'',icon:'🗃',tags:[],createdAt:today(),updatedAt:today(),
-    calEvents:[],
+    calEvents:[],calStartMonth,
     blocks:[{id:_pNewId(),type:'paragraph',content:''}]};
   _pPosts.unshift(post);_pSave();_pActiveId=post.id;renderProjects();pOpenPost(post.id);
 }
@@ -3391,10 +3395,8 @@ function pOpenPost(id){
     ${editing?`<div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="pAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>`:''}
     <div style="margin-top:8px;padding-top:24px;border-top:1px solid var(--bd)">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="cal-nav cal-nav-sm" onclick="pCalPrev('${id}')">‹</button>
-        <span id="p-cal-label" style="font-size:10px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
-        <button class="cal-nav cal-nav-sm" onclick="pCalNext('${id}')">›</button>
-        <button class="cal-nav cal-nav-sm" style="padding:0 6px;width:auto;font-size:10px" onclick="pCalToday('${id}')">오늘</button>
+        <span id="p-cal-label" style="font-size:12px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
+        ${editing?`<button class="btn-g" style="font-size:11px" onclick="pChangeCalStartMonth('${id}',this)">월 변경</button>`:''}
         <button class="btn btn-p btn-sm" style="margin-left:auto" onclick="openAddProjectEvent('${id}',null)">+ 일정추가</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;overflow-x:auto">
@@ -3409,20 +3411,21 @@ function pOpenPost(id){
 function pToggleEditMode(postId){_pEditMode=!_pEditMode;pOpenPost(postId);}
 
 // ─── 프로젝트 전용 캘린더 (메인 일정관리와 별개, 프로젝트 데이터에 함께 저장됨) ──
-let _pCalBase=null;
 function pCalRenderAll(postId){
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
   if(!p.calEvents)p.calEvents=[];
-  if(!_pCalBase){const n=new Date();_pCalBase=new Date(n.getFullYear(),n.getMonth(),1);}
+  if(!p.calStartMonth){const n=new Date();p.calStartMonth=`${n.getFullYear()}-${p2(n.getMonth()+1)}`;}
+  const[sy,sm]=p.calStartMonth.split('-').map(Number);
+  const baseDate=new Date(sy,sm-1,1);
   const label=document.getElementById('p-cal-label');
   if(label){
-    const m2=new Date(_pCalBase.getFullYear(),_pCalBase.getMonth()+2,1);
-    label.textContent=_pCalBase.getFullYear()===m2.getFullYear()
-      ?`${_pCalBase.getFullYear()}년 ${_pCalBase.getMonth()+1}월 ~ ${m2.getMonth()+1}월`
-      :`${_pCalBase.getFullYear()}년 ${_pCalBase.getMonth()+1}월 ~ ${m2.getFullYear()}년 ${m2.getMonth()+1}월`;
+    const m2=new Date(baseDate.getFullYear(),baseDate.getMonth()+2,1);
+    label.textContent=baseDate.getFullYear()===m2.getFullYear()
+      ?`${baseDate.getFullYear()}년 ${baseDate.getMonth()+1}월 ~ ${m2.getMonth()+1}월`
+      :`${baseDate.getFullYear()}년 ${baseDate.getMonth()+1}월 ~ ${m2.getFullYear()}년 ${m2.getMonth()+1}월`;
   }
   for(let i=0;i<3;i++){
-    const mDate=new Date(_pCalBase.getFullYear(),_pCalBase.getMonth()+i,1);
+    const mDate=new Date(baseDate.getFullYear(),baseDate.getMonth()+i,1);
     const el=document.getElementById(`p-cal-${i}`);
     if(!el)continue;
     const y=mDate.getFullYear(),mo=mDate.getMonth();
@@ -3434,9 +3437,17 @@ function pCalRenderAll(postId){
     el.innerHTML=html;
   }
 }
-function pCalPrev(postId){_pCalBase=new Date(_pCalBase.getFullYear(),_pCalBase.getMonth()-1,1);pCalRenderAll(postId);}
-function pCalNext(postId){_pCalBase=new Date(_pCalBase.getFullYear(),_pCalBase.getMonth()+1,1);pCalRenderAll(postId);}
-function pCalToday(postId){const n=new Date();_pCalBase=new Date(n.getFullYear(),n.getMonth(),1);pCalRenderAll(postId);}
+// 프로젝트 캘린더는 월 이동 없이 고정된 3개월만 보여줌. 이 3개월의 시작월을 바꾸고 싶을 때 사용.
+function pChangeCalStartMonth(postId,anchorEl){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  let cur=new Date();
+  if(p.calStartMonth){const[y,m]=p.calStartMonth.split('-').map(Number);cur=new Date(y,m-1,1);}
+  openMonthJump(anchorEl,cur,(y,m)=>{
+    p.calStartMonth=`${y}-${p2(m+1)}`;
+    pCalRenderAll(postId);
+    _pSave();
+  });
+}
 function openAddProjectEvent(postId,dateStr){
   showModal(`<div class="mo-hd"><h3>일정 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
