@@ -1945,7 +1945,7 @@ function buildInternGrid(mode){
       <span style="flex:1;text-align:center;font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
       <button class="cal-nav" onclick="internGridWeek(1)">›</button>
     </div>
-    <div style="overflow-x:auto"><table class="st-table" style="width:100%;border-collapse:collapse;table-layout:fixed">
+    <div style="overflow-x:auto"><table class="st-table" style="width:75%;min-width:400px;border-collapse:collapse;table-layout:fixed">
       <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
       <thead>${theadHtml}</thead><tbody>${tbody}</tbody>
     </table></div>`;
@@ -1974,7 +1974,7 @@ function buildInternGrid(mode){
       return `<td style="border:1px solid var(--bd);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
     }).join('')}
   </tr>`).join('');
-  return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+  return `<div style="overflow-x:auto"><table style="width:75%;min-width:400px;border-collapse:collapse;table-layout:fixed">
     <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
     <thead>${theadHtml}</thead>
     <tbody>${trows}</tbody>
@@ -2477,7 +2477,7 @@ function renderWSTable(){
     tbody+=row;
   }
 
-  el.innerHTML=`<table class="st-table" style="width:100%;table-layout:fixed;border-collapse:collapse">
+  el.innerHTML=`<table class="st-table" style="width:75%;min-width:400px;table-layout:fixed;border-collapse:collapse">
     <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
     <thead>${thead}</thead><tbody>${tbody}</tbody>
   </table>`;
@@ -2894,38 +2894,45 @@ function bRenderSb(){
 function bSetSearch(v){_bSearch=v;bRenderSb()}
 function bSetTag(t){_bTagFilter=_bTagFilter===t?null:t;bRenderSb()}
 
+let _bEditMode=false; // 게시판 글 보기/편집 모드. 글을 열 때마다 기본은 '보기'로 시작함
 function bOpenPost(id){
-  _bActiveId=id;bRenderSb();
+  _bActiveId=id;_bEditMode=false;bRenderSb();
   const post=_bPosts.find(x=>x.id===id);if(!post)return;
   const el=document.getElementById('b-editor');if(!el)return;
   el.innerHTML=`<div style="max-width:700px;margin:0 auto">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-      <span style="font-size:38px;cursor:pointer;line-height:1" onclick="bPickIcon('${id}')">${post.icon||'📄'}</span>
-      <input class="board-title-input" value="${(post.title||'').replace(/"/g,'&quot;')}" placeholder="제목 없음" oninput="bUpdateTitle('${id}',this.value)">
+      <span style="font-size:38px;cursor:${_bEditMode?'pointer':'default'};line-height:1" ${_bEditMode?`onclick="bPickIcon('${id}')"`:''}>${post.icon||'📄'}</span>
+      <input class="board-title-input" value="${(post.title||'').replace(/"/g,'&quot;')}" placeholder="제목 없음" oninput="bUpdateTitle('${id}',this.value)" ${_bEditMode?'':'readonly'}>
     </div>
     <div style="font-size:12px;color:var(--sub);margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span>${post.createdAt||''}</span>
-      <select class="bcat-select" style="width:auto;padding:2px 6px;font-size:12px" onchange="bSetPostCat('${id}',this.value)">
+      ${_bEditMode?`<select class="bcat-select" style="width:auto;padding:2px 6px;font-size:12px" onchange="bSetPostCat('${id}',this.value)">
         <option value="">카테고리 없음</option>
         ${_bCategories.map(c=>`<option value="${c.id}"${post.category===c.id?' selected':''}>${c.name}</option>`).join('')}
-      </select>
-      ${(post.tags||[]).map(t=>`<span class="btag on">${t}<button onclick="bRemoveTag('${id}','${t.replace(/'/g,"\\'")}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#999;padding:0 0 0 2px;font-size:10px">×</button></span>`).join('')}
-      <button class="btn-g" style="font-size:11px" onclick="bAddTag('${id}')">+ 태그</button>
-      <button class="btn btn-d btn-sm" style="margin-left:auto" onclick="bDeletePost('${id}')">글 삭제</button>
+      </select>`:(_bCategories.find(c=>c.id===post.category)?`<span class="chip ch-gray">${esc(_bCategories.find(c=>c.id===post.category).name)}</span>`:'')}
+      ${(post.tags||[]).map(t=>`<span class="btag on">${esc(t)}${_bEditMode?`<button onclick="bRemoveTag('${id}','${t.replace(/'/g,"\\'")}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#999;padding:0 0 0 2px;font-size:10px">×</button>`:''}</span>`).join('')}
+      ${_bEditMode?`<button class="btn-g" style="font-size:11px" onclick="bAddTag('${id}')">+ 태그</button>`:''}
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn btn-o btn-sm" onclick="bToggleEditMode('${id}')">${_bEditMode?'수정 완료':'수정'}</button>
+        ${_bEditMode?`<button class="btn btn-d btn-sm" onclick="bDeletePost('${id}')">글 삭제</button>`:''}
+      </div>
     </div>
     <div id="b-blocks">${bRenderBlocks(post.blocks||[],id)}</div>
-    <div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="bAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>
+    ${_bEditMode?`<div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="bAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>`:''}
   </div>`;
   const tInput=el.querySelector('.board-title-input');
-  if(tInput&&!post.title)setTimeout(()=>tInput.focus(),40);
+  if(_bEditMode&&tInput&&!post.title)setTimeout(()=>tInput.focus(),40);
 }
+function bToggleEditMode(postId){_bEditMode=!_bEditMode;bOpenPost(postId);}
 
 function bRenderBlocks(blocks,postId){
   return (blocks||[]).map(blk=>bBlockHtml(blk,postId)).join('');
 }
 
 function bBlockHtml(blk,postId){
+  const editing=_bEditMode;
   if(blk.type==='divider'){
+    if(!editing)return `<div class="bk-wrap" data-id="${blk.id}"><div class="bk-divider"></div></div>`;
     return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
       <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="bAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
       <div class="bk-divider"></div>
@@ -2936,8 +2943,11 @@ function bBlockHtml(blk,postId){
     const rows=blk.tableData;
     const tRows=rows.map((row,ri)=>`<tr>${row.map((cell,ci)=>{
       const tag=ri===0?'th':'td';
-      return `<${tag} contenteditable="true" onblur="bTblCell(event,'${blk.id}','${postId}',${ri},${ci})">${cell}</${tag}>`;
+      return editing
+        ?`<${tag} contenteditable="true" onblur="bTblCell(event,'${blk.id}','${postId}',${ri},${ci})">${cell}</${tag}>`
+        :`<${tag}>${cell}</${tag}>`;
     }).join('')}</tr>`).join('');
+    if(!editing)return `<div class="bk-wrap" data-id="${blk.id}"><div style="overflow-x:auto;padding:2px 0"><table class="bk-table"><tbody>${tRows}</tbody></table></div></div>`;
     return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
       <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="bAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
       <div style="overflow-x:auto;padding:2px 0">
@@ -2952,6 +2962,11 @@ function bBlockHtml(blk,postId){
       </div></div>`;
   }
   const ph={paragraph:'내용 입력... (/ 로 블록 변경)',heading1:'제목 1',heading2:'제목 2',heading3:'제목 3',bulletedList:'• 항목',numberedList:'1. 항목',toggle:'▶ 토글',quote:'인용구',code:'코드 입력'}[blk.type]||'';
+  if(!editing){
+    // 보기 모드: placeholder도, 빈 줄이면 그냥 빈 공백으로만 남고 안내 문구는 절대 안 보임
+    return `<div class="bk-wrap" data-id="${blk.id}">
+    <div class="bk-content" data-type="${blk.type}" contenteditable="false">${blk.content||''}</div></div>`;
+  }
   return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
     <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="event.stopPropagation();bShowAddMenu('${blk.id}','${postId}')">+</span></div>
     <div class="bk-content" data-type="${blk.type}" data-ph="${ph}" contenteditable="true"
