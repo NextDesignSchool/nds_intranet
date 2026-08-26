@@ -118,7 +118,7 @@ tr:hover td{background:var(--hover)}
 .cal-hd{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .cal-hd-title{font-size:14px;font-weight:600;flex:1;text-align:left;display:flex;align-items:center;min-width:120px}
 .cal-hd-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.cal-nav{background:none;border:1px solid var(--bd);border-radius:var(--r-sm);width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--sub);transition:background .1s}
+.cal-nav{background:none;border:1px solid var(--bd);border-radius:var(--r-sm);width:29px;height:29px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--sub);transition:background .1s}
 .cal-nav:hover{background:var(--hover)}
 .cal-grid-outer{border:1px solid var(--bd);border-radius:var(--r-md);overflow:hidden;transform:translateZ(0)}
 .cal-header-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--bd);background:var(--sb)}
@@ -135,6 +135,12 @@ tr:hover td{background:var(--hover)}
 .cal-evlayer{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));height:88px;overflow:hidden;position:relative}
 .cal-evcol{border-right:1px solid var(--bd);background:var(--card)}
 .cal-evlayer .cal-evcol:nth-child(7){border-right:none}
+/* 프로젝트 전용 캘린더처럼 좁은 공간에 여러 달을 나란히 보여줄 때 쓰는 축소판 */
+.cal-compact .cal-cells{grid-auto-rows:20px}
+.cal-compact .cal-evlayer{height:32px}
+.cal-compact .dnum{font-size:10.5px}
+.cal-compact .cal-dn{padding:2px;font-size:10px}
+.cal-compact .cal-cell{padding:2px}
 .board-wrap{display:flex;height:calc(100vh - 108px);background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);overflow:hidden}
 .board-sb{width:240px;border-right:1px solid var(--bd);display:flex;flex-direction:column;background:var(--sb);flex-shrink:0}
 .board-sb-hd{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
@@ -908,7 +914,7 @@ function renderCalendar(container,month,onAddEvent){
   let html=`<div class="cal-hd">
     <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0">
       <button class="cal-nav" onclick="calPrev('${container}')">‹</button>
-      <h3 class="cal-hd-title" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--sub2);text-underline-offset:3px;flex:0 1 auto" onclick="event.stopPropagation();calJump(this,'${container}')" title="클릭해서 다른 달로 이동">${y}년 ${m+1}월${loadingBadge}</h3>
+      <h3 class="cal-hd-title" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--sub2);text-underline-offset:3px;flex:0 1 auto;min-width:0" onclick="event.stopPropagation();calJump(this,'${container}')" title="클릭해서 다른 달로 이동">${y}년 ${m+1}월${loadingBadge}</h3>
       <button class="cal-nav" onclick="calNext('${container}')">›</button>
       <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px;margin-left:4px" onclick="calToday('${container}')">오늘</button>
     </div>
@@ -922,7 +928,7 @@ function renderCalendar(container,month,onAddEvent){
 // 한 달치 캘린더 그리드(날짜 칸 + 연속일정 막대)를 만드는 공용 함수.
 // 메인 일정관리와 프로젝트 전용 캘린더가 이 함수를 공유해서 똑같은 모양을 유지함.
 // dayClickFn(dateStr), eventClickFn(eventId)는 각각 "그 자리에 넣을 onclick JS 문자열"을 돌려줘야 함.
-function buildMonthGridHtml(events,month,dayClickFn,eventClickFn){
+function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact){
   const y=month.getFullYear(),m=month.getMonth();
   const first=new Date(y,m,1).getDay();
   const days=getDaysInMonth(y,m);
@@ -935,7 +941,7 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn){
   for(let i=1;i<=rem;i++){const nm=m===11?0:m+1,ny=m===11?y+1:y;allDays.push({ds:`${ny}-${p2(nm+1)}-${p2(i)}`,d:i,pad:true});}
   const weeks=[];for(let i=0;i<allDays.length;i+=7)weeks.push(allDays.slice(i,i+7));
   const multiEvs=events.filter(e=>e.start!==e.end);
-  let html=`<div class="cal-grid-outer">`;
+  let html=`<div class="cal-grid-outer${compact?' cal-compact':''}">`;
   html+=`<div class="cal-header-row">`;
   ['일','월','화','수','목','금','토'].forEach(d=>html+=`<div class="cal-dn">${d}</div>`);
   html+=`</div>`;
@@ -945,7 +951,7 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn){
     html+=`<div class="cal-cells">`;
     week.forEach((day,di)=>{
       const{ds,d,pad}=day;
-      const hol=getHolidayForDay(ds);
+      const hol=compact?null:getHolidayForDay(ds); // 축소 모드에서는 공간이 없어 공휴일 문구는 생략
       const isRed=!pad&&(hol||di===0);
       const isSat=!pad&&di===6;
       let cls=pad?' om':'';
@@ -990,10 +996,12 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn){
     html+=`<div class="cal-evlayer">`;
     for(let ci=0;ci<7;ci++)html+=`<div class="cal-evcol"></div>`;
     const colW=100/7;
-    const rowH=22;
+    const rowH=compact?15:22;
+    const barH=compact?13:20;
+    const barFont=compact?9.5:11;
     const evLabel=e=>{
       const typePart=e.type?`[${esc(e.type)}] `:'';
-      const timePart=e.time&&e.startTime?`<span style="font-size:9px;opacity:.7;flex-shrink:0;margin-left:3px">${esc(e.startTime)}</span>`:'';
+      const timePart=(!compact&&e.time&&e.startTime)?`<span style="font-size:9px;opacity:.7;flex-shrink:0;margin-left:3px">${esc(e.startTime)}</span>`:'';
       return `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${typePart}${esc(e.title)}</span>${timePart}`;
     };
     assigned.forEach(({e,cs,ce,lane,isMulti})=>{
@@ -1005,9 +1013,9 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn){
         const isFirst=e.start>=wS,isLast=e.end<=wE;
         const r=isFirst&&isLast?'4px':isFirst?'4px 0 0 4px':isLast?'0 4px 4px 0':'0';
         const ml=isFirst?2:0,mr=isLast?2:0;
-        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:20px;line-height:20px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:11px;border-radius:${r}" onclick="event.stopPropagation();${clickJs}">${isFirst?evLabel(e):''}</div>`;
+        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:${barH}px;line-height:${barH}px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:${barFont}px;border-radius:${r}" onclick="event.stopPropagation();${clickJs}">${isFirst?evLabel(e):''}</div>`;
       } else {
-        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:20px;line-height:20px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:11px;border-radius:4px" onclick="event.stopPropagation();${clickJs}">${evLabel(e)}</div>`;
+        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:${barH}px;line-height:${barH}px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:${barFont}px;border-radius:4px" onclick="event.stopPropagation();${clickJs}">${evLabel(e)}</div>`;
       }
     });
     html+=`</div></div>`;
@@ -3339,7 +3347,6 @@ function pOpenPost(id){
     <div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="pAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>
     <div style="margin-top:8px;padding-top:24px;border-top:1px solid var(--bd)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <div class="ctitle" style="margin:0;flex:0 0 auto">프로젝트 캘린더</div>
         <button class="cal-nav" onclick="pCalPrev(${id})">‹</button>
         <span id="p-cal-label" style="font-size:12.5px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
         <button class="cal-nav" onclick="pCalNext(${id})">›</button>
@@ -3374,12 +3381,11 @@ function pCalRenderAll(postId){
     const el=document.getElementById(`p-cal-${i}`);
     if(!el)continue;
     const y=mDate.getFullYear(),mo=mDate.getMonth();
-    const ym=`${y}-${p2(mo+1)}`;
-    if(S.holidayCache[ym]===undefined)fetchHolidays(y,mo+1); // 공휴일 표시도 메인 캘린더와 동일하게 재사용
-    let html=`<div style="font-size:14px;font-weight:700;margin-bottom:8px;color:var(--tx)">${mo+1}월</div>`;
+    let html=`<div style="font-size:13px;font-weight:700;margin-bottom:6px;color:var(--tx)">${mo+1}월</div>`;
     html+=buildMonthGridHtml(p.calEvents,mDate,
       ds=>`openAddProjectEvent(${postId},'${ds}')`,
-      eid=>`openProjectEventDetail(${postId},${eid})`);
+      eid=>`openProjectEventDetail(${postId},${eid})`,
+      true);
     el.innerHTML=html;
   }
 }
