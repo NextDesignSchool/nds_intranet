@@ -879,6 +879,13 @@ async function fetchHolidays(y,m){
     if(S.page==='home')renderHome();
     else if(S.page==='schedule')renderSchedulePage();
   }
+  if(S.page==='projects'&&_pActiveId&&_pCalBase){
+    // 프로젝트 캘린더가 지금 보여주는 3개월 범위 안에 이 공휴일 데이터의 달이 포함되면 다시 그림
+    for(let i=0;i<3;i++){
+      const md=new Date(_pCalBase.getFullYear(),_pCalBase.getMonth()+i,1);
+      if(md.getFullYear()===y&&md.getMonth()+1===m){pCalRenderAll(_pActiveId);break;}
+    }
+  }
 }
 
 function getHolidayForDay(dateStr){
@@ -896,37 +903,45 @@ function renderCalendar(container,month,onAddEvent){
   const loading=S.holidayCache[ym]===null;
   const isLoaded=S.holidayCache[ym]!==undefined&&S.holidayCache[ym]!==null;
   if(!isLoaded&&!loading)fetchHolidays(y,m+1);
+  const loadingBadge=loading?`<span style="font-size:11px;color:var(--sub);margin-left:6px">공휴일 로딩중…</span>`:
+    (S.holidayFallback&&isLoaded?`<span style="font-size:11px;color:var(--or);margin-left:6px" title="API 연결 실패, 기본 데이터 사용">⚠ 오프라인</span>`:'');
+  let html=`<div class="cal-hd">
+    <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0">
+      <button class="cal-nav" onclick="calPrev('${container}')">‹</button>
+      <h3 class="cal-hd-title" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--sub2);text-underline-offset:3px;flex:0 1 auto" onclick="event.stopPropagation();calJump(this,'${container}')" title="클릭해서 다른 달로 이동">${y}년 ${m+1}월${loadingBadge}</h3>
+      <button class="cal-nav" onclick="calNext('${container}')">›</button>
+      <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px;margin-left:4px" onclick="calToday('${container}')">오늘</button>
+    </div>
+    <div class="cal-hd-actions">
+      ${onAddEvent?`<button class="btn btn-p btn-sm" onclick="${onAddEvent}">+ 일정추가</button>`:''}
+    </div>
+  </div>`;
+  html+=buildMonthGridHtml(S.events,month,ds=>`openAddEvent('${ds}')`,id=>`openEventDetail(${id})`);
+  document.getElementById(container).innerHTML=html;
+}
+// 한 달치 캘린더 그리드(날짜 칸 + 연속일정 막대)를 만드는 공용 함수.
+// 메인 일정관리와 프로젝트 전용 캘린더가 이 함수를 공유해서 똑같은 모양을 유지함.
+// dayClickFn(dateStr), eventClickFn(eventId)는 각각 "그 자리에 넣을 onclick JS 문자열"을 돌려줘야 함.
+function buildMonthGridHtml(events,month,dayClickFn,eventClickFn){
+  const y=month.getFullYear(),m=month.getMonth();
   const first=new Date(y,m,1).getDay();
   const days=getDaysInMonth(y,m);
   const todayStr=today();
   const prevDays=getDaysInMonth(y,m-1);
-  const loadingBadge=loading?`<span style="font-size:11px;color:var(--sub);margin-left:6px">공휴일 로딩중…</span>`:
-    (S.holidayFallback&&isLoaded?`<span style="font-size:11px;color:var(--or);margin-left:6px" title="API 연결 실패, 기본 데이터 사용">⚠ 오프라인</span>`:'');
-  let html=`<div class="cal-hd">
-    <h3 class="cal-hd-title" style="cursor:pointer" onclick="event.stopPropagation();calJump(this,'${container}')">${y}년 ${m+1}월${loadingBadge}</h3>
-    <div class="cal-hd-actions">
-      ${onAddEvent?`<button class="btn btn-p btn-sm" onclick="${onAddEvent}">+ 일정추가</button>`:''}
-      <button class="cal-nav" onclick="calPrev('${container}')">‹</button>
-      <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px" onclick="calToday('${container}')">오늘</button>
-      <button class="cal-nav" onclick="calNext('${container}')">›</button>
-    </div>
-  </div>`;
-  // Build flat day array (padded with prev/next month cells)
   const allDays=[];
   for(let i=first;i>0;i--){const d=prevDays-i+1;const pm=m===0?11:m-1,py=m===0?y-1:y;allDays.push({ds:`${py}-${p2(pm+1)}-${p2(d)}`,d,pad:true});}
   for(let d=1;d<=days;d++)allDays.push({ds:`${y}-${p2(m+1)}-${p2(d)}`,d,pad:false});
   const rem=(7-allDays.length%7)%7;
   for(let i=1;i<=rem;i++){const nm=m===11?0:m+1,ny=m===11?y+1:y;allDays.push({ds:`${ny}-${p2(nm+1)}-${p2(i)}`,d:i,pad:true});}
   const weeks=[];for(let i=0;i<allDays.length;i+=7)weeks.push(allDays.slice(i,i+7));
-  const multiEvs=S.events.filter(e=>e.start!==e.end);
-  html+=`<div class="cal-grid-outer">`;
+  const multiEvs=events.filter(e=>e.start!==e.end);
+  let html=`<div class="cal-grid-outer">`;
   html+=`<div class="cal-header-row">`;
   ['일','월','화','수','목','금','토'].forEach(d=>html+=`<div class="cal-dn">${d}</div>`);
   html+=`</div>`;
   weeks.forEach((week,wi)=>{
     html+=`<div class="cal-week${wi===weeks.length-1?' cal-week-last':''}">`;
     const wS=week[0].ds,wE=week[6].ds;
-    // Date numbers row only
     html+=`<div class="cal-cells">`;
     week.forEach((day,di)=>{
       const{ds,d,pad}=day;
@@ -939,12 +954,10 @@ function renderCalendar(container,month,onAddEvent){
       if(di===6)cls+=' sat';
       const dnStyle=pad?'':(isRed?'color:#E24B4A':isSat?'color:#3366AA':'');
       const holHtml=hol&&!pad?`<div class="cal-hol">${hol}</div>`:'';
-      html+=`<div class="cal-cell${cls}" onclick="openAddEvent('${ds}')"><div class="dnum" style="${dnStyle}">${d}</div>${holHtml}</div>`;
+      html+=`<div class="cal-cell${cls}" onclick="${dayClickFn(ds)}"><div class="dnum" style="${dnStyle}">${d}</div>${holHtml}</div>`;
     });
     html+=`</div>`;
-    // All events below date numbers using combined lane assignment
     const wEvs=[];
-    // Multi-day events
     multiEvs.filter(e=>e.start<=wE&&e.end>=wS).forEach(e=>{
       const vs=e.start<wS?wS:e.start;
       const ve=e.end>wE?wE:e.end;
@@ -952,19 +965,16 @@ function renderCalendar(container,month,onAddEvent){
       const ce=week.findIndex(d=>d.ds===ve);
       if(cs>=0&&ce>=0)wEvs.push({e,cs,ce,isMulti:true});
     });
-    // Single-day events
     week.forEach((day,di)=>{
-      S.events.filter(ev=>ev.start===ev.end&&ev.start===day.ds).forEach(e=>{
+      events.filter(ev=>ev.start===ev.end&&ev.start===day.ds).forEach(e=>{
         wEvs.push({e,cs:di,ce:di,isMulti:false});
       });
     });
-    // Sort: multi-day first (longer first), then by start
     wEvs.sort((a,b)=>{
       const aL=a.ce-a.cs,bL=b.ce-b.cs;
       if(bL!==aL)return bL-aL;
       return a.e.start.localeCompare(b.e.start);
     });
-    // Assign lanes
     const laneGrid=[];
     const assigned=wEvs.map(ev=>{
       let lane=0;
@@ -977,9 +987,7 @@ function renderCalendar(container,month,onAddEvent){
       }
       return{...ev,lane};
     });
-    // Always render evlayer for uniform row heights; use absolute positioning
     html+=`<div class="cal-evlayer">`;
-    // 배경용 7개 컬럼: 날짜 셀과 동일한 grid 세로선을 만들어 항상 정렬이 맞도록 함
     for(let ci=0;ci<7;ci++)html+=`<div class="cal-evcol"></div>`;
     const colW=100/7;
     const rowH=22;
@@ -992,19 +1000,20 @@ function renderCalendar(container,month,onAddEvent){
       const left=colW*cs;
       const width=colW*(ce-cs+1);
       const top=lane*rowH+2;
+      const clickJs=eventClickFn(e.id);
       if(isMulti){
         const isFirst=e.start>=wS,isLast=e.end<=wE;
         const r=isFirst&&isLast?'4px':isFirst?'4px 0 0 4px':isLast?'0 4px 4px 0':'0';
         const ml=isFirst?2:0,mr=isLast?2:0;
-        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:20px;line-height:20px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:11px;border-radius:${r}" onclick="event.stopPropagation();openEventDetail(${e.id})">${isFirst?evLabel(e):''}</div>`;
+        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:20px;line-height:20px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:11px;border-radius:${r}" onclick="event.stopPropagation();${clickJs}">${isFirst?evLabel(e):''}</div>`;
       } else {
-        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:20px;line-height:20px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:11px;border-radius:4px" onclick="event.stopPropagation();openEventDetail(${e.id})">${evLabel(e)}</div>`;
+        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:20px;line-height:20px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:11px;border-radius:4px" onclick="event.stopPropagation();${clickJs}">${evLabel(e)}</div>`;
       }
     });
     html+=`</div></div>`;
   });
   html+=`</div>`;
-  document.getElementById(container).innerHTML=html;
+  return html;
 }
 function calPrev(c){S.cal=new Date(S.cal.getFullYear(),S.cal.getMonth()-1,1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
 function calNext(c){S.cal=new Date(S.cal.getFullYear(),S.cal.getMonth()+1,1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
@@ -2890,10 +2899,6 @@ function bOpenPost(id){
   const post=_bPosts.find(x=>x.id===id);if(!post)return;
   const el=document.getElementById('b-editor');if(!el)return;
   el.innerHTML=`<div style="max-width:700px;margin:0 auto">
-    ${post.cover?`<div style="height:160px;background:url(${post.cover}) center/cover no-repeat;border-radius:8px;margin-bottom:16px;position:relative">
-      <button class="btn btn-o btn-sm" style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,.85)" onclick="bRemoveCover('${id}')">커버 삭제</button></div>`
-    :`<div style="margin-bottom:10px"><button class="btn-g" style="font-size:12px;color:var(--sub)" onclick="document.getElementById('b-cover-inp').click()">+ 커버 추가</button>
-      <input type="file" id="b-cover-inp" style="display:none" accept="image/*" onchange="bLoadCover(event,'${id}')"></div>`}
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
       <span style="font-size:38px;cursor:pointer;line-height:1" onclick="bPickIcon('${id}')">${post.icon||'📄'}</span>
       <input class="board-title-input" value="${(post.title||'').replace(/"/g,'&quot;')}" placeholder="제목 없음" oninput="bUpdateTitle('${id}',this.value)">
@@ -2961,7 +2966,7 @@ function bUpdateTitle(postId,val){
 }
 
 function bNewPost(){
-  const post={id:_bNewId(),title:'',icon:'',cover:null,tags:[],createdAt:today(),updatedAt:today(),
+  const post={id:_bNewId(),title:'',icon:'',tags:[],createdAt:today(),updatedAt:today(),
     blocks:[{id:_bNewId(),type:'paragraph',content:''}]};
   _bPosts.unshift(post);_bSave();_bActiveId=post.id;bRenderSb();bOpenPost(post.id);
 }
@@ -3183,8 +3188,6 @@ function bDrop(e,targetId,postId){
 function bAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_bPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_bSave();bOpenPost(postId);bRenderSb();}
 function bRemoveTag(postId,tag){const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_bSave();bOpenPost(postId);bRenderSb();}
 function bPickIcon(postId){const icons='📄📝📊💡🔗📌⭐🎨🔧📐💬📅🗂🏆🚀📋🎯📎🗒🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'📄';const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'📄';_bSave();bOpenPost(postId);bRenderSb();}
-function bLoadCover(e,postId){const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.cover=ev.target.result;_bSave();bOpenPost(postId);};r.readAsDataURL(file);}
-function bRemoveCover(postId){const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.cover=null;_bSave();bOpenPost(postId);}
 
 document.addEventListener('click',e=>{
   // 슬래시 메뉴가 열려있는 블록이 아닌 다른 곳(다른 블록 포함)을 클릭하면 메뉴를 닫음.
@@ -3240,12 +3243,10 @@ function renderProjects(){
   p.innerHTML=`<div class="board-wrap">
     <div class="board-sb">
       <div class="board-sb-hd">
-        <span style="font-weight:700;font-size:14px">프로젝트</span>
+        <span style="font-size:13px;font-weight:700;color:var(--tx)">프로젝트</span>
         <button class="btn btn-p btn-sm" onclick="pNewPost()">+ 새 프로젝트</button>
       </div>
-      <div style="padding:0 12px 8px">
-        <input class="board-search-box" placeholder="검색..." value="${_pSearch}" oninput="_pSearch=this.value;pRenderSb()">
-      </div>
+      <div class="board-search-box"><input placeholder="검색..." value="${_pSearch}" oninput="_pSearch=this.value;pRenderSb()"></div>
       <div style="display:flex;gap:4px;padding:0 12px 8px;flex-wrap:wrap">
         <button class="btag${_pStatusFilter===null?' on':''}" onclick="pSetStatusFilter(null)">전체</button>
         ${PRJ_STATUSES.map(s=>`<button class="btag${_pStatusFilter===s?' on':''}" onclick="pSetStatusFilter('${s}')">${s}</button>`).join('')}
@@ -3277,6 +3278,7 @@ function pSetStatusFilter(s){_pStatusFilter=s;renderProjects();if(_pActiveId)pOp
 function pNewPost(){
   _pLoad();
   const post={id:_pNewId(),name:'',status:'대기',dueDate:'',icon:'🗃',tags:[],createdAt:today(),updatedAt:today(),
+    calEvents:[],
     blocks:[{id:_pNewId(),type:'paragraph',content:''}]};
   _pPosts.unshift(post);_pSave();_pActiveId=post.id;renderProjects();pOpenPost(post.id);
 }
@@ -3290,10 +3292,12 @@ function pDeletePost(id){
 
 function pOpenPost(id){
   _pActiveId=id;
+  _pCalBase=null; // 다른 프로젝트를 열 때마다 캘린더는 이번 달 기준으로 새로 시작
   const post=_pPosts.find(x=>x.id===id);
   const el=document.getElementById('p-editor');if(!el)return;
   pRenderSb();
   if(!post){el.innerHTML='';return;}
+  if(!post.calEvents)post.calEvents=[];
   el.innerHTML=`<div style="max-width:760px;margin:0 auto;padding:24px 24px 48px">
     <div style="display:flex;align-items:center;gap:8px;margin:0 0 4px">
       <span style="font-size:36px;cursor:pointer" onclick="pPickIcon('${id}')">${post.icon||'🗃'}</span>
@@ -3318,7 +3322,143 @@ function pOpenPost(id){
     </div>
     <div id="p-blocks">${pRenderBlocks(post.blocks,id)}</div>
     <div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="pAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>
+    <div style="margin-top:8px;padding-top:24px;border-top:1px solid var(--bd)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <div class="ctitle" style="margin:0;flex:0 0 auto">프로젝트 캘린더</div>
+        <button class="cal-nav" onclick="pCalPrev(${id})">‹</button>
+        <span id="p-cal-label" style="font-size:12.5px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
+        <button class="cal-nav" onclick="pCalNext(${id})">›</button>
+        <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px" onclick="pCalToday(${id})">오늘</button>
+        <button class="btn btn-p btn-sm" style="margin-left:auto" onclick="openAddProjectEvent(${id},null)">+ 일정추가</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;overflow-x:auto">
+        <div id="p-cal-0" style="min-width:220px"></div>
+        <div id="p-cal-1" style="min-width:220px"></div>
+        <div id="p-cal-2" style="min-width:220px"></div>
+      </div>
+    </div>
   </div>`;
+  pCalRenderAll(id);
+}
+
+// ─── 프로젝트 전용 캘린더 (메인 일정관리와 별개, 프로젝트 데이터에 함께 저장됨) ──
+let _pCalBase=null;
+function pCalRenderAll(postId){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  if(!p.calEvents)p.calEvents=[];
+  if(!_pCalBase){const n=new Date();_pCalBase=new Date(n.getFullYear(),n.getMonth(),1);}
+  const label=document.getElementById('p-cal-label');
+  if(label){
+    const m2=new Date(_pCalBase.getFullYear(),_pCalBase.getMonth()+2,1);
+    label.textContent=_pCalBase.getFullYear()===m2.getFullYear()
+      ?`${_pCalBase.getFullYear()}년 ${_pCalBase.getMonth()+1}월 ~ ${m2.getMonth()+1}월`
+      :`${_pCalBase.getFullYear()}년 ${_pCalBase.getMonth()+1}월 ~ ${m2.getFullYear()}년 ${m2.getMonth()+1}월`;
+  }
+  for(let i=0;i<3;i++){
+    const mDate=new Date(_pCalBase.getFullYear(),_pCalBase.getMonth()+i,1);
+    const el=document.getElementById(`p-cal-${i}`);
+    if(!el)continue;
+    const y=mDate.getFullYear(),mo=mDate.getMonth();
+    const ym=`${y}-${p2(mo+1)}`;
+    if(S.holidayCache[ym]===undefined)fetchHolidays(y,mo+1); // 공휴일 표시도 메인 캘린더와 동일하게 재사용
+    let html=`<div style="font-size:14px;font-weight:700;margin-bottom:8px;color:var(--tx)">${mo+1}월</div>`;
+    html+=buildMonthGridHtml(p.calEvents,mDate,
+      ds=>`openAddProjectEvent(${postId},'${ds}')`,
+      eid=>`openProjectEventDetail(${postId},${eid})`);
+    el.innerHTML=html;
+  }
+}
+function pCalPrev(postId){_pCalBase=new Date(_pCalBase.getFullYear(),_pCalBase.getMonth()-1,1);pCalRenderAll(postId);}
+function pCalNext(postId){_pCalBase=new Date(_pCalBase.getFullYear(),_pCalBase.getMonth()+1,1);pCalRenderAll(postId);}
+function pCalToday(postId){const n=new Date();_pCalBase=new Date(n.getFullYear(),n.getMonth(),1);pCalRenderAll(postId);}
+function openAddProjectEvent(postId,dateStr){
+  showModal(`<div class="mo-hd"><h3>일정 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>제목</label><input id="ev-title" placeholder="일정 제목"></div>
+    <div class="fr fr-row">
+      <div><label>시작일</label><input type="text" id="ev-start" value="${dateStr||today()}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
+      <div><label>종료일</label><input type="text" id="ev-end" value="${dateStr||today()}" readonly style="cursor:pointer" onclick="openMiniCal('ev-end',this)"></div>
+    </div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" onchange="toggleEvTime()"> 시간 설정</label></div>
+    <div id="ev-time-row" style="display:none" class="fr">
+      <label>시작시간</label><input type="time" id="ev-stime">
+    </div>
+    <div class="fr"><label style="font-size:14px;text-align:left;display:block">종류</label>
+    <div style="display:flex;gap:6px">
+      <select id="ev-type" style="flex:1"><option value="">선택</option>${S.etypes.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
+      <button type="button" class="btn btn-o btn-sm" onclick="editSelectedEtype()" title="선택한 종류 이름 수정">수정</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="deleteSelectedEtype()" title="선택한 종류 삭제">삭제</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">추가</button>
+    </div></div>
+    <div class="fr"><label>내용</label><textarea id="ev-content" rows="3" placeholder="내용 입력"></textarea></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveProjectEvent(${postId},null)">저장</button></div>`);
+}
+function openEditProjectEvent(postId,id){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  const e=(p.calEvents||[]).find(x=>x.id===id);if(!e)return;
+  showModal(`<div class="mo-hd"><h3>일정 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>제목</label><input id="ev-title" value="${esc(e.title).replace(/"/g,'&quot;')}"></div>
+    <div class="fr fr-row">
+      <div><label>시작일</label><input type="text" id="ev-start" value="${e.start}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
+      <div><label>종료일</label><input type="text" id="ev-end" value="${e.end}" readonly style="cursor:pointer" onclick="openMiniCal('ev-end',this)"></div>
+    </div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" ${e.time?'checked':''} onchange="toggleEvTime()"> 시간 설정</label></div>
+    <div id="ev-time-row" style="display:${e.time?'block':'none'}" class="fr">
+      <label>시작시간</label><input type="time" id="ev-stime" value="${e.startTime||''}">
+    </div>
+    <div class="fr"><label style="font-size:14px;text-align:left;display:block">종류</label>
+    <div style="display:flex;gap:6px">
+      <select id="ev-type" style="flex:1"><option value="">선택</option>${S.etypes.map(t=>`<option${t===e.type?' selected':''}>${esc(t)}</option>`).join('')}</select>
+      <button type="button" class="btn btn-o btn-sm" onclick="editSelectedEtype()" title="선택한 종류 이름 수정">수정</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="deleteSelectedEtype()" title="선택한 종류 삭제">삭제</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">추가</button>
+    </div></div>
+    <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${esc(e.content)}</textarea></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-d btn-sm" onclick="deleteProjectEvent(${postId},${id})">삭제</button>
+  <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveProjectEvent(${postId},${id})">저장</button></div>`);
+}
+function openProjectEventDetail(postId,id){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  const e=(p.calEvents||[]).find(x=>x.id===id);if(!e)return;
+  showModal(`<div class="mo-hd"><h3>${esc(e.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div style="margin-bottom:10px"><span class="chip ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}">${esc(e.type||'미정')}</span></div>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:8px">📅 ${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''} ${e.time?(e.startTime||''):'(종일)'}</div>
+    ${e.content?`<div style="font-size:14px;white-space:pre-wrap">${esc(e.content)}</div>`:''}
+  </div>
+  <div class="mo-ft" style="gap:8px">
+    <button class="btn btn-o" style="flex:1" onclick="closeModal()">닫기</button>
+    <button class="btn btn-p" style="flex:1" onclick="closeModal();openEditProjectEvent(${postId},${id})">수정</button>
+    <button class="btn btn-d" style="flex:1" onclick="deleteProjectEvent(${postId},${id})">삭제</button>
+  </div>`);
+}
+function saveProjectEvent(postId,id){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  if(!p.calEvents)p.calEvents=[];
+  const title=document.getElementById('ev-title').value.trim();
+  const start=document.getElementById('ev-start').value;
+  const end=document.getElementById('ev-end').value;
+  const type=document.getElementById('ev-type').value;
+  const content=document.getElementById('ev-content').value.trim();
+  const time=document.getElementById('ev-time').checked;
+  const startTime=time?document.getElementById('ev-stime').value:'';
+  if(!title||!start||!end){alert('제목과 날짜를 입력해주세요');return}
+  if(id){const e=p.calEvents.find(x=>x.id===id);Object.assign(e,{title,start,end,type,content,time,startTime});}
+  else p.calEvents.push({id:newId(),title,start,end,type,content,time,startTime});
+  closeModal();
+  pCalRenderAll(postId);
+  _pSave();
+}
+function deleteProjectEvent(postId,id){
+  if(!confirm('일정을 삭제하시겠습니까?'))return;
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  p.calEvents=(p.calEvents||[]).filter(x=>x.id!==id);
+  closeModal();
+  pCalRenderAll(postId);
+  _pSave();
 }
 
 function pRenderBlocks(blocks,postId){
