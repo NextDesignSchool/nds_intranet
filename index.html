@@ -280,6 +280,7 @@ tr:hover td{background:var(--hover)}
 .tg-cell{min-height:30px;height:auto;cursor:pointer;transition:background .08s;white-space:normal;word-break:keep-all;overflow-wrap:break-word;line-height:1.3;padding:4px 3px}
 .st-cell{outline:none;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.4;padding:8px 10px;min-height:1.4em;text-align:center}
 .st-cell:empty::before{content:attr(data-ph);color:var(--sub2);pointer-events:none}
+#nt-content:empty::before{content:attr(data-ph);color:var(--sub2);pointer-events:none}
 .st-table-fixed{table-layout:fixed;width:100%}
 .tg-cell:hover{background:var(--hover) !important}
 .tg-cell.sel{background:#F0EFFC;color:#5B5BD6;font-weight:600}
@@ -2654,16 +2655,16 @@ function openWriteNotice(id){
   const n=id?S.notices.find(x=>x.id===id):null;
   showModal(`<div class="mo-hd"><h3>${n?'공지 수정':'공지 작성'}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div class="fr"><label>제목</label><input id="nt-title" value="${n?esc(n.title).replace(/"/g,'&quot;'):''}" placeholder="제목 입력"></div>
+    <div class="fr"><label>제목</label><input id="nt-title" value="${n?esc(n.title).replace(/"/g,'&quot;'):''}" placeholder="제목 입력" style="font-size:15px;padding:10px 12px"></div>
     <div class="fr">
       <label>내용</label>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <button type="button" class="btn btn-o btn-sm" style="font-weight:700" onclick="ntWrapSelection('**','**')" title="굵게">B</button>
-        <button type="button" class="btn btn-o btn-sm" style="text-decoration:underline" onclick="ntWrapSelection('__','__')" title="밑줄">U</button>
-        <input type="color" id="nt-color-pick" value="#B03025" style="width:30px;height:30px;padding:2px;border:1px solid var(--bd);border-radius:6px;cursor:pointer;background:#fff" title="선택한 글자 색 바꾸기" onchange="ntApplyColor(this.value)">
-        <span style="font-size:11px;color:var(--sub)">글자를 선택한 뒤 눌러주세요</span>
+        <button type="button" class="btn btn-o btn-sm" style="font-weight:700" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')" title="굵게">B</button>
+        <button type="button" class="btn btn-o btn-sm" style="text-decoration:underline" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')" title="밑줄">U</button>
+        <input type="color" id="nt-color-pick" value="#B03025" style="width:30px;height:30px;padding:2px;border:1px solid var(--bd);border-radius:6px;cursor:pointer;background:#fff" title="선택한 글자 색 바꾸기" onmousedown="ntSaveSelection()" onchange="ntApplyColor(this.value)">
+        <span style="font-size:11px;color:var(--sub)">글자를 선택한 뒤 눌러주세요 — 바로 적용돼요</span>
       </div>
-      <textarea id="nt-content" rows="6" placeholder="내용 입력">${n?esc(n.content):''}</textarea>
+      <div id="nt-content" contenteditable="true" data-ph="내용 입력..." onmouseup="ntSaveSelection()" onkeyup="ntSaveSelection()" style="min-height:320px;max-height:55vh;overflow-y:auto;border:1px solid var(--bd);border-radius:var(--r-sm);padding:12px 14px;font-size:14.5px;line-height:1.6;outline:none">${n?n.content:''}</div>
     </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
       <input type="checkbox" id="nt-pinned" style="width:auto;accent-color:var(--ac)" ${n&&n.pinned?'checked':''}>
@@ -2671,36 +2672,60 @@ function openWriteNotice(id){
     </label></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
-  <button class="btn btn-p" onclick="saveNotice(${id||'null'})">저장</button></div>`);
+  <button class="btn btn-p" onclick="saveNotice(${id||'null'})">저장</button></div>`,'lg');
+  setTimeout(()=>{const el=document.getElementById('nt-content');if(el)el.focus();},50);
 }
-// 공지 내용에 아주 가벼운 서식(굵게/밑줄/색상)만 지원함. 실제 HTML을 저장하는 대신
-// **굵게**, __밑줄__, {{#색상코드}}...{{/}}  같은 우리만의 표시(마크업)를 일반 텍스트에
-// 그대로 남겨두고, 화면에 보여줄 때만 안전하게 해석함 — 그래야 사용자가 입력한 텍스트를
-// 그대로 HTML로 신뢰하는 위험(악성 스크립트 삽입 등) 없이 서식을 지원할 수 있음.
-function ntWrapSelection(open,close){
-  const ta=document.getElementById('nt-content');if(!ta)return;
-  const s=ta.selectionStart,e=ta.selectionEnd;
-  if(s===e){alert('서식을 적용할 글자를 먼저 선택해주세요.');return;}
-  const val=ta.value,selected=val.slice(s,e);
-  ta.value=val.slice(0,s)+open+selected+close+val.slice(e);
-  ta.focus();
-  ta.selectionStart=s+open.length;
-  ta.selectionEnd=s+open.length+selected.length;
+// 공지 내용은 이제 실시간 편집(contenteditable)으로 굵게/밑줄/색상을 바로 눈으로 보면서 적용함.
+// 다만 이 편집 영역에 사용자가 다른 웹페이지에서 텍스트를 복사해서 붙여넣으면, 원치 않는
+// 태그나 악성 스크립트가 함께 딸려올 수 있음. 그래서 저장할 때 반드시 허용된 태그
+// (굵게/밑줄/색상/줄바꿈)만 남기고 나머지는 전부 걸러내는 정리 과정을 거침.
+let _ntSavedRange=null;
+function ntSaveSelection(){
+  const el=document.getElementById('nt-content');
+  const sel=window.getSelection();
+  if(el&&sel&&sel.rangeCount>0){
+    const r=sel.getRangeAt(0);
+    if(el.contains(r.commonAncestorContainer))_ntSavedRange=r.cloneRange();
+  }
 }
-function ntApplyColor(hex){ntWrapSelection(`{{${hex}}}`,'{{/}}');}
-// 저장된 텍스트 안의 **굵게**, __밑줄__, {{#색상}}...{{/}} 마크업을 안전한 HTML로 변환.
-// 사용자가 입력한 실제 내용은 먼저 esc()로 이스케이프한 뒤에만 태그를 씌우므로,
-// 사용자가 <script> 같은 걸 입력해도 절대 실행되는 코드로 바뀌지 않음.
-function renderNoticeMarkup(text){
-  let s=esc(text);
-  s=s.replace(/\*\*([\s\S]+?)\*\*/g,'<b>$1</b>');
-  s=s.replace(/__([\s\S]+?)__/g,'<u>$1</u>');
-  s=s.replace(/\{\{(#[0-9a-fA-F]{6})\}\}([\s\S]+?)\{\{\/\}\}/g,'<span style="color:$1">$2</span>');
-  return s;
+function ntApplyColor(hex){
+  const el=document.getElementById('nt-content');if(!el)return;
+  el.focus();
+  if(_ntSavedRange){
+    const sel=window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(_ntSavedRange);
+  }
+  document.execCommand('foreColor',false,hex);
+}
+// 허용된 태그(B/STRONG/U/SPAN/BR/DIV)만 남기고, 그 외 태그는 벗겨내되 안의 글자는 그대로 살림.
+// SPAN에는 color 스타일 외 다른 속성(예: onclick 같은 이벤트 핸들러)은 전부 제거함.
+function sanitizeNoticeHtml(html){
+  const div=document.createElement('div');
+  div.innerHTML=html;
+  const allowed=['B','STRONG','U','SPAN','BR','DIV'];
+  function clean(node){
+    [...node.childNodes].forEach(child=>{
+      if(child.nodeType!==1){return;}
+      const tag=child.tagName;
+      if(!allowed.includes(tag)){
+        while(child.firstChild)node.insertBefore(child.firstChild,child);
+        node.removeChild(child);
+        return;
+      }
+      const color=child.style&&child.style.color;
+      [...child.attributes].forEach(attr=>child.removeAttribute(attr.name));
+      if(tag==='SPAN'&&color)child.style.color=color;
+      clean(child);
+    });
+  }
+  clean(div);
+  return div.innerHTML;
 }
 function saveNotice(id){
   const title=document.getElementById('nt-title').value.trim();
-  const content=document.getElementById('nt-content').value.trim();
+  const contentEl=document.getElementById('nt-content');
+  const content=sanitizeNoticeHtml(contentEl?contentEl.innerHTML:'');
   const pinned=document.getElementById('nt-pinned').checked;
   if(!title){alert('제목을 입력해주세요');return}
   if(id){const n=S.notices.find(x=>x.id===id);Object.assign(n,{title,content,pinned})}
@@ -2729,7 +2754,7 @@ function openNoticeDetail(id){
   showModal(`<div class="mo-hd"><h3>${n.pinned?'📌 ':''}${esc(n.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${esc(n.author)} · ${fmtDisp(n.date)}${n.pinned?' · <span style="color:var(--or)">고정됨</span>':''}</div>
-    <div style="font-size:14px;white-space:pre-wrap;margin-bottom:20px">${renderNoticeMarkup(n.content)}</div>
+    <div style="font-size:14px;line-height:1.6;margin-bottom:20px">${n.content}</div>
     <div style="border-top:1px solid var(--bd);padding-top:14px">
       <div class="ctitle" style="font-size:13px">댓글 ${n.comments.length}</div>
       <div id="cmt-list">${cmts}</div>
