@@ -141,7 +141,7 @@ tr:hover td{background:var(--hover)}
 /* 프로젝트 전용 캘린더처럼 좁은 공간에 여러 달을 나란히 보여줄 때 쓰는 축소판 */
 .cal-compact .cal-cells{grid-auto-rows:20px}
 .cal-compact .cal-evlayer{height:32px}
-.cal-compact .dnum{font-size:10.5px}
+.cal-compact .dnum{font-size:9.5px;width:15px;height:15px;margin-bottom:0}
 .cal-compact .cal-dn{padding:2px;font-size:10px}
 .cal-compact .cal-cell{padding:2px}
 .board-wrap{display:flex;height:calc(100vh - 108px);background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);overflow:hidden}
@@ -813,7 +813,7 @@ function renderSidebar(){
       if(_sbBoardOpen&&_bCategories.length){
         html+=`<div class="nv-sub${!_bCatFilter&&S.page==='board'?' active':''}" onclick="navigateBoardCat(null)">전체</div>`;
         _bCategories.forEach(c=>{
-          html+=`<div class="nv-sub${_bCatFilter===c.id?' active':''}" onclick="navigateBoardCat('${c.id}')">${esc(c.name)}</div>`;
+          html+=`<div class="nv-sub${(S.page==='board'&&_bCatFilter===c.id)?' active':''}" onclick="navigateBoardCat('${c.id}')">${esc(c.name)}</div>`;
         });
       }
     } else {
@@ -2022,8 +2022,8 @@ function buildInternGrid(mode){
       });
       row+=`</tr>`;tbody+=row;
     }
-    return `<div style="max-width:55%;min-width:380px;margin:0 auto">
-    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px">
+    return `<div style="max-width:55%;min-width:380px">
+    <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:10px">
       <button class="cal-nav" onclick="internGridWeek(-1)">‹</button>
       <span style="font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
       <button class="cal-nav" onclick="internGridWeek(1)">›</button>
@@ -2057,7 +2057,7 @@ function buildInternGrid(mode){
       return `<td style="border:1px solid var(--bd);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
     }).join('')}
   </tr>`).join('');
-  return `<div style="max-width:55%;min-width:380px;margin:0 auto;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+  return `<div style="max-width:55%;min-width:380px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
     <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
     <thead>${theadHtml}</thead>
     <tbody>${trows}</tbody>
@@ -2380,8 +2380,8 @@ function renderWorkSchedule(){
   <div class="card" style="margin-bottom:20px">
     <div class="ws-card-inner" style="display:flex;align-items:flex-start;gap:0">
       <div style="overflow-x:auto;flex:1;min-width:0">
-        <div style="max-width:55%;min-width:340px;margin:0 auto">
-          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px">
+        <div style="max-width:55%;min-width:340px">
+          <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:10px">
             <button class="cal-nav" onclick="wsWeek(-1)">‹</button>
             <h3 id="ws-label" style="font-size:14px;font-weight:600">${label}</h3>
             <button class="cal-nav" onclick="wsWeek(1)">›</button>
@@ -2569,19 +2569,35 @@ function renderWSTable(){
   </table>`;
   renderWSInternList();
 }
+// 주간 스케줄(요일별 시작~끝)로 총 근무시간을 계산. 하루 30분씩 휴게시간을 뺀 뒤 합산함.
+function calcWeeklyWorkHours(sched){
+  const byDay={};
+  sched.forEach(s=>{
+    const[sh,sm]=s.start.split(':').map(Number);
+    const[eh,em]=s.end.split(':').map(Number);
+    const mins=(eh*60+em)-(sh*60+sm);
+    if(mins>0)byDay[s.day]=(byDay[s.day]||0)+mins;
+  });
+  let totalMins=0;
+  Object.values(byDay).forEach(m=>{totalMins+=Math.max(0,m-30);}); // 근무일마다 30분 휴게시간 차감
+  return totalMins/60;
+}
 function renderWSInternList(){
   const el=document.getElementById('ws-intern-list');if(!el)return;
   const active=S.interns.filter(isInternActive);
-  el.innerHTML=`<div class="wsl-title" style="font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:10px">인턴</div>`+
+  el.innerHTML=`<div class="wsl-title" style="font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:4px">인턴</div>
+    <div style="font-size:9.5px;color:var(--sub2);margin-bottom:8px">근무시간은 일별 휴게시간 30분을 뺀 값이에요</div>`+
     (active.length?active.map(intern=>{
       const c=WS_COLORS[internColorIdx(intern)%WS_COLORS.length];
       const sched=getSchedForWeek(intern.name,S.weekOffset);
       const days=[...new Set(sched.map(s=>s.day))].join('·')||'미등록';
+      const hrs=calcWeeklyWorkHours(sched);
+      const hrsText=hrs>0?`${Number.isInteger(hrs)?hrs:hrs.toFixed(1)}h`:'-';
       return `<div class="wsl-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer" onclick="openInternWeekSched(${intern.id},${S.weekOffset})">
         <div style="width:10px;height:10px;border-radius:3px;background:${c.bg};border:1.5px solid ${c.tc};flex-shrink:0"></div>
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--tx)">${intern.name}</div>
-          <div style="font-size:11px;color:var(--sub);margin-top:1px">${days}</div>
+          <div style="font-size:11px;color:var(--sub);margin-top:1px">${days} · ${hrsText}</div>
         </div>
       </div>`;
     }).join(''):`<div style="font-size:12px;color:var(--sub)">없음</div>`);
@@ -3496,10 +3512,9 @@ function pOpenPost(id){
         ${editing?`<button class="btn-g" style="font-size:11px" onclick="pChangeCalStartMonth('${id}',this)">월 변경</button>`:''}
         <button class="btn btn-p btn-sm" style="margin-left:auto" onclick="openAddProjectEvent('${id}',null)">+ 일정추가</button>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;overflow-x:auto">
-        <div id="p-cal-0" style="min-width:220px"></div>
-        <div id="p-cal-1" style="min-width:220px"></div>
-        <div id="p-cal-2" style="min-width:220px"></div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;overflow-x:auto">
+        <div id="p-cal-0" style="min-width:240px"></div>
+        <div id="p-cal-1" style="min-width:240px"></div>
       </div>
     </div>
   </div>`;
@@ -3516,12 +3531,12 @@ function pCalRenderAll(postId){
   const baseDate=new Date(sy,sm-1,1);
   const label=document.getElementById('p-cal-label');
   if(label){
-    const m2=new Date(baseDate.getFullYear(),baseDate.getMonth()+2,1);
+    const m2=new Date(baseDate.getFullYear(),baseDate.getMonth()+1,1);
     label.textContent=baseDate.getFullYear()===m2.getFullYear()
       ?`${baseDate.getFullYear()}년 ${baseDate.getMonth()+1}월 ~ ${m2.getMonth()+1}월`
       :`${baseDate.getFullYear()}년 ${baseDate.getMonth()+1}월 ~ ${m2.getFullYear()}년 ${m2.getMonth()+1}월`;
   }
-  for(let i=0;i<3;i++){
+  for(let i=0;i<2;i++){
     const mDate=new Date(baseDate.getFullYear(),baseDate.getMonth()+i,1);
     const el=document.getElementById(`p-cal-${i}`);
     if(!el)continue;
