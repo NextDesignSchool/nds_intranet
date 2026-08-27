@@ -61,6 +61,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 .nv-sub:hover{background:var(--hover);color:var(--tx)}
 .nv-sub.active{background:var(--sel);color:var(--tx);font-weight:500}
 .nv svg{width:16px;height:16px;flex-shrink:0;opacity:.45}
+.nv-drag{opacity:0;transition:opacity .12s;font-size:11px;color:var(--sub2);cursor:grab;margin-right:1px;flex-shrink:0}
+.nv:hover .nv-drag{opacity:1}
 .nv.active svg{opacity:.7}
 .nv-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .nv-label-input{outline:none}
@@ -199,9 +201,9 @@ tr:hover td{background:var(--hover)}
 .board-search-box input{background:var(--hover);border:1px solid var(--bd);border-radius:6px;font-size:12px;padding:5px 9px;width:100%;outline:none}
 .board-tags-row{padding:5px 10px;display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--bd)}
 .bcat-section{border-bottom:1px solid var(--bd);padding:4px 0}
-.bcat-all{display:flex;align-items:center;gap:6px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--sub);transition:background .08s}
+.bcat-all{display:flex;align-items:center;gap:6px;padding:7px 14px;cursor:pointer;font-size:13.5px;font-weight:700;color:var(--sub);transition:background .08s}
 .bcat-all:hover,.bcat-all.on{background:var(--sel);color:var(--tx)}
-.bcat-row{display:flex;align-items:center;padding:5px 10px 5px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--tx);transition:background .08s}
+.bcat-row{display:flex;align-items:center;padding:6px 10px 6px 14px;cursor:pointer;font-size:13.5px;font-weight:700;color:var(--tx);transition:background .08s}
 .bcat-row:hover{background:var(--hover)}
 .bcat-row.on{background:var(--sel)}
 .bcat-arrow{font-size:9px;color:var(--sub2);width:12px;flex-shrink:0;transition:transform .12s}
@@ -209,7 +211,9 @@ tr:hover td{background:var(--hover)}
 .bcat-del{font-size:14px;color:var(--sub2);padding:0 4px;line-height:1;opacity:0;transition:opacity .1s}
 .bcat-row:hover .bcat-del{opacity:1}
 .bcat-del:hover{color:var(--re)}
-.bcat-posts{padding-left:12px}
+.bcat-posts{padding-left:22px;border-left:1px solid var(--bd2);margin-left:20px}
+.bcat-posts .board-li-title{font-size:12px;font-weight:400;color:var(--sub)}
+.bcat-posts .board-li:hover .board-li-title{color:var(--tx)}
 .bcat-add{padding:6px 14px;font-size:12px;color:var(--sub);cursor:pointer;display:flex;align-items:center;gap:4px}
 .bcat-add:hover{color:var(--tx)}
 .bcat-select{font-size:12px;border:1px solid var(--bd);border-radius:var(--r-sm);padding:2px 6px;background:#fff;color:var(--sub);margin-top:4px;width:100%}
@@ -529,6 +533,7 @@ const S={
   user:null,page:'home',
   settlements:[],
   etypeColors:{},
+  navOrder:[],
   cal:new Date(new Date().getFullYear(),new Date().getMonth(),1),
   weekOffset:0,
   schedSort:'date',
@@ -780,30 +785,62 @@ const PAGES=[
   {id:'notice',label:'인턴 공지',role:'all',section:'인턴관리',icon:ICONS.notice},
   {id:'worklog',label:'근무일지',role:'all',section:'인턴관리',icon:ICONS.worklog},
 ];
+function _navVisibleOrdered(){
+  let visible=PAGES.filter(p=>p.role==='all'||isAdmin());
+  if(S.navOrder&&S.navOrder.length){
+    const orderIdx=id=>{const i=S.navOrder.indexOf(id);return i===-1?999:i;};
+    visible=[...visible].sort((a,b)=>orderIdx(a.id)-orderIdx(b.id));
+  }
+  return visible;
+}
 function renderSidebar(){
   const nav=document.getElementById('sb-nav');
-  const visible=PAGES.filter(p=>p.role==='all'||isAdmin());
+  const visible=_navVisibleOrdered();
+  const drag=isAdmin(); // 메뉴 순서 변경은 관리자만
   let html='',lastSec='';
   visible.forEach(p=>{
     if(p.section!==lastSec){html+=`<div class="nav-sec-title">${p.section}</div>`;lastSec=p.section}
     const label=navLabel(p.id,p.label);
+    const dragAttrs=drag?`draggable="true" ondragstart="navDragStart(event,'${p.id}')" ondragover="navDragOver(event,'${p.id}')" ondrop="navDrop(event,'${p.id}')"`:'';
+    const handle=drag?`<span class="nv-drag" title="끌어서 순서 변경">⠿</span>`:'';
     if(p.id==='board'){
       _bCatLoad();
-      html+=`<div class="nv${S.page===p.id?' active':''}" onclick="navItemClick(event,'board')" ondblclick="navItemDblClick(event,'board')">
-        ${p.icon} <span class="nv-label" data-nid="${p.id}" data-default="${p.label}">${label}</span>
+      html+=`<div class="nv${S.page===p.id?' active':''}" ${dragAttrs} onclick="navItemClick(event,'board')" ondblclick="navItemDblClick(event,'board')">
+        ${handle}${p.icon} <span class="nv-label" data-nid="${p.id}" data-default="${p.label}">${label}</span>
         ${_bCategories.length?`<span onclick="toggleBoardNav(event)" style="font-size:9px;color:var(--sub2);padding:2px 4px">${_sbBoardOpen?'▾':'▸'}</span>`:''}
       </div>`;
       if(_sbBoardOpen&&_bCategories.length){
         html+=`<div class="nv-sub${!_bCatFilter&&S.page==='board'?' active':''}" onclick="navigateBoardCat(null)">전체</div>`;
         _bCategories.forEach(c=>{
-          html+=`<div class="nv-sub${_bCatFilter===c.id?' active':''}" onclick="navigateBoardCat('${c.id}')">${c.name}</div>`;
+          html+=`<div class="nv-sub${_bCatFilter===c.id?' active':''}" onclick="navigateBoardCat('${c.id}')">${esc(c.name)}</div>`;
         });
       }
     } else {
-      html+=`<div class="nv${S.page===p.id?' active':''}" onclick="navItemClick(event,'${p.id}')" ondblclick="navItemDblClick(event,'${p.id}')">${p.icon} <span class="nv-label" data-nid="${p.id}" data-default="${p.label}">${label}</span></div>`;
+      html+=`<div class="nv${S.page===p.id?' active':''}" ${dragAttrs} onclick="navItemClick(event,'${p.id}')" ondblclick="navItemDblClick(event,'${p.id}')">${handle}${p.icon} <span class="nv-label" data-nid="${p.id}" data-default="${p.label}">${label}</span></div>`;
     }
   });
   nav.innerHTML=html;
+}
+let _navDragId=null;
+function navDragStart(e,id){_navDragId=id;e.dataTransfer.effectAllowed='move';}
+function navDragOver(e,id){
+  const dragP=PAGES.find(x=>x.id===_navDragId),overP=PAGES.find(x=>x.id===id);
+  if(dragP&&overP&&dragP.section===overP.section){e.preventDefault();e.dataTransfer.dropEffect='move';}
+}
+function navDrop(e,targetId){
+  e.preventDefault();
+  if(!_navDragId||_navDragId===targetId)return;
+  const dragP=PAGES.find(x=>x.id===_navDragId),targetP=PAGES.find(x=>x.id===targetId);
+  if(!dragP||!targetP||dragP.section!==targetP.section){_navDragId=null;return;} // 다른 섹션으로는 이동 못하게 막음
+  const ids=_navVisibleOrdered().map(p=>p.id);
+  const fi=ids.indexOf(_navDragId),ti=ids.indexOf(targetId);
+  if(fi<0||ti<0){_navDragId=null;return;}
+  ids.splice(fi,1);
+  ids.splice(ti,0,_navDragId);
+  S.navOrder=ids;
+  _navDragId=null;
+  renderSidebar();
+  saveAppData().catch(()=>{});
 }
 function navLabel(id,fallback){
   return (S.navLabels&&S.navLabels[id])?S.navLabels[id]:fallback;
@@ -2618,7 +2655,16 @@ function openWriteNotice(id){
   showModal(`<div class="mo-hd"><h3>${n?'공지 수정':'공지 작성'}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>제목</label><input id="nt-title" value="${n?esc(n.title).replace(/"/g,'&quot;'):''}" placeholder="제목 입력"></div>
-    <div class="fr"><label>내용</label><textarea id="nt-content" rows="6" placeholder="내용 입력">${n?esc(n.content):''}</textarea></div>
+    <div class="fr">
+      <label>내용</label>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <button type="button" class="btn btn-o btn-sm" style="font-weight:700" onclick="ntWrapSelection('**','**')" title="굵게">B</button>
+        <button type="button" class="btn btn-o btn-sm" style="text-decoration:underline" onclick="ntWrapSelection('__','__')" title="밑줄">U</button>
+        <input type="color" id="nt-color-pick" value="#B03025" style="width:30px;height:30px;padding:2px;border:1px solid var(--bd);border-radius:6px;cursor:pointer;background:#fff" title="선택한 글자 색 바꾸기" onchange="ntApplyColor(this.value)">
+        <span style="font-size:11px;color:var(--sub)">글자를 선택한 뒤 눌러주세요</span>
+      </div>
+      <textarea id="nt-content" rows="6" placeholder="내용 입력">${n?esc(n.content):''}</textarea>
+    </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
       <input type="checkbox" id="nt-pinned" style="width:auto;accent-color:var(--ac)" ${n&&n.pinned?'checked':''}>
       <span>📌 고정 (목록 최상단에 항상 표시)</span>
@@ -2626,6 +2672,31 @@ function openWriteNotice(id){
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
   <button class="btn btn-p" onclick="saveNotice(${id||'null'})">저장</button></div>`);
+}
+// 공지 내용에 아주 가벼운 서식(굵게/밑줄/색상)만 지원함. 실제 HTML을 저장하는 대신
+// **굵게**, __밑줄__, {{#색상코드}}...{{/}}  같은 우리만의 표시(마크업)를 일반 텍스트에
+// 그대로 남겨두고, 화면에 보여줄 때만 안전하게 해석함 — 그래야 사용자가 입력한 텍스트를
+// 그대로 HTML로 신뢰하는 위험(악성 스크립트 삽입 등) 없이 서식을 지원할 수 있음.
+function ntWrapSelection(open,close){
+  const ta=document.getElementById('nt-content');if(!ta)return;
+  const s=ta.selectionStart,e=ta.selectionEnd;
+  if(s===e){alert('서식을 적용할 글자를 먼저 선택해주세요.');return;}
+  const val=ta.value,selected=val.slice(s,e);
+  ta.value=val.slice(0,s)+open+selected+close+val.slice(e);
+  ta.focus();
+  ta.selectionStart=s+open.length;
+  ta.selectionEnd=s+open.length+selected.length;
+}
+function ntApplyColor(hex){ntWrapSelection(`{{${hex}}}`,'{{/}}');}
+// 저장된 텍스트 안의 **굵게**, __밑줄__, {{#색상}}...{{/}} 마크업을 안전한 HTML로 변환.
+// 사용자가 입력한 실제 내용은 먼저 esc()로 이스케이프한 뒤에만 태그를 씌우므로,
+// 사용자가 <script> 같은 걸 입력해도 절대 실행되는 코드로 바뀌지 않음.
+function renderNoticeMarkup(text){
+  let s=esc(text);
+  s=s.replace(/\*\*([\s\S]+?)\*\*/g,'<b>$1</b>');
+  s=s.replace(/__([\s\S]+?)__/g,'<u>$1</u>');
+  s=s.replace(/\{\{(#[0-9a-fA-F]{6})\}\}([\s\S]+?)\{\{\/\}\}/g,'<span style="color:$1">$2</span>');
+  return s;
 }
 function saveNotice(id){
   const title=document.getElementById('nt-title').value.trim();
@@ -2658,7 +2729,7 @@ function openNoticeDetail(id){
   showModal(`<div class="mo-hd"><h3>${n.pinned?'📌 ':''}${esc(n.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${esc(n.author)} · ${fmtDisp(n.date)}${n.pinned?' · <span style="color:var(--or)">고정됨</span>':''}</div>
-    <div style="font-size:14px;white-space:pre-wrap;margin-bottom:20px">${esc(n.content)}</div>
+    <div style="font-size:14px;white-space:pre-wrap;margin-bottom:20px">${renderNoticeMarkup(n.content)}</div>
     <div style="border-top:1px solid var(--bd);padding-top:14px">
       <div class="ctitle" style="font-size:13px">댓글 ${n.comments.length}</div>
       <div id="cmt-list">${cmts}</div>
@@ -3874,7 +3945,7 @@ function closeModal(){
 function modalBgClick(e){if(e.target===document.getElementById('modal'))closeModal()}
 
 // ─── DATA PERSISTENCE (Firestore) ──────────────────
-const PERSIST_KEYS=['events','etypes','etypeColors','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','navLabels','nid','settlements'];
+const PERSIST_KEYS=['events','etypes','etypeColors','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','navLabels','navOrder','nid','settlements'];
 
 // Firestore에 저장
 async function saveAppData(){
