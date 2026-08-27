@@ -2293,6 +2293,7 @@ function saveInternSchedGrid(internId,weekOff){
   if(S.page==='home')renderTodayInterns();
   window._wsEditing=false;
   openInternWeekSched(internId,weekOff);
+  saveAppData().catch(()=>{}); // 30초 자동저장을 기다리지 않고 즉시 저장 (다른 세션과의 덮어쓰기 충돌 위험 구간을 줄임)
 }
 
 function wsToggleEdit(){
@@ -4040,8 +4041,27 @@ async function _initApp(){
     if(_projectSaveTimer){clearTimeout(_projectSaveTimer);_projectSaveTimer=null;}
     saveProjectData();
   }
+  // 30초마다 자동저장하기 '직전'에, 서버의 최신 데이터를 먼저 한 번 당겨와 화면에 반영함.
+  // (예전엔 이 브라우저가 기억하는 걸 무조건 통째로 덮어써서, 방치해둔 탭이 뒤늦게 저장될 때
+  //  다른 사람이 방금 고친 내용을 옛날 상태로 되돌려버리는 문제가 있었음)
+  async function periodicSync(){
+    try{
+      const db=window._db;
+      if(db){
+        const snap=await db.collection('appdata').doc('main').get();
+        if(snap.exists){
+          const d=snap.data();
+          PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
+          if(S.page)renderPage(S.page);
+        }
+      }
+    }catch(e){
+      console.warn('자동 동기화 실패, 기존 상태로 저장 시도:', e);
+    }
+    saveEverything();
+  }
   window.addEventListener('beforeunload',saveEverything);
-  setInterval(saveEverything,30000);
+  setInterval(periodicSync,30000);
 
   // 화면 회전/리사이즈 시 근무스케줄 타임테이블 폭 재계산
   let _resizeTimer=null;
