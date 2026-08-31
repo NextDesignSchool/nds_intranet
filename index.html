@@ -172,7 +172,14 @@ tr:hover td{background:var(--hover)}
 .bk-content[data-type=code]{font-family:monospace;background:var(--hover);padding:10px 14px;border-radius:6px;font-size:13px;white-space:pre-wrap}
 .bk-divider{flex:1;height:1px;background:var(--bd);margin:10px 0;align-self:center}
 .rich-toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--bd);margin-bottom:14px;position:sticky;top:0;background:var(--card);z-index:5}
-.rt-btn{background:none;border:1px solid transparent;border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--tx);cursor:pointer;transition:background .1s}
+.rt-btn{background:none;border:1px solid transparent;border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--tx);cursor:pointer;transition:background .1s;position:relative}
+.rt-btn[data-tip]:hover::after,.rt-color[data-tip]:hover::after{
+  content:attr(data-tip);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:#37352F;color:#fff;font-size:11px;padding:3px 7px;border-radius:4px;white-space:nowrap;
+  pointer-events:none;z-index:20;opacity:0;animation:rtTipShow .1s ease-out .15s forwards;
+}
+@keyframes rtTipShow{to{opacity:1}}
+.rt-color{position:relative}
 .rt-btn:hover{background:var(--hover)}
 .rt-sep{width:1px;height:18px;background:var(--bd);margin:0 5px}
 .rt-color{width:26px;height:26px;padding:2px;border:1px solid var(--bd);border-radius:6px;cursor:pointer;background:#fff}
@@ -1888,7 +1895,7 @@ function renderInterns(){
         <td>${i.semester||'-'}</td>
         <td><span class="chip ${cc}">${i.type}</span></td>
         <td>${days||'-'}</td>
-        <td><b>${i.monthAccum}</b>/${i.monthTarget}h</td>
+        <td><b>${calcMonthlyAccumHours(i.name)}</b>/${i.monthTarget}h</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">${actionsBtnsHtml(i)}</td>
       </tr>`).join('')}</tbody>
   </table></div>
@@ -1901,7 +1908,7 @@ function renderInterns(){
       <div class="intern-card-meta">
         <span>${i.semester||'-'}</span>
         <span>근무일 ${days||'-'}</span>
-        <span><b>${i.monthAccum}</b>/${i.monthTarget}h</span>
+        <span><b>${calcMonthlyAccumHours(i.name)}</b>/${i.monthTarget}h</span>
       </div>
       <div class="intern-card-actions">${actionsBtnsHtml(i)}</div>
     </div>`).join('')}
@@ -1922,7 +1929,7 @@ function openInternDetail(id){
     <div class="fr fr-row"><div><label>학교</label><input id="id-school" value="${i.school}"></div><div><label>전공</label><input id="id-major" value="${i.major}"></div></div>
     <div class="fr fr-row"><div><label>연락처</label><input id="id-phone" value="${i.phone}" oninput="formatPhoneInput(this)"></div><div><label>근무시작일</label><input type="text" id="id-start" value="${i.startDate}" readonly style="cursor:pointer" onclick="openMiniCal('id-start',this)"></div></div>
     <div class="fr fr-row"><div><label>근무형태</label><select id="id-type"><option${i.type==='국가근로'?' selected':''}>국가근로</option><option${i.type==='일반인턴'?' selected':''}>일반인턴</option><option${i.type==='계약직'?' selected':''}>계약직</option></select></div>
-    <div><label>월누적시간</label><input type="number" id="id-accum" value="${i.monthAccum}"></div></div>
+    <div><label>월누적시간 <span style="font-weight:400;font-size:11px;color:var(--sub2)">(자동 계산)</span></label><div style="padding:8px 10px;background:var(--hover);border-radius:6px;font-size:13px;font-weight:600">${calcMonthlyAccumHours(i.name)} / ${i.monthTarget}h</div></div></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">닫기</button>
   <button class="btn btn-p" onclick="saveInternDetail(${id})">수정</button></div>`);
@@ -1936,7 +1943,6 @@ function saveInternDetail(id){
   i.phone=document.getElementById('id-phone').value;
   i.startDate=document.getElementById('id-start').value;
   i.type=document.getElementById('id-type').value;
-  i.monthAccum=parseInt(document.getElementById('id-accum').value)||0;
   closeModal();renderInterns();
 }
 function openAddIntern(){
@@ -2604,6 +2610,36 @@ function calcWeeklyWorkHours(sched){
   });
   return totalMins/60;
 }
+// 이번 달 1일부터 오늘까지, 그 인턴에게 실제로 등록되어 있던 주간 스케줄을 기준으로
+// 월 누적 근무시간을 자동 계산함. 주가 바뀌면서 스케줄이 달라졌어도(주차별 이력) 각 날짜에
+// 그 시점에 적용되던 스케줄을 그대로 반영함. 하루 4시간 초과 근무일에만 30분 휴게시간을 뺌.
+function calcMonthlyAccumHours(internName){
+  const today=new Date();
+  const monthStart=new Date(today.getFullYear(),today.getMonth(),1);
+  const dow=today.getDay();
+  const curMon=new Date(today);curMon.setDate(today.getDate()-(dow===0?6:dow-1)); // 이번 주 월요일
+  let wo=Math.floor((monthStart-curMon)/(7*864e5));
+  wo=Math.min(wo,0); // 혹시 몰라 이번 주(0) 이전 범위로 제한
+  const dayIdx={'월':0,'화':1,'수':2,'목':3,'금':4};
+  const byDate={};
+  for(let w=wo;w<=0;w++){
+    const {mon}=getWeekInfo(w);
+    const sched=getSchedForWeek(internName,w);
+    sched.forEach(s=>{
+      const di=dayIdx[s.day];if(di===undefined)return;
+      const d=new Date(mon);d.setDate(mon.getDate()+di);
+      if(d<monthStart||d>today)return; // 이번 달 범위 + 오늘까지만(미래 근무는 아직 안 센 것으로)
+      const key=d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate();
+      const[sh,sm]=s.start.split(':').map(Number);
+      const[eh,em]=s.end.split(':').map(Number);
+      const mins=(eh*60+em)-(sh*60+sm);
+      if(mins>0)byDate[key]=(byDate[key]||0)+mins;
+    });
+  }
+  let totalMins=0;
+  Object.values(byDate).forEach(m=>{totalMins+=m>240?m-30:m;});
+  return Math.round((totalMins/60)*10)/10;
+}
 // 근무스케줄 메뉴, 인턴 목록의 근무스케줄 탭 양쪽에서 똑같이 쓰는 우측 인턴 패널.
 function internListPanelHtml(activeInterns,weekOffset){
   const noteHtml=`<div class="wsl-title" style="font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:4px">인턴</div>
@@ -2802,23 +2838,24 @@ function _stripHtml(html){const d=document.createElement('div');d.innerHTML=html
 function richInitialContent(post){return post.content!==undefined?post.content:blocksToHtml(post.blocks);}
 function richToolbarHtml(elId){
   return `<div class="rich-toolbar">
-    <button type="button" class="rt-btn" style="font-weight:700" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')" title="굵게">B</button>
-    <button type="button" class="rt-btn" style="font-style:italic" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')" title="기울임">I</button>
-    <button type="button" class="rt-btn" style="text-decoration:underline" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')" title="밑줄">U</button>
+    <button type="button" class="rt-btn" style="font-weight:700" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')" data-tip="굵게">B</button>
+    <button type="button" class="rt-btn" style="font-style:italic" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')" data-tip="기울임">I</button>
+    <button type="button" class="rt-btn" style="text-decoration:underline" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')" data-tip="밑줄">U</button>
     <span class="rt-sep"></span>
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H1')" title="제목 1">H1</button>
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H2')" title="제목 2">H2</button>
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H3')" title="제목 3">H3</button>
-    <button type="button" class="rt-btn" style="width:auto;padding:0 6px;font-size:11px" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'P')" title="본문으로">본문</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H1')" data-tip="제목 1">H1</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H2')" data-tip="제목 2">H2</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H3')" data-tip="제목 3">H3</button>
+    <button type="button" class="rt-btn" style="width:auto;padding:0 6px;font-size:11px" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'P')" data-tip="본문으로">본문</button>
     <span class="rt-sep"></span>
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')" title="글머리 기호">•</button>
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertOrderedList')" title="번호 목록">1.</button>
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'BLOCKQUOTE')" title="인용구">❝</button>
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertCode()" title="코드">&lt;/&gt;</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')" data-tip="글머리 기호">•</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertOrderedList')" data-tip="번호 목록">1.</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'BLOCKQUOTE')" data-tip="인용구">❝</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertCode()" data-tip="코드">&lt;/&gt;</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertLink()" data-tip="하이퍼링크">🔗</button>
     <span class="rt-sep"></span>
-    <input type="color" class="rt-color" value="#B03025" title="글자 색" onmousedown="richSaveSelection()" onchange="richApplyColor('${elId}',this.value)">
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertHorizontalRule')" title="구분선">—</button>
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertTable()" title="표">⊞</button>
+    <input type="color" class="rt-color" value="#B03025" data-tip="글자 색" onmousedown="richSaveSelection()" onchange="richApplyColor('${elId}',this.value)">
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertHorizontalRule')" data-tip="구분선">—</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertTable()" data-tip="표">⊞</button>
   </div>`;
 }
 function richInsertCode(){
@@ -2829,6 +2866,24 @@ function richInsertCode(){
 function richInsertTable(){
   const rows=Array.from({length:3},(_,ri)=>`<tr>${Array.from({length:3},()=>`<${ri===0?'th':'td'}><br></${ri===0?'th':'td'}>`).join('')}</tr>`).join('');
   document.execCommand('insertHTML',false,`<table>${rows}</table><div><br></div>`);
+}
+function richInsertLink(){
+  const sel=window.getSelection();
+  const hasSelection=sel&&!sel.isCollapsed&&sel.toString().trim();
+  const url=prompt('연결할 링크 주소를 입력해주세요 (예: https://example.com)');
+  if(!url||!url.trim())return;
+  const href=/^https?:\/\//i.test(url.trim())?url.trim():'https://'+url.trim();
+  if(hasSelection){
+    document.execCommand('createLink',false,href);
+    // execCommand로 만들어진 링크는 새 탭에서 안 열리니, 방금 만든 링크를 찾아서 target/rel을 붙여줌
+    const s2=window.getSelection();
+    const node=s2&&s2.anchorNode;
+    const a=node&&(node.nodeType===1?node.closest?.('a'):node.parentElement?.closest('a'));
+    if(a){a.target='_blank';a.rel='noopener noreferrer';}
+  }else{
+    const text=prompt('링크에 표시할 글자를 입력해주세요 (비워두면 주소가 그대로 보여요)');
+    document.execCommand('insertHTML',false,`<a href="${href}" target="_blank" rel="noopener noreferrer">${esc(text&&text.trim()?text.trim():href)}</a>`);
+  }
 }
 let _richSavedRange=null;
 function richSaveSelection(){
@@ -3215,11 +3270,11 @@ function bOpenPost(id){
       ${_bEditMode?`<button class="btn-g" style="font-size:11px" onclick="bAddTag('${id}')">+ 태그</button>`:''}
       <div style="margin-left:auto;display:flex;gap:6px">
         <button class="btn btn-o btn-sm" onclick="bToggleEditMode('${id}')">${_bEditMode?'수정 완료':'수정'}</button>
-        <button class="btn btn-d btn-sm" onclick="bDeletePost('${id}')">글 삭제</button>
+        <button class="btn btn-d btn-sm" onclick="bDeletePost('${id}')">삭제</button>
       </div>
     </div>
     ${_bEditMode?richToolbarHtml('b-rich-content'):''}
-    <div id="b-rich-content" class="rich-body" contenteditable="${_bEditMode}" data-ph="내용을 입력하세요..." oninput="bRichInput('${id}')">${richInitialContent(post)}</div>
+    <div id="b-rich-content" class="rich-body" contenteditable="${_bEditMode}" data-ph="내용을 입력하세요..." oninput="bRichInput('${id}')">${_bEditMode?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
   </div>`;
   const tInput=el.querySelector('.board-title-input');
   if(_bEditMode&&tInput&&!post.title)setTimeout(()=>tInput.focus(),40);
@@ -3382,7 +3437,7 @@ function pOpenPost(id){
       </div>
     </div>
     ${editing?richToolbarHtml('p-rich-content'):''}
-    <div id="p-rich-content" class="rich-body" contenteditable="${editing}" data-ph="내용을 입력하세요..." oninput="pRichInput('${id}')">${richInitialContent(post)}</div>
+    <div id="p-rich-content" class="rich-body" contenteditable="${editing}" data-ph="내용을 입력하세요..." oninput="pRichInput('${id}')">${editing?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
     <div style="margin-top:8px;padding-top:24px;border-top:1px solid var(--bd)">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span id="p-cal-label" style="font-size:12px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
