@@ -1250,6 +1250,7 @@ function openMcPanel(anchorEl){
 }
 function renderMiniCal(){
   if(_mcMode==='ym'){renderMiniCalYM();return;}
+  if(_mcMode==='year'){renderMiniCalYear();return;}
   const panel=document.getElementById('mini-cal');if(!panel)return;
   const y=_mcMonth.getFullYear(),m=_mcMonth.getMonth();
   const selEl=document.getElementById(_mcTarget);
@@ -1301,12 +1302,35 @@ function renderMiniCalYM(){
   panel.innerHTML=`
     <div class="mini-cal-hd">
       <button class="mini-cal-nav" onclick="event.stopPropagation();mcYearNav(-1)">‹</button>
-      <span class="mini-cal-title" style="cursor:default">${y}년</span>
+      <span class="mini-cal-title" onclick="event.stopPropagation();mcToggleYearPicker()">${y}년</span>
       <button class="mini-cal-nav" onclick="event.stopPropagation();mcYearNav(1)">›</button>
     </div>
     <div class="mini-ym-grid">${cells}</div>`;
 }
 function mcYearNav(d){_mcMonth=new Date(_mcMonth.getFullYear()+d,_mcMonth.getMonth(),1);renderMiniCalYM();}
+function mcToggleYearPicker(){_mcMode='year';renderMiniCal();}
+function renderMiniCalYear(){
+  const panel=document.getElementById('mini-cal');if(!panel)return;
+  const y=_mcMonth.getFullYear();
+  const startY=Math.floor(y/12)*12;
+  const now=new Date();
+  const cells=Array.from({length:12},(_,i)=>{
+    const yy=startY+i;
+    const cls=['mini-ym-cell'];
+    if(yy===y)cls.push('sel');
+    if(yy===now.getFullYear())cls.push('td');
+    return `<div class="${cls.join(' ')}" onclick="event.stopPropagation();mcPickYear(${yy})">${yy}</div>`;
+  }).join('');
+  panel.innerHTML=`
+    <div class="mini-cal-hd">
+      <button class="mini-cal-nav" onclick="event.stopPropagation();mcYearBlockNav(-1)">‹</button>
+      <span class="mini-cal-title" style="cursor:default">${startY}~${startY+11}년</span>
+      <button class="mini-cal-nav" onclick="event.stopPropagation();mcYearBlockNav(1)">›</button>
+    </div>
+    <div class="mini-ym-grid">${cells}</div>`;
+}
+function mcYearBlockNav(d){_mcMonth=new Date(_mcMonth.getFullYear()+d*12,_mcMonth.getMonth(),1);renderMiniCalYear();}
+function mcPickYear(y){_mcMonth=new Date(y,_mcMonth.getMonth(),1);_mcMode='ym';renderMiniCal();}
 function mcPickMonth(y,m){
   _mcMonth=new Date(y,m,1);
   if(_mcOnMonthPick){const cb=_mcOnMonthPick;closeMiniCal();cb(y,m);return;}
@@ -1550,7 +1574,7 @@ function renderEmployees(){
         <button class="btn btn-g" style="font-size:12px" onclick="toggleEmpIssueForm(${e.id})">+ 이슈 추가</button>
       </div>
       <div id="emp-issue-form-${e.id}" style="display:none;gap:8px;margin-bottom:10px" class="fr-row">
-        <div style="flex:0 0 150px"><input type="date" id="emp-issue-date-${e.id}" value="${today()}"></div>
+        <div style="flex:0 0 150px"><input type="text" id="emp-issue-date-${e.id}" value="${today()}" readonly style="cursor:pointer" onclick="openMiniCal('emp-issue-date-${e.id}',this)"></div>
         <div style="flex:1"><input id="emp-issue-content-${e.id}" placeholder="이슈 내용 입력"></div>
         <button class="btn btn-p btn-sm" style="flex:0 0 auto" onclick="saveEmpIssue(${e.id})">저장</button>
       </div>
@@ -1646,7 +1670,7 @@ function openEmpDetail(id){
   showModal(`<div class="mo-hd"><h3>직원 상세</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>이름</label><input id="ed-name" value="${e.name}"></div>
-    <div class="fr"><label>입사일</label><input type="date" id="ed-start" value="${e.startDate}"></div>
+    <div class="fr"><label>입사일</label><input type="text" id="ed-start" value="${e.startDate}" readonly style="cursor:pointer" onclick="openMiniCal('ed-start',this)"></div>
     <div class="fr"><label>연락처</label><input id="ed-phone" value="${e.phone}" oninput="formatPhoneInput(this)"></div>
     <div class="fr"><label>이메일</label><input id="ed-email" value="${e.email}"></div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -1712,10 +1736,10 @@ function openEditLeave(empId,leaveId){
   showModal(`<div class="mo-hd"><h3>휴가 내역 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>종류</label><input id="el-type" value="${l.type}"></div>
-    <div class="fr"><label>날짜</label><input type="date" id="el-date" value="${l.date}"></div>
+    <div class="fr"><label>날짜</label><input type="text" id="el-date" value="${l.date}" readonly style="cursor:pointer" onclick="openMiniCal('el-date',this)"></div>
     <div class="fr"><label>일수</label><input type="number" id="el-days" value="${l.days}" min="0" step="0.5"></div>
     <div class="fr"><label>사유</label><input id="el-reason" value="${l.reason||''}"></div>
-    <div class="fr"><label>기한</label><input type="date" id="el-expiry" value="${l.expiry||''}"></div>
+    <div class="fr"><label>기한</label><input type="text" id="el-expiry" value="${l.expiry||''}" readonly style="cursor:pointer" onclick="openMiniCal('el-expiry',this)"></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
   <button class="btn btn-p" onclick="saveEditLeave(${empId},${leaveId})">저장</button></div>`,'sm');
@@ -1746,7 +1770,7 @@ function openAddEmp(){
   showModal(`<div class="mo-hd"><h3>직원 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>이름</label><input id="ae-name" placeholder="홍길동"></div>
-    <div class="fr"><label>입사일</label><input type="date" id="ae-start" value="${today()}" oninput="updateLeavePreview()"></div>
+    <div class="fr"><label>입사일</label><input type="text" id="ae-start" value="${today()}" readonly style="cursor:pointer" onclick="openMiniCal('ae-start',this)" oninput="updateLeavePreview()"></div>
     <div class="fr"><label>연락처</label><input id="ae-phone" placeholder="010-0000-0000" oninput="formatPhoneInput(this)"></div>
     <div class="fr"><label>이메일</label><input id="ae-email" placeholder="email@nds.com"></div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
@@ -2232,7 +2256,7 @@ function openEndIntern(id){
   <div class="mo-bd">
     <div class="fr"><label>이름</label><div style="font-size:14px;font-weight:600;padding:6px 0">${i.name}</div></div>
     <div class="fr"><label>근무 시작일</label><div style="font-size:14px;padding:6px 0;color:var(--sub)">${i.startDate||'-'}</div></div>
-    <div class="fr"><label>근무 종료일</label><input type="date" id="ee-end" value="${i.endDate||''}"></div>
+    <div class="fr"><label>근무 종료일</label><input type="text" id="ee-end" value="${i.endDate||''}" readonly style="cursor:pointer" onclick="openMiniCal('ee-end',this)"></div>
     <div style="font-size:12px;color:var(--sub);margin-top:4px">※ 종료일 다음날부터 스케줄·시간표에 표시되지 않습니다.</div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
@@ -2681,7 +2705,7 @@ function openEditIssue(id){
   showModal(`<div class="mo-hd"><h3>이슈 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>인턴</label><select id="ei-intern">${S.interns.map(i=>`<option${i.name===iss.intern?' selected':''}>${i.name}</option>`).join('')}</select></div>
-    <div class="fr"><label>날짜</label><input type="date" id="ei-date" value="${iss.date}"></div>
+    <div class="fr"><label>날짜</label><input type="text" id="ei-date" value="${iss.date}" readonly style="cursor:pointer" onclick="openMiniCal('ei-date',this)"></div>
     <div class="fr"><label>내용</label><input id="ei-content" value="${iss.content}"></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
@@ -2699,7 +2723,7 @@ function openAddWorkIssue(){
   showModal(`<div class="mo-hd"><h3>이슈 등록</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>인턴</label><select id="wi-intern">${S.interns.map(i=>`<option>${i.name}</option>`).join('')}</select></div>
-    <div class="fr"><label>날짜</label><input type="date" id="wi-date" value="${today()}"></div>
+    <div class="fr"><label>날짜</label><input type="text" id="wi-date" value="${today()}" readonly style="cursor:pointer" onclick="openMiniCal('wi-date',this)"></div>
     <div class="fr"><label>내용</label><input id="wi-content" placeholder="이슈 내용"></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
@@ -3429,7 +3453,7 @@ function pOpenPost(id){
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-size:12px;color:var(--sub)">마감일</span>
-        ${editing?`<input type="date" style="border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;background:var(--card)" value="${post.dueDate||''}" onchange="pUpdateDue('${id}',this.value)">`:`<span style="font-size:12px">${post.dueDate?fmtDisp(post.dueDate):'-'}</span>`}
+        ${editing?`<input type="text" id="p-due-${id}" style="border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px;background:var(--card);cursor:pointer" value="${post.dueDate||''}" readonly onclick="openMiniCal('p-due-${id}',this)" oninput="pUpdateDue('${id}',this.value)">`:`<span style="font-size:12px">${post.dueDate?fmtDisp(post.dueDate):'-'}</span>`}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
         ${(post.tags||[]).map(t=>`<span class="btag on">${esc(t)}${editing?`<button onclick="pRemoveTag('${id}','${t.replace(/'/g,"\\'")}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;color:#999;padding:0 0 0 2px;font-size:10px">×</button>`:''}</span>`).join('')}
