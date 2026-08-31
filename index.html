@@ -171,7 +171,23 @@ tr:hover td{background:var(--hover)}
 .bk-content[data-type=quote]{border-left:2px solid var(--sub2);padding-left:14px;color:var(--sub)}
 .bk-content[data-type=code]{font-family:monospace;background:var(--hover);padding:10px 14px;border-radius:6px;font-size:13px;white-space:pre-wrap}
 .bk-divider{flex:1;height:1px;background:var(--bd);margin:10px 0;align-self:center}
-.slash-menu{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.08);z-index:3000;min-width:200px;max-height:280px;overflow-y:auto;display:none}
+.rich-toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--bd);margin-bottom:14px;position:sticky;top:0;background:var(--card);z-index:5}
+.rt-btn{background:none;border:1px solid transparent;border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--tx);cursor:pointer;transition:background .1s}
+.rt-btn:hover{background:var(--hover)}
+.rt-sep{width:1px;height:18px;background:var(--bd);margin:0 5px}
+.rt-color{width:26px;height:26px;padding:2px;border:1px solid var(--bd);border-radius:6px;cursor:pointer;background:#fff}
+.rich-body{outline:none;font-size:14.5px;line-height:1.75;min-height:280px}
+.rich-body:empty::before{content:attr(data-ph);color:var(--sub2);pointer-events:none}
+.rich-body h1{font-size:24px;font-weight:700;margin:18px 0 8px}
+.rich-body h2{font-size:20px;font-weight:700;margin:16px 0 6px}
+.rich-body h3{font-size:16.5px;font-weight:700;margin:14px 0 6px}
+.rich-body blockquote{border-left:3px solid var(--bd2);padding:2px 0 2px 14px;color:var(--sub);margin:8px 0}
+.rich-body ul,.rich-body ol{padding-left:22px;margin:6px 0}
+.rich-body hr{border:none;border-top:1px solid var(--bd);margin:18px 0}
+.rich-body table{border-collapse:collapse;margin:10px 0}
+.rich-body table td,.rich-body table th{border:1px solid var(--bd);padding:6px 10px;min-width:60px}
+.rich-body table th{background:var(--hover)}
+.slash-menu{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.08);z-index:3000;min-width:200px;max-height:420px;overflow-y:auto;display:none}
 .mini-cal{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:var(--r-md);box-shadow:var(--sh-lg);z-index:3500;padding:14px;width:248px;display:none}
 .mini-cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .mini-cal-nav{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--sub);font-size:13px;cursor:pointer;border-radius:6px;padding:0;transition:background .12s,color .12s}
@@ -1175,7 +1191,7 @@ function renderSchedulePage(){
         <button class="btn btn-p btn-sm" onclick="openAddEvent(null)">+ 일정추가</button>
       </div>
     </div>
-    <div style="overflow-x:auto"><table><thead><tr><th>날짜</th><th>시간</th><th>제목</th><th>종류</th><th>내용</th><th>관리</th></tr></thead>
+    <div style="max-height:420px;overflow-y:auto;overflow-x:auto"><table><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">날짜</th><th style="background:var(--card)">시간</th><th style="background:var(--card)">제목</th><th style="background:var(--card)">종류</th><th style="background:var(--card)">내용</th><th style="background:var(--card)">관리</th></tr></thead>
     <tbody id="sched-table-body"></tbody></table></div>
   </div>`;
   renderCalendar('sched-cal',S.cal,'openAddEvent(null)');
@@ -2728,6 +2744,103 @@ function ntApplyColor(hex){
 }
 // 허용된 태그(B/STRONG/U/SPAN/BR/DIV)만 남기고, 그 외 태그는 벗겨내되 안의 글자는 그대로 살림.
 // SPAN에는 color 스타일 외 다른 속성(예: onclick 같은 이벤트 핸들러)은 전부 제거함.
+// ─── 일반 글쓰기 에디터 (게시판/프로젝트 본문 공용) ──────────────
+// 블록 단위 편집기를 없애고, 하나로 이어지는 문서처럼 편집하도록 함.
+// 상단 고정 툴바로 굵게/기울임/밑줄/제목/목록/인용구/코드/구분선/표/색상을 적용함.
+// 저장 전엔 반드시 허용된 태그만 남기고 나머지(스크립트, 이벤트 핸들러 등)는 걸러냄.
+function sanitizeRichHtml(html){
+  const div=document.createElement('div');
+  div.innerHTML=html;
+  const allowed=['B','STRONG','I','EM','U','SPAN','BR','DIV','P','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','HR','TABLE','TBODY','THEAD','TR','TD','TH','CODE','PRE','A'];
+  function clean(node){
+    [...node.childNodes].forEach(child=>{
+      if(child.nodeType!==1)return;
+      const tag=child.tagName;
+      if(!allowed.includes(tag)){
+        while(child.firstChild)node.insertBefore(child.firstChild,child);
+        node.removeChild(child);
+        return;
+      }
+      const color=child.style&&child.style.color;
+      const href=(tag==='A')?child.getAttribute('href'):null;
+      [...child.attributes].forEach(attr=>child.removeAttribute(attr.name));
+      if(tag==='SPAN'&&color)child.style.color=color;
+      if(tag==='A'&&href&&/^https?:\/\//i.test(href)){
+        child.setAttribute('href',href);child.setAttribute('target','_blank');child.setAttribute('rel','noopener noreferrer');
+      }
+      clean(child);
+    });
+  }
+  clean(div);
+  return div.innerHTML;
+}
+// 예전 블록 데이터(post.blocks)를 한 번만 지금 형식(HTML 문자열)으로 변환할 때 씀.
+// 저장은 안 하고 화면에 보여줄 때만 임시 변환 — 실제로 한 번 수정/저장되면 그때부터 content로 저장됨.
+function blocksToHtml(blocks){
+  if(!blocks||!blocks.length)return '';
+  return blocks.map(b=>{
+    const c=b.content||'';
+    switch(b.type){
+      case 'heading1':return `<h1>${c}</h1>`;
+      case 'heading2':return `<h2>${c}</h2>`;
+      case 'heading3':return `<h3>${c}</h3>`;
+      case 'bulletedList':return `<ul><li>${c}</li></ul>`;
+      case 'numberedList':return `<ol><li>${c}</li></ol>`;
+      case 'quote':return `<blockquote>${c}</blockquote>`;
+      case 'code':return `<pre><code>${c}</code></pre>`;
+      case 'divider':return `<hr>`;
+      case 'table':{
+        const rows=b.tableData&&b.tableData.length?b.tableData:[['','','']];
+        return `<table>${rows.map((r,ri)=>`<tr>${r.map(cell=>`<${ri===0?'th':'td'}>${cell}</${ri===0?'th':'td'}>`).join('')}</tr>`).join('')}</table>`;
+      }
+      default:return `<div>${c||'<br>'}</div>`;
+    }
+  }).join('');
+}
+function _stripHtml(html){const d=document.createElement('div');d.innerHTML=html||'';return d.textContent||'';}
+// 지금 열려있는 글의 실제 표시용 content를 가져옴 (새 형식이 있으면 그대로, 없으면 예전 블록에서 변환)
+function richInitialContent(post){return post.content!==undefined?post.content:blocksToHtml(post.blocks);}
+function richToolbarHtml(elId){
+  return `<div class="rich-toolbar">
+    <button type="button" class="rt-btn" style="font-weight:700" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')" title="굵게">B</button>
+    <button type="button" class="rt-btn" style="font-style:italic" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')" title="기울임">I</button>
+    <button type="button" class="rt-btn" style="text-decoration:underline" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')" title="밑줄">U</button>
+    <span class="rt-sep"></span>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H1')" title="제목 1">H1</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H2')" title="제목 2">H2</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H3')" title="제목 3">H3</button>
+    <button type="button" class="rt-btn" style="width:auto;padding:0 6px;font-size:11px" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'P')" title="본문으로">본문</button>
+    <span class="rt-sep"></span>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')" title="글머리 기호">•</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertOrderedList')" title="번호 목록">1.</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'BLOCKQUOTE')" title="인용구">❝</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertCode()" title="코드">&lt;/&gt;</button>
+    <span class="rt-sep"></span>
+    <input type="color" class="rt-color" value="#B03025" title="글자 색" onmousedown="richSaveSelection()" onchange="richApplyColor('${elId}',this.value)">
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertHorizontalRule')" title="구분선">—</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertTable()" title="표">⊞</button>
+  </div>`;
+}
+function richInsertCode(){
+  const txt=window.getSelection()?.toString();
+  if(!txt){alert('코드로 바꿀 글자를 먼저 선택해주세요.');return;}
+  document.execCommand('insertHTML',false,`<code style="background:var(--hover);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.88em">${esc(txt)}</code>`);
+}
+function richInsertTable(){
+  const rows=Array.from({length:3},(_,ri)=>`<tr>${Array.from({length:3},()=>`<${ri===0?'th':'td'}><br></${ri===0?'th':'td'}>`).join('')}</tr>`).join('');
+  document.execCommand('insertHTML',false,`<table>${rows}</table><div><br></div>`);
+}
+let _richSavedRange=null;
+function richSaveSelection(){
+  const sel=window.getSelection();
+  if(sel&&sel.rangeCount>0)_richSavedRange=sel.getRangeAt(0).cloneRange();
+}
+function richApplyColor(elId,hex){
+  const el=document.getElementById(elId);if(!el)return;
+  el.focus();
+  if(_richSavedRange){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(_richSavedRange);}
+  document.execCommand('foreColor',false,hex);
+}
 function sanitizeNoticeHtml(html){
   const div=document.createElement('div');
   div.innerHTML=html;
@@ -2932,7 +3045,7 @@ function postComment(type,id,text){
 
 // ─── BOARD ────────────────────────────────────────
 let _bPosts=[],_bActiveId=null,_bSearch='',_bTagFilter=null,_bCatFilter=null,_bCatOpen={};
-let _bDragId=null,_slashId=null,_slashQ='',_slashSel=0;
+let _bDragId=null;
 let _bCategories=[];
 // 게시판 데이터: 예전엔 localStorage에만 저장돼서 기기마다 따로 놀았음.
 // 이제 Firestore(appdata/board 문서)에 저장해서 어느 기기에서 접속해도 같은 내용이 보이도록 함.
@@ -2990,7 +3103,7 @@ function bDeleteCategory(id,e){
   _bCatSave();_bSave();bRenderSb();renderSidebar();
 }
 function bToggleCat(id){
-  _bCatOpen[id]=!_bCatOpen[id];
+  _bCatOpen[id]=_bCatOpen[id]===undefined?false:!_bCatOpen[id]; // 기본값이 '열림'이므로 첫 클릭엔 닫힘으로
   if(_bCatFilter===id&&!_bCatOpen[id])_bCatFilter=null;
   bRenderSb();
 }
@@ -3035,7 +3148,7 @@ function bRenderSb(){
   if(catsEl){
     let html=`<div class="bcat-all${!_bCatFilter?' on':''}" onclick="bSetCat(null)">전체</div>`;
     _bCategories.forEach(c=>{
-      const open=!!_bCatOpen[c.id];
+      const open=_bCatOpen[c.id]===undefined?true:_bCatOpen[c.id];
       const catPosts=_bPosts.filter(p=>p.category===c.id).sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
       html+=`<div class="bcat-row${_bCatFilter===c.id?' on':''}" onclick="bToggleCat('${c.id}')">
         <span class="bcat-arrow">${open?'▾':'▸'}</span>
@@ -3055,7 +3168,7 @@ function bRenderSb(){
   tagsEl.style.display=allTags.length?'flex':'none';
   // flat post list (uncategorized or all when no filter)
   let posts=[..._bPosts].sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
-  if(_bSearch)posts=posts.filter(p=>(p.title||'').includes(_bSearch)||(p.blocks||[]).some(b=>b.content&&b.content.includes(_bSearch)));
+  if(_bSearch)posts=posts.filter(p=>(p.title||'').includes(_bSearch)||_stripHtml(richInitialContent(p)).includes(_bSearch));
   if(_bTagFilter)posts=posts.filter(p=>(p.tags||[]).includes(_bTagFilter));
   if(_bCatFilter)posts=[];  // when cat filter active, posts shown in cat section above
   else if(!_bSearch&&!_bTagFilter)posts=posts.filter(p=>!p.category);
@@ -3066,9 +3179,24 @@ function bRenderSb(){
 function bSetSearch(v){_bSearch=v;bRenderSb()}
 function bSetTag(t){_bTagFilter=_bTagFilter===t?null:t;bRenderSb()}
 
+function bUpdateTitle(postId,val){
+  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
+  p.title=val;p.updatedAt=today();_bSave();bRenderSb();
+}
+function bNewPost(){
+  const post={id:_bNewId(),title:'',icon:'',tags:[],createdAt:today(),updatedAt:today(),content:''};
+  _bPosts.unshift(post);_bSave();_bActiveId=post.id;_bEditMode=true;bRenderSb();bOpenPost(post.id);
+}
+function bDeletePost(id){
+  if(!confirm('이 글을 삭제하시겠습니까?'))return;
+  if(_bActiveId===id){clearTimeout(_bRichTimer);_bRichTimer=null;_bActiveId=null;}
+  _bPosts=_bPosts.filter(x=>x.id!==id);
+  _bSave();renderBoard();
+}
+
 let _bEditMode=false; // 게시판 글 보기/편집 모드. 글을 열 때마다 기본은 '보기'로 시작함
 function bOpenPost(id){
-  if(_bActiveId!==id)_bEditMode=false; // 다른 글로 넘어갈 때만 보기 모드로 리셋 (같은 글에서 토글할 땐 유지)
+  if(_bActiveId!==id){bFlushRich(_bActiveId);_bEditMode=false;} // 다른 글로 넘어갈 때만: 이전 글 저장 확정 + 보기 모드로 리셋
   _bActiveId=id;bRenderSb();
   const post=_bPosts.find(x=>x.id===id);if(!post)return;
   const el=document.getElementById('b-editor');if(!el)return;
@@ -3087,289 +3215,37 @@ function bOpenPost(id){
       ${_bEditMode?`<button class="btn-g" style="font-size:11px" onclick="bAddTag('${id}')">+ 태그</button>`:''}
       <div style="margin-left:auto;display:flex;gap:6px">
         <button class="btn btn-o btn-sm" onclick="bToggleEditMode('${id}')">${_bEditMode?'수정 완료':'수정'}</button>
-        ${_bEditMode?`<button class="btn btn-d btn-sm" onclick="bDeletePost('${id}')">글 삭제</button>`:''}
+        <button class="btn btn-d btn-sm" onclick="bDeletePost('${id}')">글 삭제</button>
       </div>
     </div>
-    <div id="b-blocks">${bRenderBlocks(post.blocks||[],id)}</div>
-    ${_bEditMode?`<div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="bAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>`:''}
+    ${_bEditMode?richToolbarHtml('b-rich-content'):''}
+    <div id="b-rich-content" class="rich-body" contenteditable="${_bEditMode}" data-ph="내용을 입력하세요..." oninput="bRichInput('${id}')">${richInitialContent(post)}</div>
   </div>`;
   const tInput=el.querySelector('.board-title-input');
   if(_bEditMode&&tInput&&!post.title)setTimeout(()=>tInput.focus(),40);
 }
-function bToggleEditMode(postId){_bEditMode=!_bEditMode;bOpenPost(postId);}
-
-function bRenderBlocks(blocks,postId){
-  return (blocks||[]).map(blk=>bBlockHtml(blk,postId)).join('');
+function bToggleEditMode(postId){
+  bFlushRich(postId);
+  _bEditMode=!_bEditMode;bOpenPost(postId);
 }
-
-function bBlockHtml(blk,postId){
-  const editing=_bEditMode;
-  if(blk.type==='divider'){
-    if(!editing)return `<div class="bk-wrap" data-id="${blk.id}"><div class="bk-divider"></div></div>`;
-    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
-      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="bAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
-      <div class="bk-divider"></div>
-      <button class="btn-g" style="font-size:11px;align-self:center" onclick="bDelBlock('${blk.id}','${postId}')">×</button></div>`;
-  }
-  if(blk.type==='table'){
-    if(!blk.tableData||!blk.tableData.length)blk.tableData=[['','',''],['','',''],['','','']];
-    const rows=blk.tableData;
-    const tRows=rows.map((row,ri)=>`<tr>${row.map((cell,ci)=>{
-      const tag=ri===0?'th':'td';
-      return editing
-        ?`<${tag} contenteditable="true" onblur="bTblCell(event,'${blk.id}','${postId}',${ri},${ci})">${cell}</${tag}>`
-        :`<${tag}>${cell}</${tag}>`;
-    }).join('')}</tr>`).join('');
-    if(!editing)return `<div class="bk-wrap" data-id="${blk.id}"><div style="overflow-x:auto;padding:2px 0"><table class="bk-table"><tbody>${tRows}</tbody></table></div></div>`;
-    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
-      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="bAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
-      <div style="overflow-x:auto;padding:2px 0">
-        <table class="bk-table"><tbody>${tRows}</tbody></table>
-        <div style="display:flex;gap:4px;margin-top:4px">
-          <button class="btn-g" style="font-size:11px" onclick="bTblAddRow('${blk.id}','${postId}')">+ 행</button>
-          <button class="btn-g" style="font-size:11px" onclick="bTblAddCol('${blk.id}','${postId}')">+ 열</button>
-          <button class="btn-g" style="font-size:11px" onclick="bTblDelRow('${blk.id}','${postId}')">− 행</button>
-          <button class="btn-g" style="font-size:11px" onclick="bTblDelCol('${blk.id}','${postId}')">− 열</button>
-          <button class="btn-g" style="font-size:11px;margin-left:auto" onclick="bDelBlock('${blk.id}','${postId}')">×</button>
-        </div>
-      </div></div>`;
-  }
-  const ph={paragraph:'내용 입력... (/ 로 블록 변경)',heading1:'제목 1',heading2:'제목 2',heading3:'제목 3',bulletedList:'• 항목',numberedList:'1. 항목',toggle:'▶ 토글',quote:'인용구',code:'코드 입력'}[blk.type]||'';
-  if(!editing){
-    // 보기 모드: placeholder도, 빈 줄이면 그냥 빈 공백으로만 남고 안내 문구는 절대 안 보임
-    return `<div class="bk-wrap" data-id="${blk.id}">
-    <div class="bk-content" data-type="${blk.type}" contenteditable="false">${linkifyHtml(blk.content||'')}</div></div>`;
-  }
-  return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="bDragStart(event,'${blk.id}')" ondragover="bDragOver(event,'${blk.id}')" ondrop="bDrop(event,'${blk.id}','${postId}')">
-    <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="event.stopPropagation();bShowAddMenu('${blk.id}','${postId}')">+</span></div>
-    <div class="bk-content" data-type="${blk.type}" data-ph="${ph}" contenteditable="true"
-      oninput="bContentInput(event,'${blk.id}','${postId}')"
-      onkeydown="bKeydown(event,'${blk.id}','${postId}')"
-      onmouseup="bSelChange()">${blk.content||''}</div></div>`;
-}
-
-function bUpdateTitle(postId,val){
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  p.title=val;p.updatedAt=today();_bSave();bRenderSb();
-}
-
-function bNewPost(){
-  const post={id:_bNewId(),title:'',icon:'',tags:[],createdAt:today(),updatedAt:today(),
-    blocks:[{id:_bNewId(),type:'paragraph',content:''}]};
-  _bPosts.unshift(post);_bSave();_bActiveId=post.id;_bEditMode=true;bRenderSb();bOpenPost(post.id);
-}
-
-function bDeletePost(id){
-  if(!confirm('이 글을 삭제하시겠습니까?'))return;
-  _bPosts=_bPosts.filter(x=>x.id!==id);
-  if(_bActiveId===id)_bActiveId=null;
-  _bSave();renderBoard();
-}
-
-function bContentInput(e,blkId,postId){
-  const el=e.target;
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
-  const txt=_cleanEditText(el.innerText).trim();
-  if(txt==='/'||(_slashId===blkId&&txt.startsWith('/'))){
-    if(txt==='/'){_slashId=blkId;_slashQ='';_slashSel=0;bShowSlash(el,postId);}
-    else if(_slashId===blkId){_slashQ=txt.slice(1).toLowerCase();bUpdateSlash();}
-    return;
-  }
-  if(_slashId===blkId)bHideSlash();
-  blk.content=el.innerHTML;p.updatedAt=today();_bSave();
-}
-
-function bKeydown(e,blkId,postId){
-  if(_slashId===blkId){
-    if(e.key==='ArrowDown'){e.preventDefault();bSlashNav(1);return}
-    if(e.key==='ArrowUp'){e.preventDefault();bSlashNav(-1);return}
-    if(e.key==='Enter'){e.preventDefault();bSlashPick(blkId,postId);return}
-    if(e.key==='Escape'){bHideSlash();return}
-  }
-  if(e.key==='Enter'&&!e.shiftKey){
-    e.preventDefault();
-    const el=e.target;
+let _bRichTimer=null;
+function bRichInput(postId){
+  clearTimeout(_bRichTimer);
+  _bRichTimer=setTimeout(()=>{
     const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-    const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
-    blk.content=el.innerHTML;
-    bInsertAfter(blkId,postId,'paragraph');
-    return;
-  }
-  if(e.key==='Backspace'){
-    const el=e.target;
-    if(!_cleanEditText(el.innerText).trim()){e.preventDefault();bDelBlock(blkId,postId);}
-  }
-  if((e.ctrlKey||e.metaKey)){
-    if(e.key==='b'){e.preventDefault();document.execCommand('bold');}
-    else if(e.key==='i'){e.preventDefault();document.execCommand('italic');}
-    else if(e.key==='u'){e.preventDefault();document.execCommand('underline');}
-  }
+    const el=document.getElementById('b-rich-content');if(!el)return;
+    p.content=sanitizeRichHtml(el.innerHTML);
+    p.updatedAt=today();
+    _bSave();
+  },400);
 }
-
-function bInsertAfter(blkId,postId,type){
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  const idx=p.blocks.findIndex(x=>x.id===blkId);
-  const nb={id:_bNewId(),type,content:''};
-  p.blocks.splice(idx+1,0,nb);p.updatedAt=today();_bSave();
-  const bEl=document.getElementById('b-blocks');
-  if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
-  setTimeout(()=>{const ne=document.querySelector(`[data-id="${nb.id}"] .bk-content`);if(ne)ne.focus();},20);
-}
-
-function bDelBlock(blkId,postId){
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  if(p.blocks.length<=1)return;
-  const idx=p.blocks.findIndex(x=>x.id===blkId);
-  p.blocks.splice(idx,1);p.updatedAt=today();_bSave();
-  const bEl=document.getElementById('b-blocks');
-  if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
-  const pi=Math.max(0,idx-1);
-  setTimeout(()=>{const pe=document.querySelector(`[data-id="${p.blocks[pi]?.id}"] .bk-content`);if(pe){pe.focus();const r=document.createRange();r.selectNodeContents(pe);r.collapse(false);const s=window.getSelection();s.removeAllRanges();s.addRange(r);}},20);
-}
-
-function bAddBlock(afterId,postId,type){
-  if(afterId)bInsertAfter(afterId,postId,type);
-  else{const p=_bPosts.find(x=>x.id===postId);if(!p)return;const nb={id:_bNewId(),type,content:''};p.blocks.push(nb);p.updatedAt=today();_bSave();const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);setTimeout(()=>{const ne=document.querySelector(`[data-id="${nb.id}"] .bk-content`);if(ne)ne.focus();},20);}
-}
-
-// Slash menu
-const B_SLASH=[
-  {type:'paragraph',icon:'T',label:'문단'},{type:'heading1',icon:'H1',label:'제목 1'},
-  {type:'heading2',icon:'H2',label:'제목 2'},{type:'heading3',icon:'H3',label:'제목 3'},
-  {type:'bulletedList',icon:'•',label:'글머리 기호'},{type:'numberedList',icon:'1.',label:'번호 목록'},
-  {type:'quote',icon:'❝',label:'인용구'},{type:'code',icon:'</>',label:'코드 블록'},
-  {type:'toggle',icon:'▶',label:'토글'},{type:'divider',icon:'—',label:'구분선'},
-  {type:'table',icon:'⊞',label:'표'},
-];
-
-function bShowSlash(el,postId){
-  let m=document.getElementById('slash-menu');
-  if(!m){m=document.createElement('div');m.id='slash-menu';m.className='slash-menu';document.body.appendChild(m);}
-  m._postId=postId;
-  const rect=el.getBoundingClientRect();
-  m.style.top=(rect.bottom+2)+'px';m.style.left=rect.left+'px';m.style.display='block';
-  bUpdateSlash();
-}
-function bUpdateSlash(){
-  const m=document.getElementById('slash-menu');if(!m)return;
-  const q=_slashQ;
-  const items=B_SLASH.filter(x=>!q||x.label.includes(q)||x.type.includes(q));
-  _slashSel=0;
-  m.innerHTML=items.map((x,i)=>`<div class="slash-item${i===0?' sel':''}" data-type="${x.type}">
-    <span style="width:28px;font-size:12px;font-weight:700;color:var(--sub);text-align:center">${x.icon}</span>${x.label}</div>`).join('');
-  m.querySelectorAll('.slash-item').forEach(it=>it.addEventListener('mousedown',e=>{e.preventDefault();const bid=_slashId;const pid=m._postId;if(bid)bChangeBlockType(bid,pid,it.dataset.type);bHideSlash();}));
-}
-function bSlashNav(d){
-  const m=document.getElementById('slash-menu');if(!m)return;
-  const items=m.querySelectorAll('.slash-item');
-  items[_slashSel]?.classList.remove('sel');
-  _slashSel=Math.max(0,Math.min(items.length-1,_slashSel+d));
-  items[_slashSel]?.classList.add('sel');
-  items[_slashSel]?.scrollIntoView({block:'nearest'});
-}
-function bSlashPick(blkId,postId){
-  const m=document.getElementById('slash-menu');if(!m)return;
-  const sel=m.querySelector('.slash-item.sel');
-  if(sel)bChangeBlockType(blkId,postId,sel.dataset.type);
-  bHideSlash();
-}
-function bTblCell(e,blkId,postId,r,c){
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;
-  blk.tableData[r][c]=e.target.innerHTML;p.updatedAt=today();_bSave();
-}
-function bTblAddRow(blkId,postId){
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;
-  const cols=blk.tableData[0]?.length||3;
-  blk.tableData.push(Array(cols).fill(''));p.updatedAt=today();_bSave();
-  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
-}
-function bTblAddCol(blkId,postId){
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;
-  blk.tableData.forEach(row=>row.push(''));p.updatedAt=today();_bSave();
-  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
-}
-function bTblDelRow(blkId,postId){
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData||blk.tableData.length<=1)return;
-  blk.tableData.pop();p.updatedAt=today();_bSave();
-  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
-}
-function bTblDelCol(blkId,postId){
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData||blk.tableData[0]?.length<=1)return;
-  blk.tableData.forEach(row=>row.pop());p.updatedAt=today();_bSave();
-  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
-}
-function bChangeBlockType(blkId,postId,type){
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
-  blk.type=type;blk.content='';
-  if(type==='table'&&!blk.tableData)blk.tableData=[['','',''],['','',''],['','','']];
-  p.updatedAt=today();_bSave();
-  const bEl=document.getElementById('b-blocks');
-  if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
-  setTimeout(()=>{const ne=document.querySelector(`[data-id="${blkId}"] .bk-content`);if(ne)ne.focus();},20);
-}
-function bHideSlash(){_slashId=null;_slashQ='';const m=document.getElementById('slash-menu');if(m)m.style.display='none';}
-
-// + Add menu (shows slash menu below clicked block)
-function bShowAddMenu(blkId,postId){
-  const el=document.querySelector(`[data-id="${blkId}"] .bk-content`);
-  if(el){_slashId=blkId;_slashQ='';_slashSel=0;bShowSlash(el,postId);}
-}
-
-// Selection format toolbar
-function bSelChange(){
-  setTimeout(()=>{
-    const sel=window.getSelection();
-    if(!sel||sel.isCollapsed){bHideFmt();return}
-    const range=sel.getRangeAt(0);
-    const rect=range.getBoundingClientRect();
-    if(!rect.width){bHideFmt();return}
-    let tb=document.getElementById('fmt-toolbar');
-    if(!tb){
-      tb=document.createElement('div');tb.id='fmt-toolbar';tb.className='fmt-toolbar';
-      [['B','볼드'],['I','이탤릭'],['U','밑줄'],['code','코드']].forEach(([cmd,lbl])=>{
-        const btn=document.createElement('button');btn.className='fmt-btn';
-        btn.textContent=lbl;btn.onmousedown=e=>{e.preventDefault();bApplyFmt(cmd);};
-        tb.appendChild(btn);
-      });
-      document.body.appendChild(tb);
-    }
-    tb.style.top=(rect.top-44+window.scrollY)+'px';
-    tb.style.left=(rect.left+rect.width/2-tb.offsetWidth/2||0)+window.scrollX+'px';
-    tb.style.display='flex';
-  },10);
-}
-function bHideFmt(){const t=document.getElementById('fmt-toolbar');if(t)t.style.display='none';}
-function bApplyFmt(cmd){
-  if(cmd==='B')document.execCommand('bold');
-  else if(cmd==='I')document.execCommand('italic');
-  else if(cmd==='U')document.execCommand('underline');
-  else if(cmd==='code'){const txt=window.getSelection()?.toString();if(txt)document.execCommand('insertHTML',false,`<code style="background:var(--hover);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.88em">${txt}</code>`);}
-  // save
-  const bEl=document.activeElement?.closest('.bk-wrap');
-  if(bEl){const bid=bEl.dataset.id;const p=_bPosts.find(x=>x.id===_bActiveId);if(p){const blk=p.blocks.find(x=>x.id===bid);if(blk){blk.content=bEl.querySelector('.bk-content')?.innerHTML||'';_bSave();}}}
-}
-
-// Drag & drop
-function bDragStart(e,id){_bDragId=id;e.dataTransfer.effectAllowed='move';setTimeout(()=>e.target.style.opacity='.4',0);}
-function bDragOver(e,id){e.preventDefault();e.dataTransfer.dropEffect='move';document.querySelectorAll('.bk-wrap').forEach(el=>el.style.borderTop='');if(id!==_bDragId){const el=document.querySelector(`[data-id="${id}"]`);if(el)el.style.borderTop='2px solid var(--ac)';}}
-function bDrop(e,targetId,postId){
-  e.preventDefault();
-  document.querySelectorAll('.bk-wrap').forEach(el=>{el.style.opacity='';el.style.borderTop='';});
-  if(!_bDragId||_bDragId===targetId)return;
-  const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  const si=p.blocks.findIndex(x=>x.id===_bDragId),ti=p.blocks.findIndex(x=>x.id===targetId);
-  if(si<0||ti<0)return;
-  const[blk]=p.blocks.splice(si,1);p.blocks.splice(ti,0,blk);
-  p.updatedAt=today();_bSave();
-  const bEl=document.getElementById('b-blocks');if(bEl)bEl.innerHTML=bRenderBlocks(p.blocks,postId);
-  _bDragId=null;
+// 다른 글로 넘어가거나 편집을 마칠 때, 대기 중인 저장을 즉시 확정함(유실 방지)
+function bFlushRich(postId){
+  if(!_bRichTimer)return;
+  clearTimeout(_bRichTimer);_bRichTimer=null;
+  const p=_bPosts.find(x=>x.id===postId);
+  const el=document.getElementById('b-rich-content');
+  if(p&&el){p.content=sanitizeRichHtml(el.innerHTML);p.updatedAt=today();_bSave();}
 }
 
 // Tags, icon, cover
@@ -3377,18 +3253,8 @@ function bAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;c
 function bRemoveTag(postId,tag){const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_bSave();bOpenPost(postId);bRenderSb();}
 function bPickIcon(postId){const icons='📄📝📊💡🔗📌⭐🎨🔧📐💬📅🗂🏆🚀📋🎯📎🗒🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'📄';const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'📄';_bSave();bOpenPost(postId);bRenderSb();}
 
-document.addEventListener('click',e=>{
-  // 슬래시 메뉴가 열려있는 블록이 아닌 다른 곳(다른 블록 포함)을 클릭하면 메뉴를 닫음.
-  // (예전엔 "다른 블록 안"을 클릭해도 닫히지 않아서, 이후 Enter/방향키 입력이 엉뚱한 블록에 적용되는 원인이 됐음)
-  if(_slashId){
-    const ownerEl=document.querySelector(`[data-id="${_slashId}"] .bk-content`);
-    if(e.target!==ownerEl && !e.target.closest('#slash-menu')) bHideSlash();
-  }
-  if(!e.target.closest('#fmt-toolbar')&&!e.target.closest('.bk-content'))bHideFmt();
-});
-
 // ─── PROJECTS ─────────────────────────────────────
-let _pPosts=[],_pActiveId=null,_pSearch='',_pStatusFilter=null,_pDragId=null;
+let _pPosts=[],_pActiveId=null,_pSearch='',_pStatusFilter=null;
 const PRJ_STATUSES=['진행중','완료','대기','보류'];
 // 프로젝트 데이터도 게시판과 동일한 이유로 Firestore(appdata/projects 문서)로 전환.
 let _projectSaveTimer=null;
@@ -3470,21 +3336,20 @@ function pNewPost(){
   const input=prompt('캘린더 시작 월을 입력해주세요 (예: 2026-07)\n이 달부터 3개월치가 프로젝트 캘린더에 고정으로 표시돼요. (나중에 "월 변경" 버튼으로 바꿀 수 있어요)',defaultStart);
   const calStartMonth=(input&&/^\d{4}-\d{2}$/.test(input.trim()))?input.trim():defaultStart;
   const post={id:_pNewId(),name:'',status:'대기',dueDate:'',icon:'🗃',tags:[],createdAt:today(),updatedAt:today(),
-    calEvents:[],calStartMonth,
-    blocks:[{id:_pNewId(),type:'paragraph',content:''}]};
+    calEvents:[],calStartMonth,content:''};
   _pPosts.unshift(post);_pSave();_pActiveId=post.id;_pEditMode=true;renderProjects();pOpenPost(post.id);
 }
 
 function pDeletePost(id){
   if(!confirm('이 프로젝트를 삭제하시겠습니까?'))return;
+  if(_pActiveId===id){clearTimeout(_pRichTimer);_pRichTimer=null;_pActiveId=null;}
   _pPosts=_pPosts.filter(x=>x.id!==id);
-  if(_pActiveId===id)_pActiveId=null;
   _pSave();renderProjects();
 }
 
 let _pEditMode=false; // 프로젝트 글 보기/편집 모드. 글을 열 때마다 기본은 '보기'로 시작함
 function pOpenPost(id){
-  if(_pActiveId!==id)_pEditMode=false; // 다른 프로젝트로 넘어갈 때만 보기 모드로 리셋
+  if(_pActiveId!==id){pFlushRich(_pActiveId);_pEditMode=false;} // 다른 프로젝트로 넘어갈 때만: 저장 확정 + 보기 모드로 리셋
   _pActiveId=id;
   _pCalBase=null; // 다른 프로젝트를 열 때마다 캘린더는 이번 달 기준으로 새로 시작
   const post=_pPosts.find(x=>x.id===id);
@@ -3498,7 +3363,7 @@ function pOpenPost(id){
       <span style="font-size:36px;cursor:${editing?'pointer':'default'}" ${editing?`onclick="pPickIcon('${id}')"`:''}>${post.icon||'🗃'}</span>
       <input class="board-title-input" placeholder="프로젝트 이름" value="${(post.name||'').replace(/"/g,'&quot;')}" oninput="pUpdateTitle('${id}',this.value)" style="flex:1;font-size:24px" ${editing?'':'readonly'}>
       <button class="btn btn-o btn-sm" onclick="pToggleEditMode('${id}')">${editing?'수정 완료':'수정'}</button>
-      ${editing?`<button class="btn btn-d btn-sm" onclick="pDeletePost('${id}')">삭제</button>`:''}
+      <button class="btn btn-d btn-sm" onclick="pDeletePost('${id}')">삭제</button>
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--bd)">
       <div style="display:flex;align-items:center;gap:6px">
@@ -3516,8 +3381,8 @@ function pOpenPost(id){
         ${editing?`<button class="btn-g" style="font-size:11px" onclick="pAddTag('${id}')">+ 태그</button>`:''}
       </div>
     </div>
-    <div id="p-blocks">${pRenderBlocks(post.blocks,id)}</div>
-    ${editing?`<div style="padding:4px 0 32px 32px"><button class="btn-g" style="font-size:13px;color:var(--sub)" onclick="pAddBlock(null,'${id}','paragraph')">+ 블록 추가</button></div>`:''}
+    ${editing?richToolbarHtml('p-rich-content'):''}
+    <div id="p-rich-content" class="rich-body" contenteditable="${editing}" data-ph="내용을 입력하세요..." oninput="pRichInput('${id}')">${richInitialContent(post)}</div>
     <div style="margin-top:8px;padding-top:24px;border-top:1px solid var(--bd)">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span id="p-cal-label" style="font-size:12px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
@@ -3532,7 +3397,28 @@ function pOpenPost(id){
   </div>`;
   pCalRenderAll(id);
 }
-function pToggleEditMode(postId){_pEditMode=!_pEditMode;pOpenPost(postId);}
+function pToggleEditMode(postId){
+  pFlushRich(postId);
+  _pEditMode=!_pEditMode;pOpenPost(postId);
+}
+let _pRichTimer=null;
+function pRichInput(postId){
+  clearTimeout(_pRichTimer);
+  _pRichTimer=setTimeout(()=>{
+    const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+    const el=document.getElementById('p-rich-content');if(!el)return;
+    p.content=sanitizeRichHtml(el.innerHTML);
+    p.updatedAt=today();
+    _pSave();
+  },400);
+}
+function pFlushRich(postId){
+  if(!_pRichTimer)return;
+  clearTimeout(_pRichTimer);_pRichTimer=null;
+  const p=_pPosts.find(x=>x.id===postId);
+  const el=document.getElementById('p-rich-content');
+  if(p&&el){p.content=sanitizeRichHtml(el.innerHTML);p.updatedAt=today();_pSave();}
+}
 
 // ─── 프로젝트 전용 캘린더 (메인 일정관리와 별개, 프로젝트 데이터에 함께 저장됨) ──
 function pCalRenderAll(postId){
@@ -3662,78 +3548,6 @@ function deleteProjectEvent(postId,id){
   _pSave();
 }
 
-function pRenderBlocks(blocks,postId){
-  return (blocks||[]).map(blk=>pBlockHtml(blk,postId)).join('');
-}
-
-function pBlockHtml(blk,postId){
-  const editing=_pEditMode;
-  if(blk.type==='divider'){
-    if(!editing)return `<div class="bk-wrap" data-id="${blk.id}"><div class="bk-divider"></div></div>`;
-    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
-      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
-      <div class="bk-divider"></div>
-      <button class="btn-g" style="font-size:11px;align-self:center" onclick="pDelBlock('${blk.id}','${postId}')">×</button></div>`;
-  }
-  if(blk.type==='image'){
-    if(!editing){
-      return `<div class="bk-wrap" data-id="${blk.id}"><div style="width:100%">
-        ${blk.imageData?`<img src="${blk.imageData}" style="max-width:100%;border-radius:6px;display:block">`:''}
-        ${blk.caption?`<div style="font-size:12px;color:var(--sub);margin-top:4px">${esc(blk.caption)}</div>`:''}
-      </div></div>`;
-    }
-    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
-      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
-      <div style="width:100%">
-        ${blk.imageData?`<img src="${blk.imageData}" style="max-width:100%;border-radius:6px;display:block">`
-          :`<label style="display:flex;align-items:center;justify-content:center;height:120px;border:2px dashed var(--bd);border-radius:8px;cursor:pointer;color:var(--sub);font-size:13px;gap:8px">
-            📷 이미지 업로드<input type="file" style="display:none" accept="image/*" onchange="pImgUpload(event,'${blk.id}','${postId}')"></label>`}
-        <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
-          ${blk.imageData?`<label class="btn-g" style="cursor:pointer;font-size:11px">변경<input type="file" style="display:none" accept="image/*" onchange="pImgUpload(event,'${blk.id}','${postId}')"></label>`:''}
-          <input style="flex:1;border:none;border-bottom:1px solid var(--bd);font-size:12px;color:var(--sub);background:transparent;outline:none" placeholder="캡션 입력..." value="${(blk.caption||'').replace(/"/g,'&quot;')}" onblur="pSaveCaption(event,'${blk.id}','${postId}')">
-          <button class="btn-g" style="font-size:11px" onclick="pDelBlock('${blk.id}','${postId}')">×</button>
-        </div>
-      </div></div>`;
-  }
-  if(blk.type==='table'){
-    if(!blk.tableData||!blk.tableData.length)blk.tableData=[['','',''],['','',''],['','','']];
-    const rows=blk.tableData;
-    const tRows=rows.map((row,ri)=>`<tr>${row.map((cell,ci)=>{
-      const tag=ri===0?'th':'td';
-      return editing
-        ?`<${tag} contenteditable="true" onblur="pTblCell(event,'${blk.id}','${postId}',${ri},${ci})">${cell}</${tag}>`
-        :`<${tag}>${cell}</${tag}>`;
-    }).join('')}</tr>`).join('');
-    if(!editing)return `<div class="bk-wrap" data-id="${blk.id}"><div style="overflow-x:auto;padding:2px 0"><table class="bk-table"><tbody>${tRows}</tbody></table></div></div>`;
-    return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
-      <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="pAddBlock('${blk.id}','${postId}','paragraph')">+</span></div>
-      <div style="overflow-x:auto;padding:2px 0">
-        <table class="bk-table"><tbody>${tRows}</tbody></table>
-        <div style="display:flex;gap:4px;margin-top:4px">
-          <button class="btn-g" style="font-size:11px" onclick="pTblAddRow('${blk.id}','${postId}')">+ 행</button>
-          <button class="btn-g" style="font-size:11px" onclick="pTblAddCol('${blk.id}','${postId}')">+ 열</button>
-          <button class="btn-g" style="font-size:11px" onclick="pTblDelRow('${blk.id}','${postId}')">− 행</button>
-          <button class="btn-g" style="font-size:11px" onclick="pTblDelCol('${blk.id}','${postId}')">− 열</button>
-          <button class="btn-g" style="font-size:11px;margin-left:auto" onclick="pDelBlock('${blk.id}','${postId}')">×</button>
-        </div>
-      </div></div>`;
-  }
-  const ph={paragraph:'내용 입력... (/ 로 블록 변경)',heading1:'제목 1',heading2:'제목 2',heading3:'제목 3',bulletedList:'• 항목',numberedList:'1. 항목',toggle:'▶ 토글',quote:'인용구',code:'코드 입력'}[blk.type]||'';
-  if(!editing){
-    return `<div class="bk-wrap" data-id="${blk.id}">
-    <div class="bk-content" data-type="${blk.type}" contenteditable="false">${linkifyHtml(blk.content||'')}</div></div>`;
-  }
-  return `<div class="bk-wrap" data-id="${blk.id}" draggable="true" ondragstart="pDragStart(event,'${blk.id}')" ondragover="pDragOver(event,'${blk.id}')" ondrop="pDrop(event,'${blk.id}','${postId}')">
-    <div class="bk-actions"><span class="bk-handle">⠿</span><span class="bk-add-btn" onclick="event.stopPropagation();pShowAddMenu('${blk.id}','${postId}')">+</span></div>
-    <div class="bk-content" data-type="${blk.type}" data-ph="${ph}" contenteditable="true"
-      oninput="pContentInput(event,'${blk.id}','${postId}')"
-      onkeydown="pKeydown(event,'${blk.id}','${postId}')"
-      onmouseup="bSelChange()">${blk.content||''}</div></div>`;
-}
-
-let _pSlashId=null,_pSlashQ='',_pSlashSel=0;
-const P_SLASH=[...B_SLASH,{type:'image',icon:'🖼',label:'이미지'}];
-
 function pUpdateTitle(postId,val){
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
   p.name=val;p.updatedAt=today();_pSave();pRenderSb();
@@ -3749,153 +3563,6 @@ function pUpdateDue(postId,val){
 function pAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_pPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_pSave();pOpenPost(postId);pRenderSb();}
 function pRemoveTag(postId,tag){const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_pSave();pOpenPost(postId);pRenderSb();}
 function pPickIcon(postId){const icons='🗃📁📂🚀🎯💡🔧📊📋🏆⭐🎨🔗📌📅💬🗂📐🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'🗃';const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'🗃';_pSave();pOpenPost(postId);pRenderSb();}
-function pImgUpload(e,blkId,postId){const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;blk.imageData=ev.target.result;p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);};r.readAsDataURL(file);}
-function pSaveCaption(e,blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;blk.caption=e.target.value;p.updatedAt=today();_pSave();}
-
-function pTblCell(e,blkId,postId,r,c){
-  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;
-  blk.tableData[r][c]=e.target.innerHTML;p.updatedAt=today();_pSave();
-}
-function pTblAddRow(blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;const cols=blk.tableData[0]?.length||3;blk.tableData.push(Array(cols).fill(''));p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);}
-function pTblAddCol(blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData)return;blk.tableData.forEach(row=>row.push(''));p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);}
-function pTblDelRow(blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData||blk.tableData.length<=1)return;blk.tableData.pop();p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);}
-function pTblDelCol(blkId,postId){const p=_pPosts.find(x=>x.id===postId);if(!p)return;const blk=p.blocks.find(x=>x.id===blkId);if(!blk||!blk.tableData||blk.tableData[0]?.length<=1)return;blk.tableData.forEach(row=>row.pop());p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);}
-
-function pContentInput(e,blkId,postId){
-  const el=e.target;
-  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
-  const txt=_cleanEditText(el.innerText).trim();
-  if(txt==='/'||(_pSlashId===blkId&&txt.startsWith('/'))){
-    if(txt==='/'){_pSlashId=blkId;_pSlashQ='';_pSlashSel=0;pShowSlash(el,postId);}
-    else if(_pSlashId===blkId){_pSlashQ=txt.slice(1).toLowerCase();pUpdateSlash();}
-    return;
-  }
-  if(_pSlashId===blkId)pHideSlash();
-  blk.content=el.innerHTML;p.updatedAt=today();_pSave();
-}
-function pKeydown(e,blkId,postId){
-  if(_pSlashId===blkId){
-    if(e.key==='ArrowDown'){e.preventDefault();pSlashNav(1);return}
-    if(e.key==='ArrowUp'){e.preventDefault();pSlashNav(-1);return}
-    if(e.key==='Enter'){e.preventDefault();pSlashPick(blkId,postId);return}
-    if(e.key==='Escape'){pHideSlash();return}
-  }
-  if(e.key==='Enter'&&!e.shiftKey){
-    e.preventDefault();
-    const el=e.target;
-    const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-    const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
-    blk.content=el.innerHTML;
-    pInsertAfter(blkId,postId,'paragraph');return;
-  }
-  if(e.key==='Backspace'){
-    const el=e.target;
-    if(!_cleanEditText(el.innerText).trim()){e.preventDefault();pDelBlock(blkId,postId);}
-  }
-  if((e.ctrlKey||e.metaKey)){
-    if(e.key==='b'){e.preventDefault();document.execCommand('bold');}
-    else if(e.key==='i'){e.preventDefault();document.execCommand('italic');}
-    else if(e.key==='u'){e.preventDefault();document.execCommand('underline');}
-  }
-}
-function pInsertAfter(blkId,postId,type){
-  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  const idx=p.blocks.findIndex(x=>x.id===blkId);
-  const nb={id:_pNewId(),type,content:''};
-  p.blocks.splice(idx+1,0,nb);p.updatedAt=today();_pSave();
-  const bEl=document.getElementById('p-blocks');
-  if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);
-  setTimeout(()=>{const ne=document.querySelector(`[data-id="${nb.id}"] .bk-content`);if(ne)ne.focus();},20);
-}
-function pDelBlock(blkId,postId){
-  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  if(p.blocks.length<=1)return;
-  const idx=p.blocks.findIndex(x=>x.id===blkId);
-  p.blocks.splice(idx,1);p.updatedAt=today();_pSave();
-  const bEl=document.getElementById('p-blocks');
-  if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);
-  const pi=Math.max(0,idx-1);
-  setTimeout(()=>{const pe=document.querySelector(`[data-id="${p.blocks[pi]?.id}"] .bk-content`);if(pe){pe.focus();const r=document.createRange();r.selectNodeContents(pe);r.collapse(false);const s=window.getSelection();s.removeAllRanges();s.addRange(r);}},20);
-}
-function pAddBlock(afterId,postId,type){
-  if(afterId)pInsertAfter(afterId,postId,type);
-  else{const p=_pPosts.find(x=>x.id===postId);if(!p)return;const nb={id:_pNewId(),type,content:''};p.blocks.push(nb);p.updatedAt=today();_pSave();const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);setTimeout(()=>{const ne=document.querySelector(`[data-id="${nb.id}"] .bk-content`);if(ne)ne.focus();},20);}
-}
-function pChangeBlockType(blkId,postId,type){
-  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  const blk=p.blocks.find(x=>x.id===blkId);if(!blk)return;
-  blk.type=type;blk.content='';
-  if(type==='table'&&!blk.tableData)blk.tableData=[['','',''],['','',''],['','','']];
-  if(type==='image'){blk.imageData=null;blk.caption='';}
-  p.updatedAt=today();_pSave();
-  const bEl=document.getElementById('p-blocks');
-  if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);
-  setTimeout(()=>{const ne=document.querySelector(`[data-id="${blkId}"] .bk-content`);if(ne)ne.focus();},20);
-}
-function pShowAddMenu(blkId,postId){
-  const el=document.querySelector(`[data-id="${blkId}"] .bk-content`);
-  if(el){_pSlashId=blkId;_pSlashQ='';_pSlashSel=0;pShowSlash(el,postId);}
-}
-function pShowSlash(el,postId){
-  let m=document.getElementById('p-slash-menu');
-  if(!m){m=document.createElement('div');m.id='p-slash-menu';m.className='slash-menu';document.body.appendChild(m);}
-  m._postId=postId;
-  const rect=el.getBoundingClientRect();
-  m.style.top=(rect.bottom+2)+'px';m.style.left=rect.left+'px';m.style.display='block';
-  pUpdateSlash();
-}
-function pUpdateSlash(){
-  const m=document.getElementById('p-slash-menu');if(!m)return;
-  const q=_pSlashQ;
-  const items=P_SLASH.filter(x=>!q||x.label.includes(q)||x.type.includes(q));
-  _pSlashSel=0;
-  m.innerHTML=items.map((x,i)=>`<div class="slash-item${i===0?' sel':''}" data-type="${x.type}">
-    <span style="width:28px;font-size:12px;font-weight:700;color:var(--sub);text-align:center">${x.icon}</span>${x.label}</div>`).join('');
-  m.querySelectorAll('.slash-item').forEach(it=>it.addEventListener('mousedown',e=>{e.preventDefault();const bid=_pSlashId;const pid=m._postId;if(bid)pChangeBlockType(bid,pid,it.dataset.type);pHideSlash();}));
-}
-function pSlashNav(d){
-  const m=document.getElementById('p-slash-menu');if(!m)return;
-  const items=m.querySelectorAll('.slash-item');
-  items[_pSlashSel]?.classList.remove('sel');
-  _pSlashSel=Math.max(0,Math.min(items.length-1,_pSlashSel+d));
-  items[_pSlashSel]?.classList.add('sel');
-  items[_pSlashSel]?.scrollIntoView({block:'nearest'});
-}
-function pSlashPick(blkId,postId){
-  const m=document.getElementById('p-slash-menu');if(!m)return;
-  const sel=m.querySelector('.slash-item.sel');
-  if(sel)pChangeBlockType(blkId,postId,sel.dataset.type);
-  pHideSlash();
-}
-function pHideSlash(){_pSlashId=null;_pSlashQ='';const m=document.getElementById('p-slash-menu');if(m)m.style.display='none';}
-
-let _pDragIdV=null;
-function pDragStart(e,id){_pDragIdV=id;e.dataTransfer.effectAllowed='move';setTimeout(()=>e.target.style.opacity='.4',0);}
-function pDragOver(e,id){e.preventDefault();e.dataTransfer.dropEffect='move';document.querySelectorAll('.bk-wrap').forEach(el=>el.style.borderTop='');if(id!==_pDragIdV){const el=document.querySelector(`[data-id="${id}"]`);if(el)el.style.borderTop='2px solid var(--ac)';}}
-function pDrop(e,targetId,postId){
-  e.preventDefault();
-  document.querySelectorAll('.bk-wrap').forEach(el=>{el.style.borderTop='';el.style.opacity='1';});
-  if(!_pDragIdV||_pDragIdV===targetId)return;
-  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  const fi=p.blocks.findIndex(x=>x.id===_pDragIdV);
-  const ti=p.blocks.findIndex(x=>x.id===targetId);
-  if(fi<0||ti<0)return;
-  const [moved]=p.blocks.splice(fi,1);
-  p.blocks.splice(ti,0,moved);
-  p.updatedAt=today();_pSave();
-  const bEl=document.getElementById('p-blocks');if(bEl)bEl.innerHTML=pRenderBlocks(p.blocks,postId);
-  _pDragIdV=null;
-}
-
-document.addEventListener('click',e=>{
-  if(_pSlashId){
-    const ownerEl=document.querySelector(`[data-id="${_pSlashId}"] .bk-content`);
-    if(e.target!==ownerEl && !e.target.closest('#p-slash-menu')) pHideSlash();
-  }
-});
-
 // ─── SETTLEMENT (정산 리스트) ──────────────────────
 // 노션 표처럼 셀을 바로 클릭해서 편집하는 간단한 표. 텍스트 칸은 contenteditable
 // div를 써서 내용이 길어지면 셀 폭은 고정된 채 자동으로 줄바꿈되도록 함(입력창은
