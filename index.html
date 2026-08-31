@@ -2022,16 +2022,20 @@ function buildInternGrid(mode){
       });
       row+=`</tr>`;tbody+=row;
     }
-    return `<div style="max-width:55%;min-width:380px">
-    <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:10px">
-      <button class="cal-nav" onclick="internGridWeek(-1)">‹</button>
-      <span style="font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
-      <button class="cal-nav" onclick="internGridWeek(1)">›</button>
-    </div>
-    <div style="overflow-x:auto"><table class="st-table" style="width:100%;border-collapse:collapse;table-layout:fixed">
-      <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
-      <thead>${theadHtml}</thead><tbody>${tbody}</tbody>
-    </table></div></div>`;
+    return `<div style="display:flex;align-items:flex-start;gap:0">
+      <div style="overflow-x:auto;flex:0 0 auto;max-width:55%;min-width:380px">
+        <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:10px">
+          <button class="cal-nav" onclick="internGridWeek(-1)">‹</button>
+          <span style="font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
+          <button class="cal-nav" onclick="internGridWeek(1)">›</button>
+        </div>
+        <div style="overflow-x:auto"><table class="st-table" style="width:100%;border-collapse:collapse;table-layout:fixed">
+          <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
+          <thead>${theadHtml}</thead><tbody>${tbody}</tbody>
+        </table></div>
+      </div>
+      <div style="width:320px;flex-shrink:0;border-left:1px solid var(--bd);padding:12px 16px;margin-top:32px">${internListPanelHtml(activeInterns,wOff)}</div>
+    </div>`;
   }
   // class mode — hourly display
   const RH=56;
@@ -2389,7 +2393,7 @@ function renderWorkSchedule(){
           <div id="ws-table"></div>
         </div>
       </div>
-      <div id="ws-intern-list" class="ws-intern-list-mobile" style="width:136px;flex-shrink:0;border-left:1px solid var(--bd);padding:12px 14px;align-self:stretch"></div>
+      <div id="ws-intern-list" class="ws-intern-list-mobile" style="width:320px;flex-shrink:0;border-left:1px solid var(--bd);padding:12px 16px;align-self:stretch"></div>
     </div>
   </div>
   ${isAdmin()?`<div class="card">
@@ -2579,28 +2583,36 @@ function calcWeeklyWorkHours(sched){
     if(mins>0)byDay[s.day]=(byDay[s.day]||0)+mins;
   });
   let totalMins=0;
-  Object.values(byDay).forEach(m=>{totalMins+=Math.max(0,m-30);}); // 근무일마다 30분 휴게시간 차감
+  Object.values(byDay).forEach(m=>{
+    totalMins+=m>240?m-30:m; // 하루 4시간(240분) 초과 근무일에만 30분 휴게시간 차감
+  });
   return totalMins/60;
+}
+// 근무스케줄 메뉴, 인턴 목록의 근무스케줄 탭 양쪽에서 똑같이 쓰는 우측 인턴 패널.
+function internListPanelHtml(activeInterns,weekOffset){
+  const noteHtml=`<div class="wsl-title" style="font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:4px">인턴</div>
+    <div style="font-size:9.5px;color:var(--sub2);margin-bottom:2px">4시간 초과 근무 시 30분 휴게</div>
+    <div style="font-size:9.5px;color:var(--sub2);margin-bottom:8px">주별 근무시간은 휴게시간을 제외한 시간입니다</div>`;
+  if(!activeInterns.length)return noteHtml+`<div style="font-size:12px;color:var(--sub)">없음</div>`;
+  return noteHtml+activeInterns.map(intern=>{
+    const c=WS_COLORS[internColorIdx(intern)%WS_COLORS.length];
+    const sched=getSchedForWeek(intern.name,weekOffset);
+    const days=[...new Set(sched.map(s=>s.day))].join('·')||'미등록';
+    const hrs=calcWeeklyWorkHours(sched);
+    const hrsText=hrs>0?`${Number.isInteger(hrs)?hrs:hrs.toFixed(1)}h`:'-';
+    return `<div class="wsl-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer" onclick="openInternWeekSched(${intern.id},${weekOffset})">
+      <div style="width:10px;height:10px;border-radius:3px;background:${c.bg};border:1.5px solid ${c.tc};flex-shrink:0"></div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--tx)">${esc(intern.name)}</div>
+        <div style="font-size:11px;color:var(--sub);margin-top:1px">${days} · ${hrsText}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 function renderWSInternList(){
   const el=document.getElementById('ws-intern-list');if(!el)return;
   const active=S.interns.filter(isInternActive);
-  el.innerHTML=`<div class="wsl-title" style="font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:4px">인턴</div>
-    <div style="font-size:9.5px;color:var(--sub2);margin-bottom:8px">근무시간은 일별 휴게시간 30분을 뺀 값이에요</div>`+
-    (active.length?active.map(intern=>{
-      const c=WS_COLORS[internColorIdx(intern)%WS_COLORS.length];
-      const sched=getSchedForWeek(intern.name,S.weekOffset);
-      const days=[...new Set(sched.map(s=>s.day))].join('·')||'미등록';
-      const hrs=calcWeeklyWorkHours(sched);
-      const hrsText=hrs>0?`${Number.isInteger(hrs)?hrs:hrs.toFixed(1)}h`:'-';
-      return `<div class="wsl-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer" onclick="openInternWeekSched(${intern.id},${S.weekOffset})">
-        <div style="width:10px;height:10px;border-radius:3px;background:${c.bg};border:1.5px solid ${c.tc};flex-shrink:0"></div>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--tx)">${intern.name}</div>
-          <div style="font-size:11px;color:var(--sub);margin-top:1px">${days} · ${hrsText}</div>
-        </div>
-      </div>`;
-    }).join(''):`<div style="font-size:12px;color:var(--sub)">없음</div>`);
+  el.innerHTML=internListPanelHtml(active,S.weekOffset);
 }
 function renderWSIssues(){
   const el=document.getElementById('ws-issues');if(!el)return;
@@ -3144,7 +3156,7 @@ function bUpdateTitle(postId,val){
 function bNewPost(){
   const post={id:_bNewId(),title:'',icon:'',tags:[],createdAt:today(),updatedAt:today(),
     blocks:[{id:_bNewId(),type:'paragraph',content:''}]};
-  _bPosts.unshift(post);_bSave();_bActiveId=post.id;bRenderSb();bOpenPost(post.id);
+  _bPosts.unshift(post);_bSave();_bActiveId=post.id;_bEditMode=true;bRenderSb();bOpenPost(post.id);
 }
 
 function bDeletePost(id){
@@ -3460,7 +3472,7 @@ function pNewPost(){
   const post={id:_pNewId(),name:'',status:'대기',dueDate:'',icon:'🗃',tags:[],createdAt:today(),updatedAt:today(),
     calEvents:[],calStartMonth,
     blocks:[{id:_pNewId(),type:'paragraph',content:''}]};
-  _pPosts.unshift(post);_pSave();_pActiveId=post.id;renderProjects();pOpenPost(post.id);
+  _pPosts.unshift(post);_pSave();_pActiveId=post.id;_pEditMode=true;renderProjects();pOpenPost(post.id);
 }
 
 function pDeletePost(id){
