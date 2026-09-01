@@ -1901,6 +1901,7 @@ function saveEmpLeaveGrant(empId){
   closeModal();renderEmployees();
 }
 // ─── INTERNS ──────────────────────────────────────
+let _internActiveTab=1; // 인턴 목록의 '전체 일정 현황' 탭(1=수업시간표, 2=근무스케줄) - 화면이 다시 그려져도 유지되도록 기억해둠
 function renderInterns(){
   const p=document.getElementById('page-interns');
   const typeMap={국가근로:'ch-p',일반인턴:'ch-g',계약직:'ch-o'};
@@ -1946,10 +1947,10 @@ function renderInterns(){
   </div>
   <div style="margin-top:32px">
     <div class="ctitle">전체 일정 현황</div>
-    <div class="tabs"><button class="tab-btn act" id="intern-tab1" onclick="switchInternTab(1)">수업시간표</button>
-    <button class="tab-btn" id="intern-tab2" onclick="switchInternTab(2)">근무스케줄</button></div>
-    <div id="intern-panel1">${buildInternGrid('class')}</div>
-    <div id="intern-panel2" style="display:none">${buildInternGrid('work')}</div>
+    <div class="tabs"><button class="tab-btn${_internActiveTab===1?' act':''}" id="intern-tab1" onclick="switchInternTab(1)">수업시간표</button>
+    <button class="tab-btn${_internActiveTab===2?' act':''}" id="intern-tab2" onclick="switchInternTab(2)">근무스케줄</button></div>
+    <div id="intern-panel1" style="display:${_internActiveTab===1?'block':'none'}">${buildInternGrid('class')}</div>
+    <div id="intern-panel2" style="display:${_internActiveTab===2?'block':'none'}">${buildInternGrid('work')}</div>
   </div>`;
 }
 function openInternDetail(id){
@@ -2011,6 +2012,7 @@ function deleteIntern(id){
   renderInterns();saveAppData().catch(()=>{});
 }
 function switchInternTab(n){
+  _internActiveTab=n;
   document.getElementById('intern-tab1').classList.toggle('act',n===1);
   document.getElementById('intern-tab2').classList.toggle('act',n===2);
   document.getElementById('intern-panel1').style.display=n===1?'block':'none';
@@ -2207,6 +2209,7 @@ function saveTTGrid(id){
     if(st!==null)flush();
   });
   S.internTimetable[i.name]=slots;
+  saveAppData().catch(()=>{}); // 30초 자동저장을 기다리지 않고 즉시 저장 (안 그러면 저장 전에 새로고침 시 유실됨)
   // Stay in modal — refresh grid and change button to 닫기
   const grid=document.getElementById('tt-grid');
   if(grid)grid.innerHTML=buildTTGridHtml(id);
