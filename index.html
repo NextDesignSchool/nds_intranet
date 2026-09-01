@@ -2902,7 +2902,7 @@ function richInsertTable(anchorEl){
   for(let r=1;r<=rows;r++){
     grid+='<div style="display:flex">';
     for(let c=1;c<=cols;c++){
-      grid+=`<div class="tsp-cell" data-r="${r}" data-c="${c}" onmouseover="tspHover(${r},${c})" onclick="event.stopPropagation();tspPick(${r},${c})" style="width:20px;height:20px;border:1px solid var(--bd);margin:1px;border-radius:2px;cursor:pointer"></div>`;
+      grid+=`<div class="tsp-cell" data-r="${r}" data-c="${c}" onmouseover="tspHover(${r},${c})" onmousedown="event.preventDefault();event.stopPropagation()" onclick="event.stopPropagation();tspPick(${r},${c})" style="width:20px;height:20px;border:1px solid var(--bd);margin:1px;border-radius:2px;cursor:pointer"></div>`;
     }
     grid+='</div>';
   }
