@@ -2880,7 +2880,7 @@ function richToolbarHtml(elId){
     <span class="rt-sep"></span>
     <input type="color" class="rt-color" value="#B03025" data-tip="글자 색" onmousedown="richSaveSelection()" onchange="richApplyColor('${elId}',this.value)">
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertHorizontalRule')" data-tip="구분선">—</button>
-    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertTable()" data-tip="표">⊞</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertTable(this)" data-tip="표">⊞</button>
   </div>`;
 }
 function richInsertCode(){
@@ -2888,9 +2888,89 @@ function richInsertCode(){
   if(!txt){alert('코드로 바꿀 글자를 먼저 선택해주세요.');return;}
   document.execCommand('insertHTML',false,`<code style="background:var(--hover);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:.88em">${esc(txt)}</code>`);
 }
-function richInsertTable(){
-  const rows=Array.from({length:3},(_,ri)=>`<tr>${Array.from({length:3},()=>`<${ri===0?'th':'td'}><br></${ri===0?'th':'td'}>`).join('')}</tr>`).join('');
+// 표 크기를 미리 격자로 골라서 넣는 팝업 (구글독스/오피스와 비슷한 방식)
+function richInsertTable(anchorEl){
+  let panel=document.getElementById('tbl-size-picker');
+  if(!panel){panel=document.createElement('div');panel.id='tbl-size-picker';panel.className='mini-cal';document.body.appendChild(panel);}
+  const rect=anchorEl.getBoundingClientRect();
+  panel.style.top=(rect.bottom+6)+'px';
+  panel.style.left=Math.max(8,rect.left)+'px';
+  panel.style.display='block';
+  panel.style.width='fit-content';
+  const rows=6,cols=6;
+  let grid='';
+  for(let r=1;r<=rows;r++){
+    grid+='<div style="display:flex">';
+    for(let c=1;c<=cols;c++){
+      grid+=`<div class="tsp-cell" data-r="${r}" data-c="${c}" onmouseover="tspHover(${r},${c})" onclick="event.stopPropagation();tspPick(${r},${c})" style="width:20px;height:20px;border:1px solid var(--bd);margin:1px;border-radius:2px;cursor:pointer"></div>`;
+    }
+    grid+='</div>';
+  }
+  panel.innerHTML=`<div id="tsp-label" style="text-align:center;font-size:12px;color:var(--sub);margin-bottom:6px">표 크기 선택</div><div id="tsp-grid">${grid}</div>`;
+}
+function tspHover(r,c){
+  document.querySelectorAll('.tsp-cell').forEach(el=>{
+    const on=(+el.dataset.r<=r)&&(+el.dataset.c<=c);
+    el.style.background=on?'var(--ac)':'';
+    el.style.borderColor=on?'var(--ac)':'var(--bd)';
+  });
+  const label=document.getElementById('tsp-label');
+  if(label)label.textContent=`${r} x ${c} 표`;
+}
+function tspPick(r,c){
+  closeTblSizePicker();
+  const rows=Array.from({length:r},(_,ri)=>`<tr>${Array.from({length:c},()=>`<${ri===0?'th':'td'}><br></${ri===0?'th':'td'}>`).join('')}</tr>`).join('');
   document.execCommand('insertHTML',false,`<table>${rows}</table><div><br></div>`);
+}
+function closeTblSizePicker(){const p=document.getElementById('tbl-size-picker');if(p)p.style.display='none';}
+document.addEventListener('click',e=>{
+  const p=document.getElementById('tbl-size-picker');
+  if(p&&p.style.display==='block'&&!e.target.closest('#tbl-size-picker')&&!e.target.closest('[data-tip="표"]'))closeTblSizePicker();
+});
+// 표 안에 커서가 있을 때만 나타나는 행/열 추가·삭제 도구
+let _richActiveTable=null;
+function richCheckTableContext(contentElId,toolsElId){
+  const sel=window.getSelection();
+  const tools=document.getElementById(toolsElId);
+  const contentEl=document.getElementById(contentElId);
+  if(!sel||!sel.anchorNode||!tools||!contentEl){return;}
+  if(!contentEl.contains(sel.anchorNode)){tools.style.display='none';_richActiveTable=null;return;}
+  const node=sel.anchorNode;
+  const table=(node.nodeType===1?node:node.parentElement)?.closest('table');
+  if(table&&contentEl.contains(table)){_richActiveTable=table;tools.style.display='flex';}
+  else{tools.style.display='none';_richActiveTable=null;}
+}
+function richTableAddRow(){
+  if(!_richActiveTable)return;
+  const cols=_richActiveTable.rows[0]?.cells.length||1;
+  const row=_richActiveTable.insertRow();
+  for(let i=0;i<cols;i++)row.insertCell().innerHTML='<br>';
+  richFlushAfterTableEdit();
+}
+function richTableAddCol(){
+  if(!_richActiveTable)return;
+  Array.from(_richActiveTable.rows).forEach((row,ri)=>{
+    const cell=document.createElement(ri===0&&row.querySelector('th')?'th':'td');
+    cell.innerHTML='<br>';row.appendChild(cell);
+  });
+  richFlushAfterTableEdit();
+}
+function richTableDelRow(){
+  if(!_richActiveTable)return;
+  if(_richActiveTable.rows.length<=1){alert('마지막 행은 지울 수 없어요.');return;}
+  _richActiveTable.deleteRow(_richActiveTable.rows.length-1);
+  richFlushAfterTableEdit();
+}
+function richTableDelCol(){
+  if(!_richActiveTable)return;
+  const cols=_richActiveTable.rows[0]?.cells.length||0;
+  if(cols<=1){alert('마지막 열은 지울 수 없어요.');return;}
+  Array.from(_richActiveTable.rows).forEach(row=>{if(row.cells.length)row.deleteCell(row.cells.length-1);});
+  richFlushAfterTableEdit();
+}
+function richFlushAfterTableEdit(){
+  const el=_richActiveTable&&_richActiveTable.closest('.rich-body');
+  if(el)el.dispatchEvent(new Event('input',{bubbles:true}));
 }
 function richInsertLink(){
   const sel=window.getSelection();
@@ -3148,10 +3228,13 @@ async function saveBoardData(){
     console.warn('게시판 Firestore 저장 실패, localStorage 백업 사용:', e);
   }
 }
-async function loadBoardData(){
+async function loadBoardData(retried){
   try{
     const db=window._db;
-    if(!db) throw new Error('Firebase 미준비');
+    if(!db){
+      if(!retried){await new Promise(r=>setTimeout(r,1000));return loadBoardData(true);}
+      throw new Error('Firebase 미준비');
+    }
     const snap=await db.collection('appdata').doc('board').get();
     if(snap.exists){
       const d=snap.data();
@@ -3163,9 +3246,14 @@ async function loadBoardData(){
       if(_bPosts.length||_bCategories.length)await saveBoardData();
     }
   }catch(e){
+    if(!retried){await new Promise(r=>setTimeout(r,1000));return loadBoardData(true);}
+    // 재시도까지 실패했을 때만 최후의 수단으로 localStorage 사용.
+    // 이 경우 오래된(이미 삭제했던 글이 포함된) 데이터일 수 있으므로, 절대 조용히
+    // 넘어가지 않고 화면에 경고를 띄워 "새로고침 전엔 믿지 말라"고 알림.
+    S.boardLoadFailed=true;
     try{_bPosts=JSON.parse(localStorage.getItem('nds_board')||'[]');}catch{_bPosts=[];}
     try{_bCategories=JSON.parse(localStorage.getItem('nds_board_cats')||'[]');}catch{_bCategories=[];}
-    console.warn('게시판 Firestore 로드 실패, localStorage 사용:', e);
+    console.warn('게시판 Firestore 로드 실패(재시도 후에도), localStorage 사용:', e);
   }
 }
 function _bNewId(){return 'b'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
@@ -3202,6 +3290,7 @@ function renderBoard(){
         <span style="font-size:13px;font-weight:700;color:var(--tx)">게시판</span>
         <button class="btn btn-p btn-sm" onclick="bNewPost()">+ 새 글</button>
       </div>
+      ${S.boardLoadFailed?`<div style="margin:6px 12px;padding:6px 10px;background:#FDECEC;color:#B5495B;font-size:11.5px;border-radius:6px;line-height:1.4">⚠ 최신 데이터를 못 불러왔어요. 새로고침 전엔 여기서 수정하지 말아주세요.</div>`:''}
       <div class="board-search-box"><input placeholder="검색..." oninput="bSetSearch(this.value)"></div>
       <div id="b-cats" class="bcat-section"></div>
       <div id="b-tags" class="board-tags-row"></div>
@@ -3299,7 +3388,14 @@ function bOpenPost(id){
       </div>
     </div>
     ${_bEditMode?richToolbarHtml('b-rich-content'):''}
-    <div id="b-rich-content" class="rich-body" contenteditable="${_bEditMode}" data-ph="내용을 입력하세요..." oninput="bRichInput('${id}')">${_bEditMode?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
+    ${_bEditMode?`<div id="b-tbl-tools" style="display:none;align-items:center;gap:6px;padding:5px 8px;margin-bottom:8px;background:var(--hover);border-radius:6px;font-size:11.5px">
+      <span style="color:var(--sub)">표 편집</span>
+      <button type="button" class="btn-g" onclick="richTableAddRow()">+ 행</button>
+      <button type="button" class="btn-g" onclick="richTableAddCol()">+ 열</button>
+      <button type="button" class="btn-g" onclick="richTableDelRow()">− 행</button>
+      <button type="button" class="btn-g" onclick="richTableDelCol()">− 열</button>
+    </div>`:''}
+    <div id="b-rich-content" class="rich-body" contenteditable="${_bEditMode}" data-ph="내용을 입력하세요..." oninput="bRichInput('${id}')" onmouseup="richCheckTableContext('b-rich-content','b-tbl-tools')" onkeyup="richCheckTableContext('b-rich-content','b-tbl-tools')">${_bEditMode?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
   </div>`;
   const tInput=el.querySelector('.board-title-input');
   if(_bEditMode&&tInput&&!post.title)setTimeout(()=>tInput.focus(),40);
@@ -3353,10 +3449,13 @@ async function saveProjectData(){
     console.warn('프로젝트 Firestore 저장 실패, localStorage 백업 사용:', e);
   }
 }
-async function loadProjectData(){
+async function loadProjectData(retried){
   try{
     const db=window._db;
-    if(!db) throw new Error('Firebase 미준비');
+    if(!db){
+      if(!retried){await new Promise(r=>setTimeout(r,1000));return loadProjectData(true);}
+      throw new Error('Firebase 미준비');
+    }
     const snap=await db.collection('appdata').doc('projects').get();
     if(snap.exists){
       _pPosts=snap.data().posts||[];
@@ -3365,8 +3464,10 @@ async function loadProjectData(){
       if(_pPosts.length)await saveProjectData();
     }
   }catch(e){
+    if(!retried){await new Promise(r=>setTimeout(r,1000));return loadProjectData(true);}
+    S.projectLoadFailed=true;
     try{_pPosts=JSON.parse(localStorage.getItem('nds_projects')||'[]');}catch{_pPosts=[];}
-    console.warn('프로젝트 Firestore 로드 실패, localStorage 사용:', e);
+    console.warn('프로젝트 Firestore 로드 실패(재시도 후에도), localStorage 사용:', e);
   }
 }
 function _pNewId(){return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
@@ -3380,6 +3481,7 @@ function renderProjects(){
         <span style="font-size:13px;font-weight:700;color:var(--tx)">프로젝트</span>
         <button class="btn btn-p btn-sm" onclick="pNewPost()">+ 새 프로젝트</button>
       </div>
+      ${S.projectLoadFailed?`<div style="margin:6px 12px;padding:6px 10px;background:#FDECEC;color:#B5495B;font-size:11.5px;border-radius:6px;line-height:1.4">⚠ 최신 데이터를 못 불러왔어요. 새로고침 전엔 여기서 수정하지 말아주세요.</div>`:''}
       <div class="board-search-box"><input placeholder="검색..." value="${_pSearch}" oninput="_pSearch=this.value;pRenderSb()"></div>
       <div style="display:flex;gap:4px;padding:0 12px 8px;flex-wrap:wrap">
         <button class="btag${_pStatusFilter===null?' on':''}" onclick="pSetStatusFilter(null)">전체</button>
@@ -3462,7 +3564,14 @@ function pOpenPost(id){
       </div>
     </div>
     ${editing?richToolbarHtml('p-rich-content'):''}
-    <div id="p-rich-content" class="rich-body" contenteditable="${editing}" data-ph="내용을 입력하세요..." oninput="pRichInput('${id}')">${editing?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
+    ${editing?`<div id="p-tbl-tools" style="display:none;align-items:center;gap:6px;padding:5px 8px;margin-bottom:8px;background:var(--hover);border-radius:6px;font-size:11.5px">
+      <span style="color:var(--sub)">표 편집</span>
+      <button type="button" class="btn-g" onclick="richTableAddRow()">+ 행</button>
+      <button type="button" class="btn-g" onclick="richTableAddCol()">+ 열</button>
+      <button type="button" class="btn-g" onclick="richTableDelRow()">− 행</button>
+      <button type="button" class="btn-g" onclick="richTableDelCol()">− 열</button>
+    </div>`:''}
+    <div id="p-rich-content" class="rich-body" contenteditable="${editing}" data-ph="내용을 입력하세요..." oninput="pRichInput('${id}')" onmouseup="richCheckTableContext('p-rich-content','p-tbl-tools')" onkeyup="richCheckTableContext('p-rich-content','p-tbl-tools')">${editing?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
     <div style="margin-top:8px;padding-top:24px;border-top:1px solid var(--bd)">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span id="p-cal-label" style="font-size:12px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
