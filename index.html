@@ -3082,20 +3082,39 @@ function richTableMouseDown(e,contentElId){
   if(!_richResizeTarget)return;
   const contentEl=document.getElementById(contentElId);
   if(!contentEl||!contentEl.contains(_richResizeTarget.td))return;
-  e.preventDefault(); // 드래그 중 텍스트가 같이 선택되는 것을 막음
+  // 여기서 바로 preventDefault를 하지 않음 — 그래야 그냥 클릭(커서 배치)일 땐 평소처럼 동작함.
+  // 실제로 마우스가 일정 거리 이상 움직였을 때만 '드래그로 크기조절'로 확정함.
   const {type,table,td}=_richResizeTarget;
-  if(type==='col'){
-    const cg=ensureColgroup(table);
-    const idx=td.cellIndex;
-    const col=cg.children[idx];
-    if(!col)return;
-    _tblResize={type:'col',table,col,startX:e.clientX,startW:td.getBoundingClientRect().width};
-  }else{
-    const tr=td.parentElement;
-    _tblResize={type:'row',table,tr,startY:e.clientY,startH:tr.getBoundingClientRect().height};
+  const startX=e.clientX,startY=e.clientY;
+  const THRESHOLD=4;
+  let confirmed=false;
+  function onMove(me){
+    if(confirmed)return;
+    if(Math.abs(me.clientX-startX)<THRESHOLD&&Math.abs(me.clientY-startY)<THRESHOLD)return;
+    confirmed=true;
+    cleanup();
+    // 드래그로 확정되는 순간, 혹시 그 사이 살짝 생겼을 수 있는 텍스트 선택을 지움
+    const sel=window.getSelection();if(sel)sel.removeAllRanges();
+    if(type==='col'){
+      const cg=ensureColgroup(table);
+      const idx=td.cellIndex;
+      const col=cg.children[idx];
+      if(!col)return;
+      _tblResize={type:'col',table,col,startX,startW:td.getBoundingClientRect().width};
+    }else{
+      const tr=td.parentElement;
+      _tblResize={type:'row',table,tr,startY,startH:tr.getBoundingClientRect().height};
+    }
+    document.body.classList.add('tbl-resizing');
+    document.body.style.cursor=type==='col'?'col-resize':'row-resize';
   }
-  document.body.classList.add('tbl-resizing');
-  document.body.style.cursor=type==='col'?'col-resize':'row-resize';
+  function onUp(){cleanup();}
+  function cleanup(){
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+  }
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
 }
 document.addEventListener('mousemove',e=>{
   if(!_tblResize)return;
