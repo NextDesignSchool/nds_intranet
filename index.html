@@ -3409,9 +3409,11 @@ async function saveBoardData(){
     const db=window._db;
     if(!db) throw new Error('Firebase 미준비');
     await db.collection('appdata').doc('board').set({posts:_bPosts,categories:_bCategories});
+    hideSaveFailBanner();
   }catch(e){
     try{localStorage.setItem('nds_board',JSON.stringify(_bPosts));localStorage.setItem('nds_board_cats',JSON.stringify(_bCategories));}catch{}
     console.warn('게시판 Firestore 저장 실패, localStorage 백업 사용:', e);
+    showSaveFailBanner();
   }
 }
 async function loadBoardData(retried){
@@ -3623,9 +3625,11 @@ async function saveProjectData(){
     const db=window._db;
     if(!db) throw new Error('Firebase 미준비');
     await db.collection('appdata').doc('projects').set({posts:_pPosts});
+    hideSaveFailBanner();
   }catch(e){
     try{localStorage.setItem('nds_projects',JSON.stringify(_pPosts));}catch{}
     console.warn('프로젝트 Firestore 저장 실패, localStorage 백업 사용:', e);
+    showSaveFailBanner();
   }
 }
 async function loadProjectData(retried){
@@ -4035,13 +4039,34 @@ async function saveAppData(){
     const d={};
     PERSIST_KEYS.forEach(k=>{d[k]=S[k]});
     await db.collection('appdata').doc('main').set(d);
+    hideSaveFailBanner(); // 저장에 성공했으니 혹시 떠있던 실패 경고가 있으면 지움
   }catch(e){
     try{
       const d={};PERSIST_KEYS.forEach(k=>{d[k]=S[k]});
       localStorage.setItem('nds_data',JSON.stringify(d));
     }catch{}
     console.warn('Firestore 저장 실패, localStorage 백업 사용:', e);
+    showSaveFailBanner();
   }
+}
+// 저장이 실패하면 화면(devtools 콘솔 말고 실제 화면)에 눈에 띄게 알려줌.
+// 예전엔 콘솔에만 경고가 찍혀서, 저장이 안 됐는데도 겉으로는 정상처럼 보이는 게 문제였음.
+function showSaveFailBanner(){
+  if(document.getElementById('save-fail-banner'))return; // 이미 떠있으면 중복으로 안 만듦
+  const b=document.createElement('div');
+  b.id='save-fail-banner';
+  b.style.cssText='position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#B5495B;color:#fff;padding:10px 14px 10px 16px;border-radius:9px;font-size:13px;font-weight:600;z-index:6000;box-shadow:0 6px 20px rgba(0,0,0,.28);display:flex;align-items:center;gap:10px;max-width:90vw';
+  b.innerHTML=`<span>⚠ 저장에 실패했어요. 지금 새로고침하면 방금 한 수정이 사라질 수 있어요.</span>
+    <button style="background:#fff;color:#B5495B;border:none;border-radius:6px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0" onclick="retrySave(this)">다시 시도</button>`;
+  document.body.appendChild(b);
+}
+function hideSaveFailBanner(){
+  const b=document.getElementById('save-fail-banner');
+  if(b)b.remove();
+}
+function retrySave(btn){
+  if(btn)btn.textContent='시도 중...';
+  saveAppData();
 }
 
 // Firestore에서 불러오기
