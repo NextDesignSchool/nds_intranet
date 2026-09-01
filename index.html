@@ -1016,7 +1016,7 @@ function renderCalendar(container,month,onAddEvent){
       <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px" onclick="calToday('${container}')">오늘</button>
     </div>
     <div class="cal-hd-actions">
-      ${onAddEvent?`<button class="btn btn-p btn-sm" onclick="${onAddEvent}">+ 일정추가</button>`:''}
+      ${onAddEvent?`<button class="btn btn-p btn-sm" onclick="${onAddEvent}">+ 일정 추가</button>`:''}
     </div>
   </div>`;
   html+=buildMonthGridHtml(S.events,month,ds=>`openAddEvent('${ds}')`,id=>`openEventDetail(${id})`);
@@ -1195,7 +1195,7 @@ function renderSchedulePage(){
           <option value="type"${S.schedSort==='type'?' selected':''}>종류 순</option>
           <option value="title"${S.schedSort==='title'?' selected':''}>제목 순</option>
         </select>
-        <button class="btn btn-p btn-sm" onclick="openAddEvent(null)">+ 일정추가</button>
+        <button class="btn btn-p btn-sm" onclick="openAddEvent(null)">+ 일정 추가</button>
       </div>
     </div>
     <div style="max-height:420px;overflow-y:auto;overflow-x:auto"><table><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">날짜</th><th style="background:var(--card)">시간</th><th style="background:var(--card)">제목</th><th style="background:var(--card)">종류</th><th style="background:var(--card)">내용</th><th style="background:var(--card)">관리</th></tr></thead>
@@ -1406,7 +1406,7 @@ function openEditEvent(id){
     </div></div>
     <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${esc(e.content)}</textarea></div>
   </div>
-  <div class="mo-ft"><button class="btn btn-d btn-sm" onclick="deleteEvent(${id})">삭제</button>
+  <div class="mo-ft"><button class="btn btn-d" onclick="deleteEvent(${id})">삭제</button>
   <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveEvent(${id})">저장</button></div>`);
 }
 function openEventDetail(id){
@@ -1420,7 +1420,7 @@ function openEventDetail(id){
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">닫기</button>
-    <button class="btn btn-p" onclick="closeModal();openEditEvent(${id})">수정</button>
+    <button class="btn btn-o" onclick="closeModal();openEditEvent(${id})">수정</button>
     <button class="btn btn-d" onclick="deleteEvent(${id})">삭제</button>
   </div>`);
 }
@@ -1571,7 +1571,7 @@ function renderEmployees(){
     <div style="margin-top:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div class="ctitle" style="margin:0;font-size:13px">이슈</div>
-        <button class="btn btn-g" style="font-size:12px" onclick="toggleEmpIssueForm(${e.id})">+ 이슈 추가</button>
+        <button class="btn btn-p btn-sm" onclick="toggleEmpIssueForm(${e.id})">이슈 등록</button>
       </div>
       <div id="emp-issue-form-${e.id}" style="display:none;gap:8px;margin-bottom:10px" class="fr-row">
         <div style="flex:0 0 150px"><input type="text" id="emp-issue-date-${e.id}" value="${today()}" readonly style="cursor:pointer" onclick="openMiniCal('emp-issue-date-${e.id}',this)"></div>
@@ -1581,7 +1581,7 @@ function renderEmployees(){
       ${(e.issues||[]).length?(e.issues||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).map(iss=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:13px">
         <span style="color:var(--sub);flex:0 0 auto">${fmtDisp(iss.date)}</span>
         <span style="flex:1">${esc(iss.content)}</span>
-        <button class="btn btn-g" style="font-size:11px;flex:0 0 auto" onclick="deleteEmpIssue(${e.id},${iss.id})">삭제</button>
+        <button class="btn btn-d btn-sm" style="flex:0 0 auto" onclick="deleteEmpIssue(${e.id},${iss.id})">삭제</button>
       </div>`).join(''):'<div style="color:var(--sub);font-size:13px">등록된 이슈가 없습니다</div>'}
     </div>
   </div>`).join('');
@@ -1680,7 +1680,7 @@ function openEmpDetail(id){
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">닫기</button>
-    <button class="btn btn-p" onclick="saveEmpDetail(${id})">수정</button>
+    <button class="btn btn-o" onclick="saveEmpDetail(${id})">수정</button>
     <button class="btn btn-d" onclick="deleteEmployee(${id})">삭제</button>
   </div>`);
 }
@@ -1913,9 +1913,10 @@ function renderInterns(){
     <button class="btn btn-p" onclick="openAddIntern()">+ 인턴 추가</button>
   </div>
   <div class="intern-table-view" style="overflow-x:auto"><table>
-    <thead><tr><th>이름</th><th>학기</th><th>근무형태</th><th>근무일</th><th>월누적시간</th><th>관리</th></tr></thead>
+    <thead><tr><th>이름</th><th>생년월일</th><th>학기</th><th>근무형태</th><th>근무일</th><th>월누적시간</th><th>관리</th></tr></thead>
     <tbody>${rows.map(({i,days,cc})=>`<tr>
         <td><a href="#" style="color:var(--tx);font-weight:600;white-space:nowrap" onclick="event.preventDefault();openInternDetail(${i.id})">${i.name}</a></td>
+        <td style="white-space:nowrap">${i.birth||'-'}</td>
         <td>${i.semester||'-'}</td>
         <td><span class="chip ${cc}">${i.type}</span></td>
         <td>${days||'-'}</td>
@@ -1956,7 +1957,7 @@ function openInternDetail(id){
     <div><label>월누적시간 <span style="font-weight:400;font-size:11px;color:var(--sub2)">(자동 계산)</span></label><div style="padding:8px 10px;background:var(--hover);border-radius:6px;font-size:13px;font-weight:600">${calcMonthlyAccumHours(i.name)} / ${i.monthTarget}h</div></div></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">닫기</button>
-  <button class="btn btn-p" onclick="saveInternDetail(${id})">수정</button></div>`);
+  <button class="btn btn-o" onclick="saveInternDetail(${id})">수정</button></div>`);
 }
 function saveInternDetail(id){
   const i=S.interns.find(x=>x.id===id);
@@ -2955,7 +2956,7 @@ function saveNotice(id){
 function renderCmt(c,type,itemId){
   const canDel=isAdmin()||c.author===S.user.name;
   return `<div class="cmt">
-    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}${canDel?` · <button class="btn-g" style="font-size:11px;padding:0" onclick="deleteComment('${type}',${itemId},${c.id})">삭제</button>`:''}</div>
+    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}${canDel?` · <button class="btn-g" style="font-size:11px;padding:0;color:var(--re)" onclick="deleteComment('${type}',${itemId},${c.id})">삭제</button>`:''}</div>
     <div class="cmt-text">${esc(c.text)}</div>
   </div>`;
 }
@@ -2987,7 +2988,7 @@ function openNoticeDetail(id){
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">닫기</button>
-    ${isAdmin()?`<button class="btn btn-p" onclick="closeModal();openWriteNotice(${id})">수정</button>
+    ${isAdmin()?`<button class="btn btn-o" onclick="closeModal();openWriteNotice(${id})">수정</button>
     <button class="btn btn-d" onclick="deleteNotice(${id})">삭제</button>`:''}
   </div>`);
 }
@@ -3085,7 +3086,7 @@ function openWorkLogDetail(id){
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">닫기</button>
-    ${canEdit?`<button class="btn btn-p" onclick="closeModal();openWriteLog(${id})">수정</button>`:''}
+    ${canEdit?`<button class="btn btn-o" onclick="closeModal();openWriteLog(${id})">수정</button>`:''}
     ${canDelete?`<button class="btn btn-d" onclick="deleteWorkLog(${id})">삭제</button>`:''}
   </div>`);
 }
@@ -3466,7 +3467,7 @@ function pOpenPost(id){
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span id="p-cal-label" style="font-size:12px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
         ${editing?`<button class="btn-g" style="font-size:11px" onclick="pChangeCalStartMonth('${id}',this)">월 변경</button>`:''}
-        <button class="btn btn-p btn-sm" style="margin-left:auto" onclick="openAddProjectEvent('${id}',null)">+ 일정추가</button>
+        <button class="btn btn-p btn-sm" style="margin-left:auto" onclick="openAddProjectEvent('${id}',null)">+ 일정 추가</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;overflow-x:auto">
         <div id="p-cal-0" style="min-width:240px"></div>
@@ -3583,7 +3584,7 @@ function openEditProjectEvent(postId,id){
     </div></div>
     <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${esc(e.content)}</textarea></div>
   </div>
-  <div class="mo-ft"><button class="btn btn-d btn-sm" onclick="deleteProjectEvent('${postId}',${id})">삭제</button>
+  <div class="mo-ft"><button class="btn btn-d" onclick="deleteProjectEvent('${postId}',${id})">삭제</button>
   <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveProjectEvent('${postId}',${id})">저장</button></div>`);
 }
 function openProjectEventDetail(postId,id){
@@ -3597,7 +3598,7 @@ function openProjectEventDetail(postId,id){
   </div>
   <div class="mo-ft" style="gap:8px">
     <button class="btn btn-o" style="flex:1" onclick="closeModal()">닫기</button>
-    <button class="btn btn-p" style="flex:1" onclick="closeModal();openEditProjectEvent('${postId}',${id})">수정</button>
+    <button class="btn btn-o" style="flex:1" onclick="closeModal();openEditProjectEvent('${postId}',${id})">수정</button>
     <button class="btn btn-d" style="flex:1" onclick="deleteProjectEvent('${postId}',${id})">삭제</button>
   </div>`);
 }
