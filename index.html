@@ -192,8 +192,7 @@ tr:hover td{background:var(--hover)}
 .rich-body ul,.rich-body ol{padding-left:22px;margin:6px 0}
 .rich-body hr{border:none;border-top:1px solid var(--bd);margin:18px 0}
 .rich-body table{border-collapse:collapse;margin:10px 0}
-.rich-body table td,.rich-body table th{border:1px solid var(--bd);padding:6px 10px;min-width:60px}
-.rich-body table th{background:var(--hover)}
+.rich-body table td,.rich-body table th{border:1px solid #8A8A8A;padding:6px 10px;min-width:60px}
 .slash-menu{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.08);z-index:3000;min-width:200px;max-height:420px;overflow-y:auto;display:none}
 .mini-cal{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:var(--r-md);box-shadow:var(--sh-lg);z-index:3500;padding:14px;width:248px;display:none}
 .mini-cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -2813,6 +2812,7 @@ function sanitizeRichHtml(html){
   const div=document.createElement('div');
   div.innerHTML=html;
   const allowed=['B','STRONG','I','EM','U','SPAN','BR','DIV','P','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','HR','TABLE','TBODY','THEAD','TR','TD','TH','CODE','PRE','A'];
+  const colorRe=/^(#[0-9a-fA-F]{3,8}|rgb\([\d\s,]+\)|rgba\([\d\s,.]+\))$/;
   function clean(node){
     [...node.childNodes].forEach(child=>{
       if(child.nodeType!==1)return;
@@ -2822,10 +2822,15 @@ function sanitizeRichHtml(html){
         node.removeChild(child);
         return;
       }
-      const color=child.style&&child.style.color;
+      // 색상/배경색/정렬만 화이트리스트로 남기고(형식 검증까지), 그 외 스타일·속성(이벤트 핸들러 포함)은 전부 제거
+      const st=child.style;
+      const keep=[];
+      if(st&&st.color&&colorRe.test(st.color.trim()))keep.push('color:'+st.color);
+      if(st&&st.backgroundColor&&colorRe.test(st.backgroundColor.trim()))keep.push('background-color:'+st.backgroundColor);
+      if(st&&['left','center','right','justify'].includes(st.textAlign))keep.push('text-align:'+st.textAlign);
       const href=(tag==='A')?child.getAttribute('href'):null;
       [...child.attributes].forEach(attr=>child.removeAttribute(attr.name));
-      if(tag==='SPAN'&&color)child.style.color=color;
+      if(keep.length)child.setAttribute('style',keep.join(';'));
       if(tag==='A'&&href&&/^https?:\/\//i.test(href)){
         child.setAttribute('href',href);child.setAttribute('target','_blank');child.setAttribute('rel','noopener noreferrer');
       }
@@ -2878,7 +2883,12 @@ function richToolbarHtml(elId){
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertCode()" data-tip="코드">&lt;/&gt;</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertLink()" data-tip="하이퍼링크">🔗</button>
     <span class="rt-sep"></span>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('justifyLeft')" data-tip="왼쪽 정렬">⇤</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('justifyCenter')" data-tip="가운데 정렬">≡</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('justifyRight')" data-tip="오른쪽 정렬">⇥</button>
+    <span class="rt-sep"></span>
     <input type="color" class="rt-color" value="#B03025" data-tip="글자 색" onmousedown="richSaveSelection()" onchange="richApplyColor('${elId}',this.value)">
+    <input type="color" class="rt-color" value="#FFF3B0" data-tip="배경 색" onmousedown="richSaveSelection()" onchange="richApplyBgColor('${elId}',this.value)">
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertHorizontalRule')" data-tip="구분선">—</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertTable(this)" data-tip="표">⊞</button>
   </div>`;
@@ -2890,6 +2900,7 @@ function richInsertCode(){
 }
 // 표 크기를 미리 격자로 골라서 넣는 팝업 (구글독스/오피스와 비슷한 방식)
 function richInsertTable(anchorEl){
+  richSaveSelection(); // 팝업을 여는 순간 커서 위치를 저장해둠 (격자 클릭 시점엔 선택이 풀려있을 수 있어서)
   let panel=document.getElementById('tbl-size-picker');
   if(!panel){panel=document.createElement('div');panel.id='tbl-size-picker';panel.className='mini-cal';document.body.appendChild(panel);}
   const rect=anchorEl.getBoundingClientRect();
@@ -2919,7 +2930,13 @@ function tspHover(r,c){
 }
 function tspPick(r,c){
   closeTblSizePicker();
-  const rows=Array.from({length:r},(_,ri)=>`<tr>${Array.from({length:c},()=>`<${ri===0?'th':'td'}><br></${ri===0?'th':'td'}>`).join('')}</tr>`).join('');
+  // 저장해둔 커서 위치를 복원한 뒤에 삽입 (복원 없이 바로 삽입하면 선택이 풀려있어 자리를 못 찾고 조용히 실패할 수 있었음)
+  if(_richSavedRange){
+    const sel=window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(_richSavedRange);
+  }
+  const rows=Array.from({length:r},(_,ri)=>`<tr>${Array.from({length:c},()=>`<td><br></td>`).join('')}</tr>`).join('');
   document.execCommand('insertHTML',false,`<table>${rows}</table><div><br></div>`);
 }
 function closeTblSizePicker(){const p=document.getElementById('tbl-size-picker');if(p)p.style.display='none';}
@@ -2949,8 +2966,8 @@ function richTableAddRow(){
 }
 function richTableAddCol(){
   if(!_richActiveTable)return;
-  Array.from(_richActiveTable.rows).forEach((row,ri)=>{
-    const cell=document.createElement(ri===0&&row.querySelector('th')?'th':'td');
+  Array.from(_richActiveTable.rows).forEach(row=>{
+    const cell=document.createElement('td');
     cell.innerHTML='<br>';row.appendChild(cell);
   });
   richFlushAfterTableEdit();
@@ -3000,6 +3017,13 @@ function richApplyColor(elId,hex){
   el.focus();
   if(_richSavedRange){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(_richSavedRange);}
   document.execCommand('foreColor',false,hex);
+}
+function richApplyBgColor(elId,hex){
+  const el=document.getElementById(elId);if(!el)return;
+  el.focus();
+  if(_richSavedRange){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(_richSavedRange);}
+  // 브라우저별로 지원하는 명령 이름이 달라서(hiliteColor/backColor) 둘 다 시도함
+  if(!document.execCommand('hiliteColor',false,hex))document.execCommand('backColor',false,hex);
 }
 function sanitizeNoticeHtml(html){
   const div=document.createElement('div');
