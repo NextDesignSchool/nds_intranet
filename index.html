@@ -193,6 +193,11 @@ tr:hover td{background:var(--hover)}
 .rich-body hr{border:none;border-top:1px solid var(--bd);margin:18px 0}
 .rich-body table{border-collapse:collapse;margin:10px 0}
 .rich-body table td,.rich-body table th{border:1px solid #8A8A8A;padding:6px 10px;min-width:60px}
+.tbl-edge-btns{position:fixed;display:none;gap:3px;z-index:3200}
+.tbl-fab{width:20px;height:20px;border-radius:50%;border:none;background:var(--ac);color:#fff;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.22);padding:0}
+.tbl-fab-del{background:#fff;color:var(--re);border:1px solid var(--bd)}
+.rcp-swatch{width:24px;height:24px;border-radius:6px;border:1px solid var(--bd);cursor:pointer;transition:transform .08s}
+.rcp-swatch:hover{transform:scale(1.12)}
 .slash-menu{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.08);z-index:3000;min-width:200px;max-height:420px;overflow-y:auto;display:none}
 .mini-cal{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:var(--r-md);box-shadow:var(--sh-lg);z-index:3500;padding:14px;width:248px;display:none}
 .mini-cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -2887,8 +2892,8 @@ function richToolbarHtml(elId){
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('justifyCenter')" data-tip="가운데 정렬">≡</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('justifyRight')" data-tip="오른쪽 정렬">⇥</button>
     <span class="rt-sep"></span>
-    <input type="color" class="rt-color" value="#B03025" data-tip="글자 색" onmousedown="richSaveSelection()" onchange="richApplyColor('${elId}',this.value)">
-    <input type="color" class="rt-color" value="#FFF3B0" data-tip="배경 색" onmousedown="richSaveSelection()" onchange="richApplyBgColor('${elId}',this.value)">
+    <button type="button" class="rt-btn" data-color-trigger onmousedown="event.preventDefault()" onclick="richOpenColorPicker(this,'fg','${elId}')" data-tip="글자 색" style="font-weight:700;color:#E03131">A</button>
+    <button type="button" class="rt-btn" data-color-trigger onmousedown="event.preventDefault()" onclick="richOpenColorPicker(this,'bg','${elId}')" data-tip="배경 색" style="background:#FFF3B0">A</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertHorizontalRule')" data-tip="구분선">—</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertTable(this)" data-tip="표">⊞</button>
   </div>`;
@@ -2944,18 +2949,53 @@ document.addEventListener('click',e=>{
   const p=document.getElementById('tbl-size-picker');
   if(p&&p.style.display==='block'&&!e.target.closest('#tbl-size-picker')&&!e.target.closest('[data-tip="표"]'))closeTblSizePicker();
 });
-// 표 안에 커서가 있을 때만 나타나는 행/열 추가·삭제 도구
-let _richActiveTable=null;
-function richCheckTableContext(contentElId,toolsElId){
-  const sel=window.getSelection();
-  const tools=document.getElementById(toolsElId);
+// 표 가장자리(오른쪽 끝=열 추가, 아래쪽 끝=행 추가)에 마우스를 대면 그 자리에 +/− 버튼이 뜸.
+// (예전엔 표 안에 커서가 있을 때마다 편집 바가 튀어나왔다 들어갔다 해서 글쓰기가 불편했음)
+let _richActiveTable=null,_tblHideTimer=null;
+function richTableHoverCheck(e,contentElId){
   const contentEl=document.getElementById(contentElId);
-  if(!sel||!sel.anchorNode||!tools||!contentEl){return;}
-  if(!contentEl.contains(sel.anchorNode)){tools.style.display='none';_richActiveTable=null;return;}
-  const node=sel.anchorNode;
-  const table=(node.nodeType===1?node:node.parentElement)?.closest('table');
-  if(table&&contentEl.contains(table)){_richActiveTable=table;tools.style.display='flex';}
-  else{tools.style.display='none';_richActiveTable=null;}
+  if(!contentEl)return;
+  const table=e.target.closest?e.target.closest('table'):null;
+  if(!table||!contentEl.contains(table)){richHideTableAddBtns();return;}
+  const rect=table.getBoundingClientRect();
+  const nearRight=Math.abs(e.clientX-rect.right)<18&&e.clientY>=rect.top-4&&e.clientY<=rect.bottom+4;
+  const nearBottom=Math.abs(e.clientY-rect.bottom)<18&&e.clientX>=rect.left-4&&e.clientX<=rect.right+4;
+  _richActiveTable=table;
+  if(nearRight){clearTimeout(_tblHideTimer);richShowColBtns(rect);richHideRowBtnsNow();}
+  else if(nearBottom){clearTimeout(_tblHideTimer);richShowRowBtns(rect);richHideColBtnsNow();}
+  else{richHideTableAddBtns();}
+}
+function richShowRowBtns(rect){
+  let wrap=document.getElementById('tbl-row-btns');
+  if(!wrap){
+    wrap=document.createElement('div');wrap.id='tbl-row-btns';wrap.className='tbl-edge-btns';
+    wrap.onmouseenter=()=>clearTimeout(_tblHideTimer);
+    wrap.onmouseleave=()=>richHideTableAddBtns();
+    wrap.innerHTML=`<button type="button" class="tbl-fab" onclick="richTableAddRow()" title="행 추가">+</button><button type="button" class="tbl-fab tbl-fab-del" onclick="richTableDelRow()" title="행 삭제">−</button>`;
+    document.body.appendChild(wrap);
+  }
+  wrap.style.left=(rect.left+rect.width/2-24)+'px';
+  wrap.style.top=(rect.bottom-2)+'px';
+  wrap.style.display='flex';
+}
+function richShowColBtns(rect){
+  let wrap=document.getElementById('tbl-col-btns');
+  if(!wrap){
+    wrap=document.createElement('div');wrap.id='tbl-col-btns';wrap.className='tbl-edge-btns';wrap.style.flexDirection='column';
+    wrap.onmouseenter=()=>clearTimeout(_tblHideTimer);
+    wrap.onmouseleave=()=>richHideTableAddBtns();
+    wrap.innerHTML=`<button type="button" class="tbl-fab" onclick="richTableAddCol()" title="열 추가">+</button><button type="button" class="tbl-fab tbl-fab-del" onclick="richTableDelCol()" title="열 삭제">−</button>`;
+    document.body.appendChild(wrap);
+  }
+  wrap.style.left=(rect.right-2)+'px';
+  wrap.style.top=(rect.top+rect.height/2-24)+'px';
+  wrap.style.display='flex';
+}
+function richHideRowBtnsNow(){const w=document.getElementById('tbl-row-btns');if(w)w.style.display='none';}
+function richHideColBtnsNow(){const w=document.getElementById('tbl-col-btns');if(w)w.style.display='none';}
+function richHideTableAddBtns(){
+  clearTimeout(_tblHideTimer);
+  _tblHideTimer=setTimeout(()=>{richHideRowBtnsNow();richHideColBtnsNow();},200); // 버튼 쪽으로 마우스 옮길 여유를 줌
 }
 function richTableAddRow(){
   if(!_richActiveTable)return;
@@ -3012,16 +3052,51 @@ function richSaveSelection(){
   const sel=window.getSelection();
   if(sel&&sel.rangeCount>0)_richSavedRange=sel.getRangeAt(0).cloneRange();
 }
+// 빨/주/노/초/파/보/회/검/흰 기본 색상 칩. 팔레트 팝업 맨 위에 두고, 그 아래에 직접 고르는
+// 네이티브 색상 선택기를 같이 둬서 자주 쓰는 색은 한 번에, 그 외엔 자유롭게 고를 수 있게 함.
+const RICH_PRESET_COLORS=[
+  {hex:'#E03131',name:'빨강'},{hex:'#F08C00',name:'주황'},{hex:'#F5C400',name:'노랑'},
+  {hex:'#2F9E44',name:'초록'},{hex:'#1971C2',name:'파랑'},{hex:'#9C36B5',name:'보라'},
+  {hex:'#868E96',name:'회색'},{hex:'#000000',name:'검정'},{hex:'#FFFFFF',name:'흰색'},
+];
+function richOpenColorPicker(anchorEl,mode,elId){
+  richSaveSelection(); // 팝업을 여는 순간 커서 위치를 저장(표 삽입 때와 동일한 방식)
+  let panel=document.getElementById('rich-color-picker');
+  if(!panel){panel=document.createElement('div');panel.id='rich-color-picker';panel.className='mini-cal';document.body.appendChild(panel);}
+  const rect=anchorEl.getBoundingClientRect();
+  panel.style.top=(rect.bottom+6)+'px';
+  panel.style.left=Math.max(8,rect.left)+'px';
+  panel.style.width='fit-content';
+  panel.style.display='block';
+  const chips=RICH_PRESET_COLORS.map(c=>`<div class="rcp-swatch" style="background:${c.hex}" title="${c.name}"
+    onmousedown="event.preventDefault();event.stopPropagation()" onclick="event.stopPropagation();richPickColor('${mode}','${elId}','${c.hex}')"></div>`).join('');
+  panel.innerHTML=`
+    <div style="font-size:11px;color:var(--sub);margin-bottom:7px">${mode==='fg'?'글자 색':'배경 색'}</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px">${chips}</div>
+    <input type="color" id="rcp-custom" value="${mode==='fg'?'#B03025':'#FFF3B0'}" style="width:100%;height:28px;border:1px solid var(--bd);border-radius:6px;cursor:pointer"
+      onmousedown="event.stopPropagation()" onchange="event.stopPropagation();richPickColor('${mode}','${elId}',this.value)">`;
+}
+function richPickColor(mode,elId,hex){
+  closeRichColorPicker();
+  if(mode==='fg')richApplyColor(elId,hex);else richApplyBgColor(elId,hex);
+}
+function closeRichColorPicker(){const p=document.getElementById('rich-color-picker');if(p)p.style.display='none';}
+document.addEventListener('click',e=>{
+  const p=document.getElementById('rich-color-picker');
+  if(p&&p.style.display==='block'&&!e.target.closest('#rich-color-picker')&&!e.target.closest('[data-color-trigger]'))closeRichColorPicker();
+});
 function richApplyColor(elId,hex){
   const el=document.getElementById(elId);if(!el)return;
   el.focus();
   if(_richSavedRange){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(_richSavedRange);}
+  document.execCommand('styleWithCSS',false,true); // <font color> 태그 대신 <span style="color:..">로 만들도록 강제(저장 시 안 걸러지게 함)
   document.execCommand('foreColor',false,hex);
 }
 function richApplyBgColor(elId,hex){
   const el=document.getElementById(elId);if(!el)return;
   el.focus();
   if(_richSavedRange){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(_richSavedRange);}
+  document.execCommand('styleWithCSS',false,true);
   // 브라우저별로 지원하는 명령 이름이 달라서(hiliteColor/backColor) 둘 다 시도함
   if(!document.execCommand('hiliteColor',false,hex))document.execCommand('backColor',false,hex);
 }
@@ -3412,14 +3487,7 @@ function bOpenPost(id){
       </div>
     </div>
     ${_bEditMode?richToolbarHtml('b-rich-content'):''}
-    ${_bEditMode?`<div id="b-tbl-tools" style="display:none;align-items:center;gap:6px;padding:5px 8px;margin-bottom:8px;background:var(--hover);border-radius:6px;font-size:11.5px">
-      <span style="color:var(--sub)">표 편집</span>
-      <button type="button" class="btn-g" onclick="richTableAddRow()">+ 행</button>
-      <button type="button" class="btn-g" onclick="richTableAddCol()">+ 열</button>
-      <button type="button" class="btn-g" onclick="richTableDelRow()">− 행</button>
-      <button type="button" class="btn-g" onclick="richTableDelCol()">− 열</button>
-    </div>`:''}
-    <div id="b-rich-content" class="rich-body" contenteditable="${_bEditMode}" data-ph="내용을 입력하세요..." oninput="bRichInput('${id}')" onmouseup="richCheckTableContext('b-rich-content','b-tbl-tools')" onkeyup="richCheckTableContext('b-rich-content','b-tbl-tools')">${_bEditMode?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
+    <div id="b-rich-content" class="rich-body" contenteditable="${_bEditMode}" data-ph="내용을 입력하세요..." oninput="bRichInput('${id}')" onmousemove="richTableHoverCheck(event,'b-rich-content')" onmouseleave="richHideTableAddBtns()">${_bEditMode?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
   </div>`;
   const tInput=el.querySelector('.board-title-input');
   if(_bEditMode&&tInput&&!post.title)setTimeout(()=>tInput.focus(),40);
@@ -3588,14 +3656,7 @@ function pOpenPost(id){
       </div>
     </div>
     ${editing?richToolbarHtml('p-rich-content'):''}
-    ${editing?`<div id="p-tbl-tools" style="display:none;align-items:center;gap:6px;padding:5px 8px;margin-bottom:8px;background:var(--hover);border-radius:6px;font-size:11.5px">
-      <span style="color:var(--sub)">표 편집</span>
-      <button type="button" class="btn-g" onclick="richTableAddRow()">+ 행</button>
-      <button type="button" class="btn-g" onclick="richTableAddCol()">+ 열</button>
-      <button type="button" class="btn-g" onclick="richTableDelRow()">− 행</button>
-      <button type="button" class="btn-g" onclick="richTableDelCol()">− 열</button>
-    </div>`:''}
-    <div id="p-rich-content" class="rich-body" contenteditable="${editing}" data-ph="내용을 입력하세요..." oninput="pRichInput('${id}')" onmouseup="richCheckTableContext('p-rich-content','p-tbl-tools')" onkeyup="richCheckTableContext('p-rich-content','p-tbl-tools')">${editing?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
+    <div id="p-rich-content" class="rich-body" contenteditable="${editing}" data-ph="내용을 입력하세요..." oninput="pRichInput('${id}')" onmousemove="richTableHoverCheck(event,'p-rich-content')" onmouseleave="richHideTableAddBtns()">${editing?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
     <div style="margin-top:8px;padding-top:24px;border-top:1px solid var(--bd)">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span id="p-cal-label" style="font-size:12px;font-weight:600;color:var(--sub);white-space:nowrap"></span>
