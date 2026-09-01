@@ -4022,7 +4022,8 @@ async function _initApp(){
   }
   // 30초마다 자동저장하기 '직전'에, 서버의 최신 데이터를 먼저 한 번 당겨와 화면에 반영함.
   // (예전엔 이 브라우저가 기억하는 걸 무조건 통째로 덮어써서, 방치해둔 탭이 뒤늦게 저장될 때
-  //  다른 사람이 방금 고친 내용을 옛날 상태로 되돌려버리는 문제가 있었음)
+  //  다른 사람이 방금 고친 내용을 옛날 상태로 되돌려버리는 문제가 있었음 — 삭제했던 글이
+  //  방치된 다른 탭 때문에 계속 되살아나는 것도 같은 원인이었음)
   async function periodicSync(){
     try{
       const db=window._db;
@@ -4031,8 +4032,19 @@ async function _initApp(){
         if(snap.exists){
           const d=snap.data();
           PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
-          if(S.page)renderPage(S.page);
         }
+        // 게시판/프로젝트는 지금 그 화면을 직접 보며 편집 중이면 건드리지 않음(입력 중 화면이
+        // 갑자기 바뀌는 걸 막기 위함). 그 외의 경우(다른 메뉴를 보고 있거나 방치된 탭)엔
+        // 항상 서버 최신본을 먼저 당겨와, 오래된 상태를 다시 밀어넣는 사고를 막음.
+        if(S.page!=='board'){
+          const bSnap=await db.collection('appdata').doc('board').get();
+          if(bSnap.exists){const bd=bSnap.data();_bPosts=bd.posts||_bPosts;_bCategories=bd.categories||_bCategories;}
+        }
+        if(S.page!=='projects'){
+          const pSnap=await db.collection('appdata').doc('projects').get();
+          if(pSnap.exists){_pPosts=pSnap.data().posts||_pPosts;}
+        }
+        if(S.page)renderPage(S.page);
       }
     }catch(e){
       console.warn('자동 동기화 실패, 기존 상태로 저장 시도:', e);
