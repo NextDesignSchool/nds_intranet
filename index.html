@@ -80,6 +80,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 .page.active{display:block}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);padding:20px 22px}
 .ctitle{font-size:11px;font-weight:600;margin-bottom:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em}
+summary{list-style:none}
+summary::-webkit-details-marker{display:none}
+.emp-detail-arrow{display:inline-block;transition:transform .15s;font-size:10px}
+details[open] .emp-detail-arrow{transform:rotate(180deg)}
 .btn{padding:7px 14px;border-radius:var(--r-sm);font-size:12.5px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .12s;display:inline-flex;align-items:center;gap:5px;letter-spacing:.01em}
 .btn-p{background:var(--ac);color:#fff;border-color:var(--ac)}
 .btn-p:hover{background:var(--ac-hover);border-color:var(--ac-hover)}
@@ -361,12 +365,13 @@ body.tbl-resizing *{cursor:inherit!important}
 
   /* 게시판 레이아웃 */
   .board-wrap{flex-direction:column;height:auto}
-  .board-sb{width:100%;border-right:none;border-bottom:1px solid var(--bd);max-height:200px}
+  .board-sb{width:100%;border-right:none;border-bottom:1px solid var(--bd);max-height:200px;overflow-y:auto;overflow-x:hidden}
   .board-editor-area{padding:20px 18px}
 
   /* 캘린더 */
   .cal-cells{grid-auto-rows:38px}
   .cal-ev{font-size:11px;font-weight:500;padding:1px 4px}
+  .cal-ev-time{display:none}
   .dnum{font-size:11.5px;width:19px;height:19px}
 
   /* 휴가 바 */
@@ -414,6 +419,7 @@ body.tbl-resizing *{cursor:inherit!important}
   .cal-cells{grid-auto-rows:auto;min-height:56px}
   .cal-cell{min-height:56px;height:auto;overflow:visible;padding:2px}
   .cal-ev{display:block;font-size:11px;font-weight:600;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-ev-type,.cal-ev-time{display:none} /* 좁은 칸에서 시간·종류가 제목을 밀어내던 문제 해결 - 제목만 보여줌 */
   .dnum{font-size:11.5px;width:19px;height:19px}
   .cal-dn{font-size:10.5px;padding:4px 1px}
   .cal-cell .dnum{margin-bottom:1px}
@@ -1141,8 +1147,8 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact){
     const barH=compact?13:20;
     const barFont=compact?9.5:11;
     const evLabel=e=>{
-      const typePart=e.type?`[${esc(e.type)}] `:'';
-      const timePart=(!compact&&e.time&&e.startTime)?`<span style="font-size:9px;opacity:.7;flex-shrink:0;margin-left:3px">${esc(e.startTime)}</span>`:'';
+      const typePart=e.type?`<span class="cal-ev-type">[${esc(e.type)}] </span>`:'';
+      const timePart=(!compact&&e.time&&e.startTime)?`<span class="cal-ev-time" style="font-size:9px;opacity:.7;flex-shrink:0;margin-left:3px">${esc(e.startTime)}</span>`:'';
       return `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${typePart}${esc(e.title)}</span>${timePart}`;
     };
     assigned.forEach(({e,cs,ce,lane,isMulti})=>{
@@ -1579,6 +1585,8 @@ function syncEmpAutoLeave(){
 function renderEmployees(){
   syncEmpAutoLeave();
   const p=document.getElementById('page-employees');
+  const wide=(window.innerWidth||1024)>768; // 넓은 화면(데스크탑)에서는 기존처럼 펼쳐서 보여줌
+  const openAttr=wide?' open':'';
   let cards=S.employees.map(e=>`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <a href="#" style="font-size:16px;font-weight:700;color:var(--tx)" onclick="event.preventDefault();openEmpDetail(${e.id})">${e.name}</a>
@@ -1600,8 +1608,9 @@ function renderEmployees(){
       ${e.specialLeave!==undefined?`<div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory(${e.id},'특별휴가')"><div class="lval">${e.specialLeave}</div><div class="llabel">특별휴가 잔여</div></div>`:''}
     </div>
     <div style="margin-top:14px">
-      <div class="ctitle" style="font-size:13px">휴가 내역</div>
-      ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm)"><table style="table-layout:fixed;width:100%;min-width:520px"><colgroup><col style="width:88px"><col style="width:110px"><col style="width:50px"><col><col style="width:100px"></colgroup><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
+      <details id="emp-hist-${e.id}"${openAttr}>
+        <summary class="ctitle" style="font-size:13px;cursor:pointer;list-style:none">휴가 내역 <span class="emp-detail-arrow">▾</span></summary>
+      ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm);margin-top:8px"><table style="table-layout:fixed;width:100%;min-width:520px"><colgroup><col style="width:88px"><col style="width:110px"><col style="width:50px"><col><col style="width:100px"></colgroup><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
       ${[...e.leaveHistory].sort((a,b)=>b.date.localeCompare(a.date)).map(l=>`<tr>
         <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
         <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td><td style="white-space:nowrap">${l.days}일</td><td style="word-break:keep-all;overflow-wrap:break-word">${l.reason||'-'}</td>
@@ -1610,13 +1619,15 @@ function renderEmployees(){
           <button class="btn btn-d btn-sm" onclick="deleteLeave(${e.id},${l.id})">삭제</button>
         </td>
       </tr>`).join('')}
-      </tbody></table></div>`:'<div style="color:var(--sub);font-size:13px">내역 없음</div>'}
+      </tbody></table></div>`:'<div style="color:var(--sub);font-size:13px;margin-top:8px">내역 없음</div>'}
+      </details>
     </div>
-    <div style="margin-top:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div class="ctitle" style="margin:0;font-size:13px">이슈</div>
-        <button class="btn btn-p btn-sm" onclick="toggleEmpIssueForm(${e.id})">이슈 등록</button>
-      </div>
+    <details style="margin-top:14px"${openAttr}>
+      <summary class="ctitle" style="margin:0;font-size:13px;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        <span>이슈 <span class="emp-detail-arrow">▾</span></span>
+        <button class="btn btn-p btn-sm" onclick="event.preventDefault();event.stopPropagation();toggleEmpIssueForm(${e.id})">이슈 등록</button>
+      </summary>
+      <div style="margin-top:8px">
       <div id="emp-issue-form-${e.id}" style="display:none;gap:8px;margin-bottom:10px" class="fr-row">
         <div style="flex:0 0 150px"><input type="text" id="emp-issue-date-${e.id}" value="${today()}" readonly style="cursor:pointer" onclick="openMiniCal('emp-issue-date-${e.id}',this)"></div>
         <div style="flex:1"><input id="emp-issue-content-${e.id}" placeholder="이슈 내용 입력"></div>
@@ -1627,7 +1638,8 @@ function renderEmployees(){
         <span style="flex:1">${esc(iss.content)}</span>
         <button class="btn btn-d btn-sm" style="flex:0 0 auto" onclick="deleteEmpIssue(${e.id},${iss.id})">삭제</button>
       </div>`).join(''):'<div style="color:var(--sub);font-size:13px">등록된 이슈가 없습니다</div>'}
-    </div>
+      </div>
+    </details>
   </div>`).join('');
   p.innerHTML=`<div class="pg-hd" style="justify-content:flex-end">
     <div style="display:flex;gap:8px">
@@ -2084,7 +2096,7 @@ function buildInternGrid(mode){
       const h=Math.floor(s/2);
       let row=`<tr style="height:${RH}px">`;
       if(isFirst){
-        row+=`<td style="width:90px;min-width:90px;font-size:${compact?'9.5px':'11px'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+        row+=`<td style="width:${compact?'44px':'90px'};min-width:${compact?'44px':'90px'};font-size:${compact?'9.5px':'11px'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
       }
       DAYS.forEach((d,di)=>{
         const {slotMap}=dd[d];
@@ -2341,22 +2353,24 @@ function buildSchedModalHtml(intern,mon,label,gs,internId,weekOff){
   const ic=WS_COLORS[ci];
   const noticeColor=editing?ic.tc:'var(--sub)';
   const noticeText=editing?'✏ 셀을 클릭하여 근무 시간을 등록/해제하세요.':(isAdmin()?'[수정] 버튼을 눌러 근무 시간을 편집하세요.':'조회 전용입니다. 수정은 관리자만 가능해요.');
-  let thead=`<tr><th style="width:90px;min-width:90px">시간</th>`;
+  const compact=(window.innerWidth||1024)<=480;
+  const timeW=compact?38:90;
+  let thead=`<tr><th style="width:${timeW}px;min-width:${timeW}px;font-size:${compact?'10px':'13px'}">시간</th>`;
   DAYS.forEach((d,i)=>{
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
-    thead+=`<th>${d}<br><span style="font-weight:400;color:var(--sub)">${dt.getMonth()+1}/${dt.getDate()}</span></th>`;
+    thead+=`<th style="font-size:${compact?'11px':'13px'};padding:${compact?'4px 2px':'8px'}">${d}<br><span style="font-weight:400;color:var(--sub);font-size:${compact?'9px':'11px'}">${dt.getMonth()+1}/${dt.getDate()}</span></th>`;
   });
   thead+=`</tr>`;
   let tbody='';
   // 30-min slots: s=20(10:00) to s=37(18:30), total 16 rows
   for(let s=20;s<38;s++){
     const rowH=s%2===0?'border-top:1px solid var(--bd)':'border-top:1px dashed var(--bd2)';
-    let row=`<tr style="height:28px"><td class="stime" style="width:90px;min-width:90px;font-size:10px;white-space:nowrap;height:28px;${rowH}">${slotLabel(s)}</td>`;
+    let row=`<tr style="height:28px"><td class="stime" style="width:${timeW}px;min-width:${timeW}px;font-size:${compact?'8.5px':'10px'};white-space:nowrap;height:28px;${rowH}">${compact?slotLabel(s).replace(/:00/g,'').replace(/~/,'-'):slotLabel(s)}</td>`;
     DAYS.forEach(d=>{
       const on=!!gs[`${d}-${s}`];
       const bg=on?ic.bg:'';
       const bdr=s%2===0?'border-top:1px solid var(--bd)':'border-top:1px dashed var(--bd2)';
-      row+=`<td class="sslot" style="vertical-align:middle;text-align:center;background:${bg};cursor:${editing?'pointer':'default'};height:28px;${bdr}" data-ws-d="${d}" data-ws-s="${s}" onpointerdown="wsStartDrag('${d}',${s},event)" onpointerenter="wsDragOver('${d}',${s},event)">${on?`<span style="font-size:11px;color:${ic.tc};font-weight:600">${intern.name}</span>`:''}</td>`;
+      row+=`<td class="sslot" style="vertical-align:middle;text-align:center;background:${bg};cursor:${editing?'pointer':'default'};height:28px;${bdr}" data-ws-d="${d}" data-ws-s="${s}" onpointerdown="wsStartDrag('${d}',${s},event)" onpointerenter="wsDragOver('${d}',${s},event)">${on?`<span style="font-size:${compact?'9.5px':'11px'};color:${ic.tc};font-weight:600">${intern.name}</span>`:''}</td>`;
     });
     tbody+=row+`</tr>`;
   }
@@ -2585,7 +2599,7 @@ function renderWSTable(){
 
   // 헤더
   let thead=`<tr>
-    <th style="width:90px;border:1px solid var(--bd);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
+    <th style="width:${compact?'44px':'90px'};border:1px solid var(--bd);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
   DAYS.forEach((d,i)=>{
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
     const hol=getHolidayForDay(fmt(dt));
