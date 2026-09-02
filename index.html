@@ -183,7 +183,7 @@ tr:hover td{background:var(--hover)}
 .rt-btn:hover{background:var(--hover)}
 .rt-sep{width:1px;height:18px;background:var(--bd);margin:0 5px}
 .rt-color{width:26px;height:26px;padding:2px;border:1px solid var(--bd);border-radius:6px;cursor:pointer;background:#fff}
-.rich-body{outline:none;font-size:14.5px;line-height:1.75;min-height:280px}
+.rich-body{outline:none;font-size:14.5px;line-height:1.75;min-height:280px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .rich-body:empty::before{content:attr(data-ph);color:var(--sub2);pointer-events:none}
 .rich-body h1{font-size:24px;font-weight:700;margin:18px 0 8px}
 .rich-body h2{font-size:20px;font-weight:700;margin:16px 0 6px}
@@ -366,7 +366,7 @@ body.tbl-resizing *{cursor:inherit!important}
 
   /* 캘린더 */
   .cal-cells{grid-auto-rows:38px}
-  .cal-ev{font-size:10.5px;padding:1px 3px}
+  .cal-ev{font-size:11px;font-weight:500;padding:1px 4px}
   .dnum{font-size:11.5px;width:19px;height:19px}
 
   /* 휴가 바 */
@@ -411,14 +411,14 @@ body.tbl-resizing *{cursor:inherit!important}
   .board-title-input{font-size:22px}
 
   /* 캘린더 - 공휴일 글자 잘림 방지 + 일정 표시 */
-  .cal-cells{grid-auto-rows:auto;min-height:52px}
-  .cal-cell{min-height:52px;height:auto;overflow:visible;padding:2px}
-  .cal-ev{display:block;font-size:9.5px;padding:1px 3px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .dnum{font-size:11px;width:18px;height:18px}
-  .cal-dn{font-size:10px;padding:4px 1px}
+  .cal-cells{grid-auto-rows:auto;min-height:56px}
+  .cal-cell{min-height:56px;height:auto;overflow:visible;padding:2px}
+  .cal-ev{display:block;font-size:11px;font-weight:600;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dnum{font-size:11.5px;width:19px;height:19px}
+  .cal-dn{font-size:10.5px;padding:4px 1px}
   .cal-cell .dnum{margin-bottom:1px}
   /* 공휴일 텍스트 - 모바일 */
-  .cal-hol{font-size:9px;line-height:1.1;white-space:normal;word-break:break-all;overflow:hidden}
+  .cal-hol{font-size:9.5px;font-weight:500;line-height:1.2;white-space:normal;word-break:break-all;overflow:hidden}
 
   /* 캘린더 헤더: 좁은 화면에서 제목 줄 / 액션버튼 줄로 분리 */
   .cal-hd-title{font-size:13px;min-width:100%}
@@ -465,8 +465,32 @@ body.tbl-resizing *{cursor:inherit!important}
 
   /* 페이지 헤더 버튼 작게 */
   .pg-hd .btn{font-size:12px;padding:4px 8px}
+
+  /* 리치 에디터 툴바: 손가락으로 누르기 편하게 터치 영역 확대 */
+  .rt-btn{width:36px;height:36px;font-size:14px}
+  .rt-color,.rt-btn[data-color-trigger]{width:36px;height:36px}
+  .rich-toolbar{gap:4px}
+  .rt-sep{margin:0 3px}
+
+  /* 표 안 행/열 +/- 버튼도 터치하기 편하게 확대 */
+  .tbl-fab{width:26px;height:26px;font-size:15px}
+
+  /* 표 크기선택 팝업의 격자 칸도 살짝 키움 */
+  .tsp-cell{width:26px !important;height:26px !important}
+
+  /* 색상 팔레트 칩 확대 */
+  .rcp-swatch{width:30px;height:30px}
+
+  /* 프로젝트 캘린더: 2개월을 나란히 두기엔 좁으니 1열로 세로 배치 */
+  #p-editor [style*="grid-template-columns:repeat(2,1fr)"]{grid-template-columns:1fr !important}
 }
 </style>
+<style>
+/* 표 크기 조절 손잡이(마우스 드래그 전용) - 손가락 터치 환경에선 어차피 안 먹히니
+   커서 힌트만이라도 방해되지 않게 처리. 실제 드래그 조절 기능은 아직 데스크탑 전용임. */
+@media(hover:none){
+  .rich-body{cursor:text !important}
+}
 </head>
 <body>
 
@@ -667,6 +691,17 @@ function linkifyHtml(html){
   }
   Array.from(div.childNodes).forEach(walk);
   return div.innerHTML;
+}
+// 표 크기선택/색상 팔레트 같은 뜨는 팝업이 화면(특히 좁은 모바일) 오른쪽/아래로
+// 잘려나가지 않도록, 실제 렌더된 크기를 잰 뒤 위치를 다시 보정함.
+function clampPanelToViewport(panel){
+  const r=panel.getBoundingClientRect();
+  const vw=window.innerWidth,vh=window.innerHeight;
+  let left=r.left,top=r.top;
+  if(r.right>vw-8)left=Math.max(8,vw-r.width-8);
+  if(r.bottom>vh-8)top=Math.max(8,vh-r.height-8);
+  panel.style.left=left+'px';
+  panel.style.top=top+'px';
 }
 function esc(str){
   const div=document.createElement('div');
@@ -2304,7 +2339,7 @@ function buildSchedModalHtml(intern,mon,label,gs,internId,weekOff){
   const ci=internColorIdx(intern)%WS_COLORS.length;
   const ic=WS_COLORS[ci];
   const noticeColor=editing?ic.tc:'var(--sub)';
-  const noticeText=editing?'✏ 셀을 클릭하여 근무 시간을 등록/해제하세요.':'[수정] 버튼을 눌러 근무 시간을 편집하세요.';
+  const noticeText=editing?'✏ 셀을 클릭하여 근무 시간을 등록/해제하세요.':(isAdmin()?'[수정] 버튼을 눌러 근무 시간을 편집하세요.':'조회 전용입니다. 수정은 관리자만 가능해요.');
   let thead=`<tr><th style="width:90px;min-width:90px">시간</th>`;
   DAYS.forEach((d,i)=>{
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
@@ -2336,7 +2371,7 @@ function buildSchedModalHtml(intern,mon,label,gs,internId,weekOff){
   </div>
   <div class="mo-ft">
     <button class="btn btn-o btn-sm" onclick="closeModal()">닫기</button>
-    <button class="btn btn-p btn-sm" id="ws-edit-btn" onclick="wsToggleEdit()">${editBtnText}</button>
+    ${isAdmin()?`<button class="btn btn-p btn-sm" id="ws-edit-btn" onclick="wsToggleEdit()">${editBtnText}</button>`:''}
   </div>`;
 }
 let _wsDragActive=false,_wsDragMode=false;
@@ -2397,6 +2432,7 @@ function saveInternSchedGrid(internId,weekOff){
 }
 
 function wsToggleEdit(){
+  if(!isAdmin())return; // 근무스케줄 수정은 관리자만 가능 (인턴은 조회만)
   if(window._wsEditing){
     // Save and exit edit mode
     saveInternSchedGrid(window._wsIid,window._wsWoff);
@@ -2689,9 +2725,11 @@ function calcMonthlyAccumHours(internName){
 }
 // 근무스케줄 메뉴, 인턴 목록의 근무스케줄 탭 양쪽에서 똑같이 쓰는 우측 인턴 패널.
 function internListPanelHtml(activeInterns,weekOffset){
-  const noteHtml=`<div class="wsl-title" style="font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:4px">인턴</div>
-    <div style="font-size:9.5px;color:var(--sub2);margin-bottom:2px">4시간 초과 근무 시 30분 휴게</div>
-    <div style="font-size:9.5px;color:var(--sub2);margin-bottom:8px">주별 근무시간은 휴게시간을 제외한 시간입니다</div>`;
+  const noteHtml=`<div class="wsl-title" style="font-size:11px;font-weight:700;color:var(--sub);letter-spacing:.5px;margin-bottom:8px">인턴</div>
+    <div style="background:var(--hover);border-radius:8px;padding:9px 11px;margin-bottom:12px">
+      <div style="font-size:12.5px;font-weight:700;color:var(--tx);line-height:1.5">4시간 초과 근무 시 30분 휴게</div>
+      <div style="font-size:12.5px;font-weight:700;color:var(--tx);line-height:1.5">주별 근무시간은 휴게시간을 제외한 시간입니다</div>
+    </div>`;
   if(!activeInterns.length)return noteHtml+`<div style="font-size:12px;color:var(--sub)">없음</div>`;
   return noteHtml+activeInterns.map(intern=>{
     const c=WS_COLORS[internColorIdx(intern)%WS_COLORS.length];
@@ -2945,6 +2983,7 @@ function richInsertTable(anchorEl){
     grid+='</div>';
   }
   panel.innerHTML=`<div id="tsp-label" style="text-align:center;font-size:12px;color:var(--sub);margin-bottom:6px">표 크기 선택</div><div id="tsp-grid">${grid}</div>`;
+  clampPanelToViewport(panel);
 }
 function tspHover(r,c){
   document.querySelectorAll('.tsp-cell').forEach(el=>{
@@ -3194,6 +3233,7 @@ function richOpenColorPicker(anchorEl,mode,elId){
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px">${chips}</div>
     <input type="color" id="rcp-custom" value="${mode==='fg'?'#B03025':'#FFF3B0'}" style="width:100%;height:28px;border:1px solid var(--bd);border-radius:6px;cursor:pointer"
       onmousedown="event.stopPropagation()" onchange="event.stopPropagation();richPickColor('${mode}','${elId}',this.value)">`;
+  clampPanelToViewport(panel);
 }
 function richPickColor(mode,elId,hex){
   closeRichColorPicker();
@@ -3756,9 +3796,9 @@ function pOpenPost(id){
   if(!post.calEvents)post.calEvents=[];
   const editing=_pEditMode;
   el.innerHTML=`<div style="max-width:760px;margin:0 auto;padding:24px 24px 48px">
-    <div style="display:flex;align-items:center;gap:8px;margin:0 0 4px">
+    <div style="display:flex;align-items:center;gap:8px;margin:0 0 4px;flex-wrap:wrap">
       <span style="font-size:36px;cursor:${editing?'pointer':'default'}" ${editing?`onclick="pPickIcon('${id}')"`:''}>${post.icon||'🗃'}</span>
-      <input class="board-title-input" placeholder="프로젝트 이름" value="${(post.name||'').replace(/"/g,'&quot;')}" oninput="pUpdateTitle('${id}',this.value)" style="flex:1;font-size:24px" ${editing?'':'readonly'}>
+      <input class="board-title-input" placeholder="프로젝트 이름" value="${(post.name||'').replace(/"/g,'&quot;')}" oninput="pUpdateTitle('${id}',this.value)" style="flex:1;font-size:24px;min-width:120px" ${editing?'':'readonly'}>
       <button class="btn btn-o btn-sm" onclick="pToggleEditMode('${id}')">${editing?'수정 완료':'수정'}</button>
       <button class="btn btn-d btn-sm" onclick="pDeletePost('${id}')">삭제</button>
     </div>
@@ -3986,7 +4026,7 @@ function renderSettlement(){
     <button class="tab-btn${_stTab==='done'?' act':''}" onclick="stSwitchTab('done')">정산 완료</button>
   </div>
   <div class="card" style="padding:0;overflow-x:auto">
-    <table class="st-table-fixed">
+    <table class="st-table-fixed" style="min-width:640px">
       <colgroup>
         <col style="width:56px"><col style="width:26%"><col style="width:8%"><col style="width:11%">
         <col style="width:11%"><col style="width:14%"><col style="width:18%"><col style="width:40px">
