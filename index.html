@@ -80,10 +80,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 .page.active{display:block}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);padding:20px 22px}
 .ctitle{font-size:11px;font-weight:600;margin-bottom:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.08em}
-summary{list-style:none}
-summary::-webkit-details-marker{display:none}
-.emp-detail-arrow{display:inline-block;transition:transform .15s;font-size:10px}
-details[open] .emp-detail-arrow{transform:rotate(180deg)}
+.emp-detail-arrow{display:inline-block;font-size:10px}
 .btn{padding:7px 14px;border-radius:var(--r-sm);font-size:12.5px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .12s;display:inline-flex;align-items:center;gap:5px;letter-spacing:.01em}
 .btn-p{background:var(--ac);color:#fff;border-color:var(--ac)}
 .btn-p:hover{background:var(--ac-hover);border-color:var(--ac-hover)}
@@ -93,6 +90,7 @@ details[open] .emp-detail-arrow{transform:rotate(180deg)}
 .btn-d:hover{background:#FDF1F0;border-color:var(--re)}
 .btn-sm{padding:4px 10px;font-size:11.5px;border-radius:var(--r-sm)}
 .btn-g{background:transparent;border:none;color:var(--sub);padding:3px 7px;font-size:12px;border-radius:var(--r-sm)}
+.board-back-btn{display:none}
 .btn-g:hover{color:var(--tx);background:var(--hover)}
 .chip{display:inline-block;padding:3px 9px;border-radius:var(--r-sm);font-size:11px;font-weight:500;letter-spacing:.01em;white-space:nowrap}
 .ch-p{background:#EEEDFB;color:#5755C9}
@@ -126,7 +124,6 @@ tr:hover td{background:var(--hover)}
 .cal-hd-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .cal-nav{background:none;border:1px solid var(--bd);border-radius:var(--r-sm);width:29px;height:29px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--sub);transition:background .1s}
 .cal-nav:hover{background:var(--hover)}
-.cal-nav-sm{width:18px;height:18px;font-size:10px}
 .cal-grid-outer{border:1px solid var(--bd);border-radius:var(--r-md);overflow:hidden;transform:translateZ(0)}
 .cal-header-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid var(--bd);background:var(--sb)}
 .cal-dn{padding:5px;text-align:center;font-size:11.5px;font-weight:500;color:var(--sub)}
@@ -161,32 +158,16 @@ tr:hover td{background:var(--hover)}
 .board-editor-area{flex:1;overflow-y:auto;padding:40px 56px}
 .board-title-input{font-size:28px;font-weight:700;border:none;outline:none;width:100%;color:var(--tx);background:transparent;padding:4px 0;font-family:inherit}
 .board-title-input::placeholder{color:var(--sub2)}
-.bk-wrap{position:relative;display:flex;align-items:flex-start;gap:0;margin:1px 0;padding-left:32px}
-.bk-wrap:hover .bk-actions{opacity:1}
-.bk-actions{position:absolute;left:0;top:3px;display:flex;gap:1px;opacity:0;transition:opacity .12s;z-index:10}
-.bk-handle{width:15px;font-size:11px;color:var(--sub2);cursor:grab;padding:2px 1px;user-select:none;display:flex;align-items:center;justify-content:center}
-.bk-add-btn{width:15px;font-size:14px;color:var(--sub2);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
-.bk-add-btn:hover{color:var(--sub)}
-.bk-content{flex:1;outline:none;min-height:1.5em;padding:2px 4px;border-radius:3px;line-height:1.7;font-size:15px;word-break:break-word;color:var(--tx)}
-.bk-content:empty::before{content:attr(data-ph);color:var(--sub2);pointer-events:none}
-.bk-content[data-type=heading1]{font-size:26px;font-weight:700;line-height:1.25}
-.bk-content[data-type=heading2]{font-size:22px;font-weight:700;line-height:1.25}
-.bk-content[data-type=heading3]{font-size:18px;font-weight:600;line-height:1.3}
-.bk-content[data-type=quote]{border-left:2px solid var(--sub2);padding-left:14px;color:var(--sub)}
-.bk-content[data-type=code]{font-family:monospace;background:var(--hover);padding:10px 14px;border-radius:6px;font-size:13px;white-space:pre-wrap}
-.bk-divider{flex:1;height:1px;background:var(--bd);margin:10px 0;align-self:center}
 .rich-toolbar{display:flex;align-items:center;gap:2px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--bd);margin-bottom:14px;position:sticky;top:0;background:var(--card);z-index:5}
 .rt-btn{background:none;border:1px solid transparent;border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--tx);cursor:pointer;transition:background .1s;position:relative}
-.rt-btn[data-tip]:hover::after,.rt-color[data-tip]:hover::after{
+.rt-btn[data-tip]:hover::after{
   content:attr(data-tip);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);
   background:#37352F;color:#fff;font-size:11px;padding:3px 7px;border-radius:4px;white-space:nowrap;
   pointer-events:none;z-index:20;opacity:0;animation:rtTipShow .1s ease-out .15s forwards;
 }
 @keyframes rtTipShow{to{opacity:1}}
-.rt-color{position:relative}
 .rt-btn:hover{background:var(--hover)}
 .rt-sep{width:1px;height:18px;background:var(--bd);margin:0 5px}
-.rt-color{width:26px;height:26px;padding:2px;border:1px solid var(--bd);border-radius:6px;cursor:pointer;background:#fff}
 .rich-body{outline:none;font-size:14.5px;line-height:1.75;min-height:280px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .rich-body:empty::before{content:attr(data-ph);color:var(--sub2);pointer-events:none}
 .rich-body h1{font-size:24px;font-weight:700;margin:18px 0 8px}
@@ -204,7 +185,6 @@ tr:hover td{background:var(--hover)}
 .rcp-swatch:hover{transform:scale(1.12)}
 body.tbl-resizing{user-select:none}
 body.tbl-resizing *{cursor:inherit!important}
-.slash-menu{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.08);z-index:3000;min-width:200px;max-height:420px;overflow-y:auto;display:none}
 .mini-cal{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:var(--r-md);box-shadow:var(--sh-lg);z-index:3500;padding:14px;width:248px;display:none}
 .mini-cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .mini-cal-nav{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--sub);font-size:13px;cursor:pointer;border-radius:6px;padding:0;transition:background .12s,color .12s}
@@ -225,11 +205,6 @@ body.tbl-resizing *{cursor:inherit!important}
 .mini-ym-cell:hover{background:var(--hover)}
 .mini-ym-cell.sel{background:var(--ac);color:#fff;font-weight:700}
 .mini-ym-cell.td:not(.sel){color:var(--ac);font-weight:700;box-shadow:inset 0 0 0 1.5px var(--ac)}
-.slash-item{padding:6px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px}
-.slash-item:hover,.slash-item.sel{background:var(--hover)}
-.fmt-toolbar{position:fixed;background:#37352F;border-radius:5px;padding:3px 5px;display:none;gap:2px;z-index:3001;box-shadow:0 3px 10px rgba(55,53,47,.25);align-items:center}
-.fmt-btn{background:none;border:none;color:#fff;padding:3px 8px;border-radius:3px;cursor:pointer;font-size:12px;font-weight:600}
-.fmt-btn:hover{background:rgba(255,255,255,.15)}
 .board-search-box{padding:7px 10px;border-bottom:1px solid var(--bd)}
 .board-search-box input{background:var(--hover);border:1px solid var(--bd);border-radius:6px;font-size:12px;padding:5px 9px;width:100%;outline:none}
 .board-tags-row{padding:5px 10px;display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--bd)}
@@ -252,10 +227,6 @@ body.tbl-resizing *{cursor:inherit!important}
 .bcat-select{font-size:12px;border:1px solid var(--bd);border-radius:var(--r-sm);padding:2px 6px;background:#fff;color:var(--sub);margin-top:4px;width:100%}
 .btag{padding:3px 10px;border-radius:var(--r-sm);font-size:11px;background:var(--hover);color:var(--sub);cursor:pointer;border:1px solid var(--bd);transition:all .12s}
 .btag.on{background:var(--ac);color:#fff;border-color:var(--ac);opacity:.9}
-.bk-table{width:100%;border-collapse:collapse;font-size:14px;margin:2px 0}
-.bk-table td,.bk-table th{border:1px solid var(--bd);padding:6px 10px;min-width:64px;vertical-align:top;outline:none}
-.bk-table th{background:var(--hover);font-weight:600}
-.bk-table td:focus{background:#F5F4F0}
 .prj-status{padding:3px 10px;border-radius:var(--r-sm);font-size:11.5px;font-weight:500;display:inline-block}
 .ps-진행중{background:#EEF6F1;color:var(--gr)}.ps-완료{background:#F0EFFC;color:#5B5BD6}
 .ps-대기{background:#FEF5E9;color:var(--or)}.ps-보류{background:#FEF0EF;color:var(--re)}
@@ -365,6 +336,7 @@ body.tbl-resizing *{cursor:inherit!important}
 
   /* 게시판 레이아웃 */
   .board-wrap{flex-direction:column;height:auto}
+  .board-back-btn{display:inline-flex !important}
   .board-sb{width:100%;border-right:none;border-bottom:1px solid var(--bd);max-height:200px;overflow-y:auto;overflow-x:hidden}
   .board-editor-area{padding:20px 18px}
 
@@ -416,8 +388,8 @@ body.tbl-resizing *{cursor:inherit!important}
   .board-title-input{font-size:22px}
 
   /* 캘린더 - 공휴일 글자 잘림 방지 + 일정 표시 */
-  .cal-cells{grid-auto-rows:auto;min-height:56px}
-  .cal-cell{min-height:56px;height:auto;overflow:visible;padding:2px}
+  .cal-cells{grid-auto-rows:auto;min-height:28px}
+  .cal-cell{min-height:28px;height:auto;overflow:visible;padding:2px}
   .cal-ev{display:block;font-size:11px;font-weight:600;padding:1px 4px;margin-bottom:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cal-ev-type,.cal-ev-time{display:none} /* 좁은 칸에서 시간·종류가 제목을 밀어내던 문제 해결 - 제목만 보여줌 */
   .dnum{font-size:11.5px;width:19px;height:19px}
@@ -449,6 +421,7 @@ body.tbl-resizing *{cursor:inherit!important}
   /* 근무스케줄 페이지: 좁은 화면에서는 인턴목록을 시간표 아래로 쌓음 */
   #page-workschedule .card{padding:8px 4px}
   .ws-card-inner{flex-direction:column}
+  .ws-wide-box{max-width:100% !important;min-width:0 !important;width:100%}
   .ws-intern-list-mobile{
     width:100% !important;
     flex-shrink:0;
@@ -474,7 +447,7 @@ body.tbl-resizing *{cursor:inherit!important}
 
   /* 리치 에디터 툴바: 손가락으로 누르기 편하게 터치 영역 확대 */
   .rt-btn{width:36px;height:36px;font-size:14px}
-  .rt-color,.rt-btn[data-color-trigger]{width:36px;height:36px}
+  .rt-btn[data-color-trigger]{width:36px;height:36px}
   .rich-toolbar{gap:4px}
   .rt-sep{margin:0 3px}
 
@@ -715,13 +688,6 @@ function esc(str){
   div.textContent=str==null?'':String(str);
   return div.innerHTML;
 }
-// 게시판/프로젝트 에디터(contentEditable)에서 브라우저가 종종 남기는 보이지 않는 문자(zero-width space 등)를
-// 제거한 텍스트를 돌려줌. 이게 남아있으면 "블록이 비어있다"는 판정이 안 돼서 백스페이스로 삭제가 안 되거나,
-// "/"만 입력한 것으로 인식이 안 돼 슬래시 메뉴가 안 뜨는 문제가 생김.
-function _cleanEditText(s){
-  return (s||'').replace(/[\u200B\u200C\u200D\uFEFF]/g,'');
-}
-
 // 로그인 폼을 화면에 그림 (매번 완전히 새로 그려서, 아이디/비밀번호 칸에
 // 이전 로그인 시도의 값이 남아있는 일이 없도록 함)
 function renderLoginForm(){
@@ -1608,8 +1574,8 @@ function renderEmployees(){
       ${e.specialLeave!==undefined?`<div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory(${e.id},'특별휴가')"><div class="lval">${e.specialLeave}</div><div class="llabel">특별휴가 잔여</div></div>`:''}
     </div>
     <div style="margin-top:14px">
-      <details id="emp-hist-${e.id}"${openAttr}>
-        <summary class="ctitle" style="font-size:13px;cursor:pointer;list-style:none">휴가 내역 <span class="emp-detail-arrow">▾</span></summary>
+      <div class="ctitle" style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px" onclick="toggleEmpSection('emp-hist-${e.id}')">휴가 내역 <span class="emp-detail-arrow" id="emp-hist-${e.id}-arrow">${wide?'▴':'▾'}</span></div>
+      <div id="emp-hist-${e.id}" style="display:${wide?'block':'none'}">
       ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm);margin-top:8px"><table style="table-layout:fixed;width:100%;min-width:520px"><colgroup><col style="width:88px"><col style="width:110px"><col style="width:50px"><col><col style="width:100px"></colgroup><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
       ${[...e.leaveHistory].sort((a,b)=>b.date.localeCompare(a.date)).map(l=>`<tr>
         <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
@@ -1620,14 +1586,14 @@ function renderEmployees(){
         </td>
       </tr>`).join('')}
       </tbody></table></div>`:'<div style="color:var(--sub);font-size:13px;margin-top:8px">내역 없음</div>'}
-      </details>
+      </div>
     </div>
-    <details style="margin-top:14px"${openAttr}>
-      <summary class="ctitle" style="margin:0;font-size:13px;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between">
-        <span>이슈 <span class="emp-detail-arrow">▾</span></span>
-        <button class="btn btn-p btn-sm" onclick="event.preventDefault();event.stopPropagation();toggleEmpIssueForm(${e.id})">이슈 등록</button>
-      </summary>
-      <div style="margin-top:8px">
+    <div style="margin-top:14px">
+      <div class="ctitle" style="margin:0;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleEmpSection('emp-issue-${e.id}')">
+        <span style="display:flex;align-items:center;gap:4px">이슈 <span class="emp-detail-arrow" id="emp-issue-${e.id}-arrow">${wide?'▴':'▾'}</span></span>
+        <button class="btn btn-p btn-sm" onclick="event.stopPropagation();toggleEmpIssueForm(${e.id})">이슈 등록</button>
+      </div>
+      <div id="emp-issue-${e.id}" style="display:${wide?'block':'none'};margin-top:8px">
       <div id="emp-issue-form-${e.id}" style="display:none;gap:8px;margin-bottom:10px" class="fr-row">
         <div style="flex:0 0 150px"><input type="text" id="emp-issue-date-${e.id}" value="${today()}" readonly style="cursor:pointer" onclick="openMiniCal('emp-issue-date-${e.id}',this)"></div>
         <div style="flex:1"><input id="emp-issue-content-${e.id}" placeholder="이슈 내용 입력"></div>
@@ -1639,7 +1605,7 @@ function renderEmployees(){
         <button class="btn btn-d btn-sm" style="flex:0 0 auto" onclick="deleteEmpIssue(${e.id},${iss.id})">삭제</button>
       </div>`).join(''):'<div style="color:var(--sub);font-size:13px">등록된 이슈가 없습니다</div>'}
       </div>
-    </details>
+    </div>
   </div>`).join('');
   p.innerHTML=`<div class="pg-hd" style="justify-content:flex-end">
     <div style="display:flex;gap:8px">
@@ -1762,6 +1728,15 @@ function deleteEmployee(id){
   if(!confirm('직원을 삭제하시겠습니까?'))return;
   S.employees=S.employees.filter(x=>x.id!==id);
   closeModal();renderEmployees();
+}
+// 직원 카드 안의 '휴가 내역'/'이슈' 섹션 접기·펼치기 (details 대신 순수 JS로 처리 —
+// 사파리에서 details를 처음 펼칠 때 글자가 잠깐 커져 보이는 렌더링 버그를 피하기 위함)
+function toggleEmpSection(id){
+  const el=document.getElementById(id);if(!el)return;
+  const arrow=document.getElementById(id+'-arrow');
+  const opening=el.style.display==='none';
+  el.style.display=opening?'block':'none';
+  if(arrow)arrow.textContent=opening?'▴':'▾';
 }
 function toggleEmpIssueForm(empId){
   const el=document.getElementById(`emp-issue-form-${empId}`);
@@ -2096,7 +2071,7 @@ function buildInternGrid(mode){
       const h=Math.floor(s/2);
       let row=`<tr style="height:${RH}px">`;
       if(isFirst){
-        row+=`<td style="width:${compact?'44px':'90px'};min-width:${compact?'44px':'90px'};font-size:${compact?'9.5px':'11px'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+        row+=`<td style="width:${compact?'36px':'90px'};min-width:${compact?'36px':'90px'};font-size:${compact?'9.5px':'11px'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
       }
       DAYS.forEach((d,di)=>{
         const {slotMap}=dd[d];
@@ -2128,7 +2103,7 @@ function buildInternGrid(mode){
       row+=`</tr>`;tbody+=row;
     }
     return `<div style="display:flex;align-items:flex-start;gap:0">
-      <div style="overflow-x:auto;flex:0 0 auto;max-width:55%;min-width:380px">
+      <div class="ws-wide-box" style="overflow-x:auto;flex:0 0 auto;max-width:55%;min-width:380px">
         <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:10px">
           <button class="cal-nav" onclick="internGridWeek(-1)">‹</button>
           <span style="font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
@@ -2166,7 +2141,7 @@ function buildInternGrid(mode){
       return `<td style="border:1px solid var(--bd);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
     }).join('')}
   </tr>`).join('');
-  return `<div style="max-width:55%;min-width:380px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+  return `<div class="ws-wide-box" style="max-width:55%;min-width:380px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
     <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
     <thead>${theadHtml}</thead>
     <tbody>${trows}</tbody>
@@ -2493,7 +2468,7 @@ function renderWorkSchedule(){
   <div class="card" style="margin-bottom:20px">
     <div class="ws-card-inner" style="display:flex;align-items:flex-start;gap:0">
       <div style="overflow-x:auto;flex:1;min-width:0">
-        <div style="max-width:55%;min-width:340px">
+        <div class="ws-wide-box" style="max-width:55%;min-width:340px">
           <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:10px">
             <button class="cal-nav" onclick="wsWeek(-1)">‹</button>
             <h3 id="ws-label" style="font-size:14px;font-weight:600">${label}</h3>
@@ -2599,7 +2574,7 @@ function renderWSTable(){
 
   // 헤더
   let thead=`<tr>
-    <th style="width:${compact?'44px':'90px'};border:1px solid var(--bd);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
+    <th style="width:${compact?'36px':'90px'};border:1px solid var(--bd);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
   DAYS.forEach((d,i)=>{
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
     const hol=getHolidayForDay(fmt(dt));
@@ -3631,6 +3606,12 @@ function bNewPost(){
   const post={id:_bNewId(),title:'',icon:'',tags:[],createdAt:today(),updatedAt:today(),content:''};
   _bPosts.unshift(post);_bSave();_bActiveId=post.id;_bEditMode=true;bRenderSb();bOpenPost(post.id);
 }
+function bCloseView(){
+  bFlushRich(_bActiveId);
+  _bActiveId=null;
+  const el=document.getElementById('b-editor');if(el)el.innerHTML='';
+  bRenderSb();
+}
 function bDeletePost(id){
   if(!confirm('이 글을 삭제하시겠습니까?'))return;
   if(_bActiveId===id){clearTimeout(_bRichTimer);_bRichTimer=null;_bActiveId=null;}
@@ -3645,6 +3626,7 @@ function bOpenPost(id){
   const post=_bPosts.find(x=>x.id===id);if(!post)return;
   const el=document.getElementById('b-editor');if(!el)return;
   el.innerHTML=`<div style="max-width:700px;margin:0 auto">
+    <button class="btn-g board-back-btn" style="margin-bottom:10px;font-size:12px" onclick="bCloseView()">← 목록으로</button>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
       <span style="font-size:38px;cursor:${_bEditMode?'pointer':'default'};line-height:1" ${_bEditMode?`onclick="bPickIcon('${id}')"`:''}>${post.icon||'📄'}</span>
       <input class="board-title-input" value="${(post.title||'').replace(/"/g,'&quot;')}" placeholder="제목 없음" oninput="bUpdateTitle('${id}',this.value)" ${_bEditMode?'':'readonly'}>
@@ -3792,6 +3774,12 @@ function pNewPost(){
   _pPosts.unshift(post);_pSave();_pActiveId=post.id;_pEditMode=true;renderProjects();pOpenPost(post.id);
 }
 
+function pCloseView(){
+  pFlushRich(_pActiveId);
+  _pActiveId=null;
+  const el=document.getElementById('p-editor');if(el)el.innerHTML='';
+  pRenderSb();
+}
 function pDeletePost(id){
   if(!confirm('이 프로젝트를 삭제하시겠습니까?'))return;
   if(_pActiveId===id){clearTimeout(_pRichTimer);_pRichTimer=null;_pActiveId=null;}
@@ -3811,6 +3799,7 @@ function pOpenPost(id){
   if(!post.calEvents)post.calEvents=[];
   const editing=_pEditMode;
   el.innerHTML=`<div style="max-width:760px;margin:0 auto;padding:24px 24px 48px">
+    <button class="btn-g board-back-btn" style="margin-bottom:10px;font-size:12px" onclick="pCloseView()">← 목록으로</button>
     <div style="display:flex;align-items:center;gap:8px;margin:0 0 4px;flex-wrap:wrap">
       <span style="font-size:36px;cursor:${editing?'pointer':'default'}" ${editing?`onclick="pPickIcon('${id}')"`:''}>${post.icon||'🗃'}</span>
       <input class="board-title-input" placeholder="프로젝트 이름" value="${(post.name||'').replace(/"/g,'&quot;')}" oninput="pUpdateTitle('${id}',this.value)" style="flex:1;font-size:24px;min-width:120px" ${editing?'':'readonly'}>
