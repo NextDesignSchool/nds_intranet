@@ -1236,7 +1236,7 @@ function renderSchedulePage(){
       </div>
     </div>
     <div style="max-height:420px;overflow-y:auto;overflow-x:auto"><table style="table-layout:fixed;width:100%;min-width:600px">
-    <colgroup><col style="width:12%"><col style="width:8%"><col style="width:36%"><col style="width:11%"><col style="width:20%"><col style="width:13%"></colgroup>
+    <colgroup><col style="width:18%"><col style="width:8%"><col style="width:24%"><col style="width:11%"><col style="width:22%"><col style="width:17%"></colgroup>
     <thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">날짜</th><th style="background:var(--card)">시간</th><th style="background:var(--card)">제목</th><th style="background:var(--card)">종류</th><th style="background:var(--card)">내용</th><th style="background:var(--card)">관리</th></tr></thead>
     <tbody id="sched-table-body"></tbody></table></div>
   </div>`;
@@ -1258,8 +1258,8 @@ function renderScheduleTable(){
     <td style="white-space:normal;word-break:break-word">${esc(e.title)}</td>
     <td><span class="chip ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}">${esc(e.type||'미정')}</span></td>
     <td style="white-space:normal;word-break:break-word;overflow:hidden;text-overflow:ellipsis">${esc(e.content)||'-'}</td>
-    <td><button class="btn btn-o btn-sm" onclick="openEditEvent(${e.id})">수정</button>
-    <button class="btn btn-d btn-sm" style="margin-left:4px" onclick="deleteEvent(${e.id})">삭제</button></td>
+    <td style="white-space:nowrap;padding:6px 4px"><button class="btn btn-o btn-sm" style="font-size:10.5px;padding:3px 6px" onclick="openEditEvent(${e.id})">수정</button>
+    <button class="btn btn-d btn-sm" style="font-size:10.5px;padding:3px 6px;margin-left:3px" onclick="deleteEvent(${e.id})">삭제</button></td>
   </tr>`).join('');
 }
 
