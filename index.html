@@ -73,7 +73,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 .lout-btn:hover{background:var(--hover);color:var(--re);border-color:var(--re)}
 #main{margin-left:var(--sw);min-height:100vh;display:flex;flex-direction:column}
 #topbar{background:transparent;border-bottom:none;padding:20px 32px 8px;display:flex;align-items:center;justify-content:space-between}
-#topbar h2{font-size:20px;font-weight:700;color:var(--tx);letter-spacing:-0.01em}
+#topbar h2{font-size:20px;font-weight:700;color:var(--tx);letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 #topbar .tdate{font-size:12.5px;color:var(--sub)}
 #content{padding:20px 32px 32px;flex:1}
 .page{display:none}
@@ -254,6 +254,7 @@ body.tbl-resizing *{cursor:inherit!important}
 .bi-title{font-size:13.5px;font-weight:500;margin-bottom:3px}
 .bi-meta{font-size:12px;color:var(--sub)}
 .emp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.emp-grid>.card{min-width:0} /* 카드 안 휴가내역 표(최소 520px)가 카드 자체를 넓히지 않도록 함 */
 /* 인턴 목록: PC는 테이블, 모바일은 카드뷰 (미디어쿼리에서 전환) */
 .intern-card-view{display:none}
 .intern-card{background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);padding:14px;margin-bottom:10px}
@@ -309,7 +310,7 @@ body.tbl-resizing *{cursor:inherit!important}
   #sb{transform:translateX(-100%);transition:transform .25s}
   #sb.open{transform:translateX(0)}
   #main{margin-left:0}
-  #topbar{padding-left:52px;padding-right:16px}
+  #topbar{padding-left:64px;padding-right:16px}
   #content{padding:16px 14px}
 
   /* 카드 / 페이지 헤더 */
@@ -403,9 +404,10 @@ body.tbl-resizing *{cursor:inherit!important}
   /* 공휴일 텍스트 - 모바일 */
   .cal-hol{font-size:9.5px;font-weight:500;line-height:1.2;white-space:normal;word-break:break-all;overflow:hidden}
 
-  /* 캘린더 헤더: 좁은 화면에서 제목 줄 / 액션버튼 줄로 분리 */
-  .cal-hd-title{font-size:13px;min-width:100%}
-  .cal-hd-actions{width:100%;justify-content:space-between}
+  /* 캘린더 헤더: 좁은 화면에서도 날짜 이동 버튼과 일정 추가 버튼이 같은 줄에 있도록 함 */
+  .cal-hd-title{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cal-hd{flex-wrap:nowrap;gap:4px}
+  .cal-hd-actions{flex-shrink:0}
 
   /* 폼 여백 */
   .fr{margin-bottom:10px}
@@ -445,7 +447,7 @@ body.tbl-resizing *{cursor:inherit!important}
   }
 
   /* 사이드바 닫힌 상태에서 오버레이 */
-  #topbar{padding-left:48px}
+  #topbar{padding-left:60px}
 
   /* 페이지 헤더 버튼 작게 */
   .pg-hd .btn{font-size:12px;padding:4px 8px}
@@ -499,7 +501,10 @@ body.tbl-resizing *{cursor:inherit!important}
   </aside>
   <div id="main">
     <div id="topbar">
-      <h2 id="pg-title">홈 대시보드</h2>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <h2 id="pg-title">홈 대시보드</h2>
+        <span id="topbar-actions"></span>
+      </div>
       <span class="tdate" id="top-date"></span>
     </div>
     <div id="content">
@@ -942,6 +947,7 @@ function navigate(pg){
   renderPage(pg);
 }
 function renderPage(pg){
+  const ta=document.getElementById('topbar-actions');if(ta)ta.innerHTML=''; // 페이지마다 다른 버튼이 남아있지 않도록 매번 비움
   if(pg==='home')renderHome();
   else if(pg==='schedule')renderSchedulePage();
   else if(pg==='employees')renderEmployees();
@@ -1667,12 +1673,9 @@ function renderEmployees(){
       </div>
     </div>
   </div>`).join('');
-  p.innerHTML=`<div class="pg-hd" style="justify-content:flex-end">
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-p" onclick="openAddEmp()">+ 직원 추가</button>
-    </div>
-  </div>
-  <div class="emp-grid">${cards}</div>`;
+  const ta=document.getElementById('topbar-actions');
+  if(ta)ta.innerHTML=`<button class="btn btn-p btn-sm" onclick="openAddEmp()">+ 직원 추가</button>`;
+  p.innerHTML=`<div class="emp-grid">${cards}</div>`;
 }
 function openLeaveAdjust(empId){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
