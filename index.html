@@ -501,11 +501,11 @@ body.tbl-resizing *{cursor:inherit!important}
   </aside>
   <div id="main">
     <div id="topbar">
-      <div style="display:flex;align-items:center;gap:10px;min-width:0">
-        <h2 id="pg-title">홈 대시보드</h2>
+      <h2 id="pg-title">홈 대시보드</h2>
+      <div style="display:flex;align-items:center;gap:12px">
         <span id="topbar-actions"></span>
+        <span class="tdate" id="top-date"></span>
       </div>
-      <span class="tdate" id="top-date"></span>
     </div>
     <div id="content">
       <div class="page" id="page-home"></div>
@@ -586,6 +586,15 @@ const S={
   navLabels:{},
   holidayCache:{},
   holidayFallback:false,
+  // 근무일지 '필수 업무' 체크리스트 항목(오픈/마감). 관리자가 추가·수정·삭제할 수 있음.
+  openItems:[
+    {id:'oi1',text:'B1 음악, 스크린 전원 켜기'},{id:'oi2',text:'정수기 물받이 조립'},
+    {id:'oi3',text:'바닥 큰 먼지 쓸기'},{id:'oi4',text:'1층 오픈'}
+  ],
+  closeItems:[
+    {id:'ci1',text:'정수기 물받이, 캡슐홀더 세척'},{id:'ci2',text:'정수기 닦기'},{id:'ci3',text:'쓰레기통 비우기'},
+    {id:'ci4',text:'음향기기, 프로젝터 전원 끄기'},{id:'ci5',text:'1층 마감 및 B1 뒷문 잠그기'},{id:'ci6',text:'B1 냉난방, 환풍기 전원 끄기'}
+  ],
   events:[
     {id:1,title:'팀 워크샵',start:'2026-05-15',end:'2026-05-16',type:'행사',content:'팀 빌딩 워크샵',time:false},
     {id:2,title:'디자인 미팅',start:'2026-05-20',end:'2026-05-20',type:'미팅',content:'월간 디자인 리뷰',time:false},
@@ -2004,10 +2013,9 @@ function renderInterns(){
     <button class="btn btn-o btn-sm" onclick="openInternWeekSched(${i.id})">스케줄</button>
     <button class="btn btn-sm" style="background:#FEF5E9;border:1px solid #E8C49A;color:#92511A" onclick="openEndIntern(${i.id})">${i.endDate?'종료: '+i.endDate:'근무 종료'}</button>
     <button class="btn btn-d btn-sm" onclick="deleteIntern(${i.id})">삭제</button>`;
-  p.innerHTML=`<div class="pg-hd" style="justify-content:flex-end">
-    <button class="btn btn-p" onclick="openAddIntern()">+ 인턴 추가</button>
-  </div>
-  <div class="intern-table-view" style="overflow-x:auto"><table>
+  const ta=document.getElementById('topbar-actions');
+  if(ta)ta.innerHTML=`<button class="btn btn-p btn-sm" onclick="openAddIntern()">+ 인턴 추가</button>`;
+  p.innerHTML=`<div class="intern-table-view" style="overflow-x:auto"><table>
     <thead><tr><th>이름</th><th>생년월일</th><th>학기</th><th>근무형태</th><th>근무일</th><th>월누적시간</th><th>관리</th></tr></thead>
     <tbody>${rows.map(({i,days,cc})=>`<tr>
         <td><a href="#" style="color:var(--tx);font-weight:600;white-space:nowrap" onclick="event.preventDefault();openInternDetail(${i.id})">${i.name}</a></td>
@@ -2864,10 +2872,9 @@ function renderNotice(){
     <div class="bi-title">${n.pinned?'📌 ':''}${esc(n.title)}</div>
     <div class="bi-meta">${esc(n.author)} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
   </div>`).join('');
-  p.innerHTML=`<div class="pg-hd" style="justify-content:flex-end">
-    ${isAdmin()?`<button class="btn btn-p" onclick="openWriteNotice()">+ 작성</button>`:''}
-  </div>
-  <div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 공지가 없습니다.</div>'}</div>`;
+  const ta=document.getElementById('topbar-actions');
+  if(ta)ta.innerHTML=isAdmin()?`<button class="btn btn-p btn-sm" onclick="openWriteNotice()">+ 작성</button>`:'';
+  p.innerHTML=`<div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 공지가 없습니다.</div>'}</div>`;
 }
 function openWriteNotice(id){
   const n=id?S.notices.find(x=>x.id===id):null;
@@ -3396,34 +3403,45 @@ function renderWorkLog(){
     <div class="bi-title">${esc(l.title)} ${l.tasks.close?'<span class="chip ch-g" style="font-size:10px">마감완료</span>':''}</div>
     <div class="bi-meta">${esc(l.author)} · ${fmtDisp(l.date)} · 댓글 ${l.comments.length}</div>
   </div>`).join('');
-  p.innerHTML=`<div class="pg-hd" style="justify-content:flex-end">
-    <button class="btn btn-p" onclick="openWriteLog()">+ 작성</button>
-  </div>
-  <div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 근무일지가 없습니다.</div>'}</div>`;
+  const ta=document.getElementById('topbar-actions');
+  if(ta)ta.innerHTML=`<button class="btn btn-p btn-sm" onclick="openWriteLog()">+ 작성</button>`;
+  p.innerHTML=`<div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 근무일지가 없습니다.</div>'}</div>`;
 }
-const OPEN_ITEMS=['B1 음악, 스크린 전원 켜기','정수기 물받이 조립','바닥 큰 먼지 쓸기','1층 오픈'];
-const CLOSE_ITEMS=['정수기 물받이, 캡슐홀더 세척','정수기 닦기','쓰레기통 비우기','음향기기, 프로젝터 전원 끄기','1층 마감 및 B1 뒷문 잠그기','B1 냉난방, 환풍기 전원 끄기'];
+// 체크된 상태(checked)는 신버전(id를 key로 하는 객체) 또는 구버전(항목 순서를 그대로 따르는 배열)
+// 둘 다 지원함 - 예전에 저장된 근무일지는 배열 형태라서, 항목이 추가/삭제/순서변경 되어도 안 깨지게 함.
+function isTaskItemChecked(checked,item,idx){
+  if(!checked)return false;
+  if(Array.isArray(checked))return !!checked[idx];
+  return !!checked[item.id];
+}
 function renderTaskSubItems(prefix,items,checked){
   return items.map((item,i)=>`<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;cursor:pointer">
-    <input type="checkbox" id="${prefix}-${i}" style="width:auto;accent-color:var(--ac)" ${checked&&checked[i]?'checked':''}>${item}</label>`).join('');
+    <input type="checkbox" id="${prefix}-${item.id}" style="width:auto;accent-color:var(--ac)" ${isTaskItemChecked(checked,item,i)?'checked':''}>${esc(item.text)}</label>`).join('');
 }
 function openWriteLog(id){
   const l=id?S.workLogs.find(x=>x.id===id):null;
   const now=new Date();
   const defTitle=l?l.title:`[${S.user.name}] ${now.getMonth()+1}월 ${now.getDate()}일`;
-  const oi=l&&l.tasks.openItems||[];
-  const ci=l&&l.tasks.closeItems||[];
+  const oi=l&&l.tasks.openItems||null;
+  const ci=l&&l.tasks.closeItems||null;
+  const manageBtn=type=>isAdmin()?`<button type="button" class="btn-g" style="font-size:11px" onclick="window._wlReturnId=${id||'null'};openManageChecklist('${type}')">관리</button>`:'';
   showModal(`<div class="mo-hd"><h3>${l?'근무일지 수정':'근무일지 작성'}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>제목</label><input id="wl-title" value="${esc(defTitle).replace(/"/g,'&quot;')}"></div>
     <div class="fr">
       <label style="font-weight:600;margin-bottom:8px;display:block">필수 업무</label>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
-        <input type="checkbox" id="wl-open" style="width:auto;accent-color:var(--ac)" ${l&&l.tasks.open?'checked':''} onchange="toggleWlSub('open')"> 오픈</label>
-      <div id="wl-open-sub" style="display:${l&&l.tasks.open?'block':'none'};background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0 8px">${renderTaskSubItems('wl-oi',OPEN_ITEMS,oi)}</div>
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
-        <input type="checkbox" id="wl-close" style="width:auto;accent-color:var(--ac)" ${l&&l.tasks.close?'checked':''} onchange="toggleWlSub('close')"> 마감</label>
-      <div id="wl-close-sub" style="display:${l&&l.tasks.close?'block':'none'};background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0">${renderTaskSubItems('wl-ci',CLOSE_ITEMS,ci)}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="wl-open" style="width:auto;accent-color:var(--ac)" ${l&&l.tasks.open?'checked':''} onchange="toggleWlSub('open')"> 오픈</label>
+        ${manageBtn('open')}
+      </div>
+      <div id="wl-open-sub" style="display:${l&&l.tasks.open?'block':'none'};background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0 8px">${renderTaskSubItems('wl-oi',S.openItems,oi)}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="wl-close" style="width:auto;accent-color:var(--ac)" ${l&&l.tasks.close?'checked':''} onchange="toggleWlSub('close')"> 마감</label>
+        ${manageBtn('close')}
+      </div>
+      <div id="wl-close-sub" style="display:${l&&l.tasks.close?'block':'none'};background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0">${renderTaskSubItems('wl-ci',S.closeItems,ci)}</div>
     </div>
     <div class="fr"><label>상세내용</label><textarea id="wl-content" rows="5" placeholder="업무 내용 입력">${l?esc(l.content):''}</textarea></div>
   </div>
@@ -3434,13 +3452,56 @@ function toggleWlSub(type){
   const chk=document.getElementById('wl-'+type);
   document.getElementById('wl-'+type+'-sub').style.display=chk.checked?'block':'none';
 }
+// 근무일지 '필수 업무' 체크리스트 항목 관리(추가/수정/삭제) - 관리자 전용.
+// 인턴은 이 화면 자체에 접근할 방법이 없음(버튼이 관리자에게만 노출됨).
+function openManageChecklist(type){
+  if(!isAdmin())return; // 이중 방어: 버튼이 안 보여도 함수 자체도 막아둠
+  const label=type==='open'?'오픈':'마감';
+  const listKey=type==='open'?'openItems':'closeItems';
+  const rows=S[listKey].map(it=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--bd)">
+    <input type="text" value="${esc(it.text).replace(/"/g,'&quot;')}" style="flex:1;font-size:13px;padding:5px 8px" onchange="editChecklistItem('${type}','${it.id}',this.value)">
+    <button class="btn btn-d btn-sm" onclick="deleteChecklistItem('${type}','${it.id}')">삭제</button>
+  </div>`).join('')||'<div style="color:var(--sub);font-size:13px;padding:6px 0">등록된 항목이 없습니다</div>';
+  showModal(`<div class="mo-hd"><h3>${label} 체크리스트 관리</h3><button class="mo-cl" onclick="closeModal();openWriteLog(${window._wlReturnId||'null'})">×</button></div>
+  <div class="mo-bd">
+    <div id="checklist-manage-list">${rows}</div>
+    <div class="fr-row" style="margin-top:12px;gap:8px">
+      <input type="text" id="new-checklist-item" placeholder="새 항목 입력" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addChecklistItem('${type}')}">
+      <button class="btn btn-p btn-sm" style="flex:0 0 auto" onclick="addChecklistItem('${type}')">추가</button>
+    </div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal();openWriteLog(${window._wlReturnId||'null'})">닫기</button></div>`);
+}
+function addChecklistItem(type){
+  const input=document.getElementById('new-checklist-item');
+  const text=input.value.trim();if(!text)return;
+  const listKey=type==='open'?'openItems':'closeItems';
+  S[listKey].push({id:'c'+newId(),text});
+  saveAppData().catch(()=>{});
+  openManageChecklist(type); // 목록에 새 항목이 바로 보이도록 다시 그림
+}
+function editChecklistItem(type,id,value){
+  const listKey=type==='open'?'openItems':'closeItems';
+  const it=S[listKey].find(x=>x.id===id);if(!it)return;
+  const v=value.trim();
+  if(!v){alert('빈 내용으로는 저장할 수 없어요.');openManageChecklist(type);return;}
+  it.text=v;
+  saveAppData().catch(()=>{});
+}
+function deleteChecklistItem(type,id){
+  if(!confirm('이 항목을 삭제하시겠습니까? (이미 작성된 근무일지의 체크 표시는 더 이상 안 보이게 될 수 있어요)'))return;
+  const listKey=type==='open'?'openItems':'closeItems';
+  S[listKey]=S[listKey].filter(x=>x.id!==id);
+  saveAppData().catch(()=>{});
+  openManageChecklist(type);
+}
 function saveWorkLog(id){
   const title=document.getElementById('wl-title').value.trim();
   const content=document.getElementById('wl-content').value.trim();
   const openOn=document.getElementById('wl-open').checked;
   const closeOn=document.getElementById('wl-close').checked;
-  const openItems=OPEN_ITEMS.map((_,i)=>document.getElementById('wl-oi-'+i)?.checked||false);
-  const closeItems=CLOSE_ITEMS.map((_,i)=>document.getElementById('wl-ci-'+i)?.checked||false);
+  const openItems={};S.openItems.forEach(it=>{openItems[it.id]=document.getElementById('wl-oi-'+it.id)?.checked||false});
+  const closeItems={};S.closeItems.forEach(it=>{closeItems[it.id]=document.getElementById('wl-ci-'+it.id)?.checked||false});
   const tasks={open:openOn,openItems,close:closeOn,closeItems};
   if(!title){alert('제목을 입력해주세요');return}
   if(id){const l=S.workLogs.find(x=>x.id===id);Object.assign(l,{title,content,tasks})}
@@ -3452,8 +3513,8 @@ function openWorkLogDetail(id){
   const canEdit=isAdmin()||(l.author===S.user.name);
   const canDelete=isAdmin();
   const cmts=l.comments.map(c=>renderCmt(c,'worklog',id)).join('');
-  const openSubHtml=l.tasks.open&&l.tasks.openItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0 8px">${OPEN_ITEMS.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${l.tasks.openItems[i]?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.openItems[i]?'checked':''} disabled>${item}</div>`).join('')}</div>`:'';
-  const closeSubHtml=l.tasks.close&&l.tasks.closeItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0">${CLOSE_ITEMS.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${l.tasks.closeItems[i]?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${l.tasks.closeItems[i]?'checked':''} disabled>${item}</div>`).join('')}</div>`:'';
+  const openSubHtml=l.tasks.open&&l.tasks.openItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0 8px">${S.openItems.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${isTaskItemChecked(l.tasks.openItems,item,i)?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${isTaskItemChecked(l.tasks.openItems,item,i)?'checked':''} disabled>${esc(item.text)}</div>`).join('')}</div>`:'';
+  const closeSubHtml=l.tasks.close&&l.tasks.closeItems?`<div style="background:var(--hover);border-radius:6px;padding:4px 0;margin:4px 0">${S.closeItems.map((item,i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0 4px 20px;${isTaskItemChecked(l.tasks.closeItems,item,i)?'':'opacity:.4'}"><input type="checkbox" style="width:auto;accent-color:var(--ac)" ${isTaskItemChecked(l.tasks.closeItems,item,i)?'checked':''} disabled>${esc(item.text)}</div>`).join('')}</div>`:'';
   showModal(`<div class="mo-hd"><h3>${esc(l.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${esc(l.author)} · ${fmtDisp(l.date)}</div>
@@ -4172,7 +4233,7 @@ function closeModal(){
 function modalBgClick(e){if(e.target===document.getElementById('modal'))closeModal()}
 
 // ─── DATA PERSISTENCE (Firestore) ──────────────────
-const PERSIST_KEYS=['events','etypes','etypeColors','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','navLabels','navOrder','nid','settlements'];
+const PERSIST_KEYS=['events','etypes','etypeColors','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','navLabels','navOrder','nid','settlements','openItems','closeItems'];
 
 // Firestore에 저장
 async function saveAppData(){
