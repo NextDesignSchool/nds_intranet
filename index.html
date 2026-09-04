@@ -1016,7 +1016,7 @@ async function fetchHolidays(y,m){
       S.holidayFallback=true;
     }
   }
-  cleanupHolidaySchedules(ym); // 방금 로드된 공휴일 데이터를 기준으로 기존 근무스케줄 중 공휴일에 해당하는 슬롯을 자동 삭제
+  // 공휴일 데이터는 화면 표시(휴무 처리)에만 사용하고, 등록된 근무스케줄 데이터 자체는 건드리지 않음
   if(S.cal.getFullYear()===y&&S.cal.getMonth()+1===m){
     if(S.page==='home')renderHome();
     else if(S.page==='schedule')renderSchedulePage();
@@ -1038,52 +1038,6 @@ function getHolidayForDay(dateStr){
   if(cache==null)return HOLIDAYS_FALLBACK[dateStr]||null;
   return cache[dateStr]||null;
 }
-// 공휴일 데이터가 새로 로드될 때, 이미 등록돼 있던 인턴 근무스케줄 중
-// 공휴일에 해당하는 슬롯을 실제로 삭제해서 "근무 없음" 상태로 만듦.
-function cleanupHolidaySchedules(ym){
-  const DAYS=['월','화','수','목','금'];
-  let changed=false;
-  Object.keys(S.internSchedHistory).forEach(name=>{
-    const list=S.internSchedHistory[name]||[];
-    list.forEach(entry=>{
-      const weekKey=entry.weekKey||legacyFromWeekToKey(entry.fromWeek);
-      if(!weekKey||weekKey==='0000-00-00')return;
-      const[wy,wm,wd]=weekKey.split('-').map(Number);
-      const mon=new Date(wy,wm-1,wd);
-      const before=entry.slots.length;
-      entry.slots=entry.slots.filter(sl=>{
-        const idx=DAYS.indexOf(sl.day);
-        if(idx<0)return true;
-        const dt=new Date(mon);dt.setDate(mon.getDate()+idx);
-        const ds=fmt(dt);
-        if(ds.slice(0,7)!==ym)return true; // 이번에 로드된 달과 무관한 슬롯은 건드리지 않음
-        return !getHolidayForDay(ds); // 공휴일이면 제거
-      });
-      if(entry.slots.length!==before)changed=true;
-    });
-  });
-  if(!changed)return;
-  saveAppData().catch(()=>{});
-  if(S.page==='workschedule')renderWSTable();
-  if(S.page==='interns'&&_internActiveTab===2){
-    const panel2=document.getElementById('intern-panel2');
-    if(panel2)panel2.innerHTML=buildInternGrid('work');
-  }
-  if(document.getElementById('ws-edit-table')&&window._wsIid!==undefined){
-    window._wsGs=window._wsGs||{};
-    // 열려 있는 개별 근무스케줄 모달도 최신 상태로 다시 그림
-    const intern=S.interns.find(x=>x.id===window._wsIid);
-    if(intern){
-      const sched=getSchedForWeek(intern.name,window._wsWoff);
-      const gs={};
-      sched.forEach(s=>{const si=timeToSlot(s.start),ei=timeToSlot(s.end);for(let i=si;i<ei;i++)gs[`${s.day}-${i}`]=true;});
-      window._wsGs=gs;
-      const modalBody=document.querySelector('.mo-bd');
-      if(modalBody)openInternWeekSched(window._wsIid,window._wsWoff);
-    }
-  }
-}
-
 // ─── CALENDAR UTILS ───────────────────────────────
 function getDaysInMonth(y,m){return new Date(y,m+1,0).getDate()}
 function renderCalendar(container,month,onAddEvent){
@@ -2193,13 +2147,16 @@ function buildInternGrid(mode){
         fetchHolidays(yy,mm);
       }
     });
+    const holidayByDay={};
     let workTheadHtml=`<tr style="height:36px">
       <th style="background:var(--hover);font-size:11px;font-weight:500;border:1px solid var(--sub2);padding:0;text-align:center;color:var(--sub)"></th>
       ${DAYS.map((d,i)=>{
         const dt=new Date(mon);dt.setDate(mon.getDate()+i);
         const hol=getHolidayForDay(fmt(dt));
-        return `<th style="background:var(--hover);font-size:11px;font-weight:600;border:1px solid var(--sub2);padding:0;text-align:center"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:36px;padding:3px 2px;line-height:1.3">${d} ${dt.getMonth()+1}/${dt.getDate()}<br><span style="font-size:9px;font-weight:500;color:var(--re)">${hol||'\u00A0'}</span></div></th>`;
+        holidayByDay[d]=hol;
+        return `<th style="background:var(--hover);font-size:11px;font-weight:600;border:1px solid var(--sub2);padding:0;text-align:center;vertical-align:middle !important"><div style="display:flex !important;flex-direction:column !important;align-items:center !important;justify-content:center !important;height:100% !important;min-height:36px;box-sizing:border-box;padding:3px 2px;line-height:1.3">${d} ${dt.getMonth()+1}/${dt.getDate()}<br><span style="font-size:9px;font-weight:500;color:var(--re)">${hol||'\u00A0'}</span></div></th>`;
       }).join('')}
+      <th style="background:var(--hover);font-size:11px;font-weight:500;border:1px solid var(--sub2);padding:0;text-align:center;color:var(--sub)"></th>
     </tr>`;
     let tbody='';
     for(let s=20;s<38;s++){
@@ -2215,6 +2172,12 @@ function buildInternGrid(mode){
         const prev=slotMap[s-1]||{};
         const next=slotMap[s+1]||{};
         const bdrL=di>0?'border-left:1px solid var(--bd3);':'';
+        // 공휴일인 요일은 등록된 근무 데이터와 상관없이 화면에는 "휴무"로만 표시 (데이터는 보존)
+        if(holidayByDay[d]){
+          const label=s===28?`<span style="color:var(--sub);font-size:${compact?'9px':'10.5px'};font-weight:600">휴무</span>`:'';
+          row+=`<td style="${bdrL}border:1px solid var(--bd3);height:${RH}px;padding:0;background:var(--hover);text-align:center;vertical-align:middle">${label}</td>`;
+          return;
+        }
         if(!Object.keys(cur).length){
           row+=`<td style="${bdrL}border:1px solid var(--bd3);height:${RH}px;padding:0;background:#fff"></td>`;
           return;
@@ -2236,6 +2199,9 @@ function buildInternGrid(mode){
         }
         row+=`<td style="${bdrL}border:1px solid var(--bd3);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
       });
+      if(isFirst){
+        row+=`<td style="width:${compact?'24px':'90px'};min-width:${compact?'24px':'90px'};font-size:${compact?'8px':'11px'};line-height:${compact?'1.3':'normal'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--sub2);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+      }
       row+=`</tr>`;tbody+=row;
     }
     return `<div style="display:flex;align-items:flex-start;gap:0">
@@ -2246,7 +2212,7 @@ function buildInternGrid(mode){
           <button class="cal-nav" onclick="internGridWeek(1)">›</button>
         </div>
         <div style="overflow-x:auto"><table class="st-table" style="width:100%;border-collapse:collapse;table-layout:fixed">
-          <colgroup><col style="width:${compact?'24px':'90px'}">${DAYS.map(()=>`<col>`).join('')}</colgroup>
+          <colgroup><col style="width:${compact?'24px':'90px'}">${DAYS.map(()=>`<col>`).join('')}<col style="width:${compact?'24px':'90px'}"></colgroup>
           <thead>${workTheadHtml}</thead><tbody>${tbody}</tbody>
         </table></div>
       </div>
@@ -2718,14 +2684,18 @@ function renderWSTable(){
   });
 
   // 헤더
+  // 이 주에 걸친 요일별 공휴일 여부를 미리 계산해둠 (헤더 표시 + 아래 본문의 "휴무" 처리에 함께 사용)
+  const holidayByDay={};
   let thead=`<tr>
     <th style="width:${compact?'24px':'90px'};border:1px solid var(--sub2);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
   DAYS.forEach((d,i)=>{
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
     const hol=getHolidayForDay(fmt(dt));
+    holidayByDay[d]=hol;
     const dateLabel=compact?`${d}<br>${dt.getMonth()+1}/${dt.getDate()}`:`${d} ${dt.getMonth()+1}/${dt.getDate()}`;
-    thead+=`<th style="border:1px solid var(--sub2);background:var(--sb);padding:0;font-size:${compact?'10.5px':'12px'};color:var(--sub);vertical-align:middle"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:${compact?'34px':'40px'};box-sizing:border-box;padding:${compact?'4px 2px':'6px 4px'};line-height:1.3">${dateLabel}<br><span style="font-size:${compact?'8.5px':'10px'};color:var(--re)">${hol||'\u00A0'}</span></div></th>`;
+    thead+=`<th style="border:1px solid var(--sub2);background:var(--sb);padding:0;font-size:${compact?'10.5px':'12px'};color:var(--sub);vertical-align:middle !important"><div style="display:flex !important;flex-direction:column !important;align-items:center !important;justify-content:center !important;height:100% !important;min-height:${compact?'34px':'40px'};box-sizing:border-box;padding:${compact?'4px 2px':'6px 4px'};line-height:1.3">${dateLabel}<br><span style="font-size:${compact?'8.5px':'10px'};color:var(--re)">${hol||'\u00A0'}</span></div></th>`;
   });
+  thead+=`<th style="width:${compact?'24px':'90px'};border:1px solid var(--sub2);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
   thead+=`</tr>`;
 
   // rowspan 방식: 각 열별로 어떤 슬롯이 이미 채워졌는지 추적
@@ -2746,6 +2716,16 @@ function renderWSTable(){
 
     DAYS.forEach(d=>{
       const {slotMap}=dd[d];
+
+      // 공휴일인 요일은 등록된 근무 데이터와 상관없이 화면에는 "휴무"로만 표시
+      // (데이터 자체는 지우지 않으므로, 공휴일 지정이 바뀌면 다시 원래대로 보임)
+      if(holidayByDay[d]){
+        if(s===20){
+          for(let ss=21;ss<38;ss++)filled[d][ss]=true; // 이 칸이 전체 열을 rowspan으로 덮으니 이후 행은 건너뜀
+          row+=`<td rowspan="18" style="border:1px solid var(--bd3);background:var(--hover);color:var(--sub);font-size:${compact?'10px':'12px'};font-weight:600;text-align:center;vertical-align:middle">휴무</td>`;
+        }
+        return;
+      }
 
       // 이미 위 rowspan이 커버하는 슬롯이면 td 생성 안 함
       if(filled[d][s]){return;}
@@ -2803,12 +2783,17 @@ function renderWSTable(){
       row+=`<td style="border:1px solid var(--bd3);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
     });
 
+    // 오른쪽 시간 열: 왼쪽과 동일하게 1시간 단위로 rowspan=2
+    if(isFirst){
+      row+=`<td style="border:1px solid var(--sub2);background:var(--sb);font-size:${compact?'8px':'10.5px'};line-height:${compact?'1.3':'normal'};color:var(--sub);text-align:center;white-space:nowrap;vertical-align:middle;padding:0 2px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+    }
+
     row+=`</tr>`;
     tbody+=row;
   }
 
   el.innerHTML=`<table class="st-table" style="width:100%;table-layout:fixed;border-collapse:collapse">
-    <colgroup><col style="width:${compact?'24px':'90px'}">${DAYS.map(()=>`<col>`).join('')}</colgroup>
+    <colgroup><col style="width:${compact?'24px':'90px'}">${DAYS.map(()=>`<col>`).join('')}<col style="width:${compact?'24px':'90px'}"></colgroup>
     <thead>${thead}</thead><tbody>${tbody}</tbody>
   </table>`;
   renderWSInternList();
