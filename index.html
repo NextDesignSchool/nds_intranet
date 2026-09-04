@@ -2197,7 +2197,7 @@ function buildInternGrid(mode){
           const name=info.showName?`<span style="color:${info.c.tc};font-size:${compact?'9.5px':'11px'};font-weight:600;white-space:nowrap">${info.intern.name}</span>`:'';
           blocks.push(`<div onclick="openInternWeekSched(${info.intern.id},${wOff})" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}${sepL}">${name}</div>`);
         }
-        row+=`<td style="${bdrL}border:1px solid var(--bd3);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
+        row+=`<td style="${bdrL}border:1px solid var(--bd3);height:${RH}px;padding:0;overflow:visible;vertical-align:top"><div style="display:flex;height:100%;width:100%;overflow:hidden">${blocks.join('')}</div></td>`;
       });
       if(isFirst){
         row+=`<td style="width:${compact?'24px':'90px'};min-width:${compact?'24px':'90px'};font-size:${compact?'8px':'11px'};line-height:${compact?'1.3':'normal'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--sub2);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
@@ -2780,7 +2780,7 @@ function renderWSTable(){
         blocks.push(`<div onclick="${fn}" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}${sepL}">${name}</div>`);
       }
 
-      row+=`<td style="border:1px solid var(--bd3);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
+      row+=`<td style="border:1px solid var(--bd3);height:${RH}px;padding:0;overflow:visible;vertical-align:top"><div style="display:flex;height:100%;width:100%;overflow:hidden">${blocks.join('')}</div></td>`;
     });
 
     // 오른쪽 시간 열: 왼쪽과 동일하게 1시간 단위로 rowspan=2
