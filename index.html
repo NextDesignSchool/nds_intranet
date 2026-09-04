@@ -1016,6 +1016,7 @@ async function fetchHolidays(y,m){
       S.holidayFallback=true;
     }
   }
+  cleanupHolidaySchedules(ym); // 방금 로드된 공휴일 데이터를 기준으로 기존 근무스케줄 중 공휴일에 해당하는 슬롯을 자동 삭제
   if(S.cal.getFullYear()===y&&S.cal.getMonth()+1===m){
     if(S.page==='home')renderHome();
     else if(S.page==='schedule')renderSchedulePage();
@@ -1036,6 +1037,51 @@ function getHolidayForDay(dateStr){
   const cache=S.holidayCache[ym];
   if(cache==null)return HOLIDAYS_FALLBACK[dateStr]||null;
   return cache[dateStr]||null;
+}
+// 공휴일 데이터가 새로 로드될 때, 이미 등록돼 있던 인턴 근무스케줄 중
+// 공휴일에 해당하는 슬롯을 실제로 삭제해서 "근무 없음" 상태로 만듦.
+function cleanupHolidaySchedules(ym){
+  const DAYS=['월','화','수','목','금'];
+  let changed=false;
+  Object.keys(S.internSchedHistory).forEach(name=>{
+    const list=S.internSchedHistory[name]||[];
+    list.forEach(entry=>{
+      const weekKey=entry.weekKey||legacyFromWeekToKey(entry.fromWeek);
+      if(!weekKey||weekKey==='0000-00-00')return;
+      const[wy,wm,wd]=weekKey.split('-').map(Number);
+      const mon=new Date(wy,wm-1,wd);
+      const before=entry.slots.length;
+      entry.slots=entry.slots.filter(sl=>{
+        const idx=DAYS.indexOf(sl.day);
+        if(idx<0)return true;
+        const dt=new Date(mon);dt.setDate(mon.getDate()+idx);
+        const ds=fmt(dt);
+        if(ds.slice(0,7)!==ym)return true; // 이번에 로드된 달과 무관한 슬롯은 건드리지 않음
+        return !getHolidayForDay(ds); // 공휴일이면 제거
+      });
+      if(entry.slots.length!==before)changed=true;
+    });
+  });
+  if(!changed)return;
+  saveAppData().catch(()=>{});
+  if(S.page==='workschedule')renderWSTable();
+  if(S.page==='interns'&&_internActiveTab===2){
+    const panel2=document.getElementById('intern-panel2');
+    if(panel2)panel2.innerHTML=buildInternGrid('work');
+  }
+  if(document.getElementById('ws-edit-table')&&window._wsIid!==undefined){
+    window._wsGs=window._wsGs||{};
+    // 열려 있는 개별 근무스케줄 모달도 최신 상태로 다시 그림
+    const intern=S.interns.find(x=>x.id===window._wsIid);
+    if(intern){
+      const sched=getSchedForWeek(intern.name,window._wsWoff);
+      const gs={};
+      sched.forEach(s=>{const si=timeToSlot(s.start),ei=timeToSlot(s.end);for(let i=si;i<ei;i++)gs[`${s.day}-${i}`]=true;});
+      window._wsGs=gs;
+      const modalBody=document.querySelector('.mo-bd');
+      if(modalBody)openInternWeekSched(window._wsIid,window._wsWoff);
+    }
+  }
 }
 
 // ─── CALENDAR UTILS ───────────────────────────────
@@ -2420,10 +2466,14 @@ function buildSchedModalHtml(intern,mon,label,gs,internId,weekOff){
   const noticeText=editing?'✏ 셀을 클릭하여 근무 시간을 등록/해제하세요.':(isAdmin()?'[수정] 버튼을 눌러 근무 시간을 편집하세요.':'조회 전용입니다. 수정은 관리자만 가능해요.');
   const compact=(window.innerWidth||1024)<=480;
   const timeW=compact?38:90;
+  // 이 주에 걸친 요일별 공휴일 여부를 미리 계산 (공휴일 칸은 편집 불가 + "휴무" 표시)
+  const dayHolMap={};
+  DAYS.forEach((d,i)=>{const dt=new Date(mon);dt.setDate(mon.getDate()+i);dayHolMap[d]=getHolidayForDay(fmt(dt));});
   let thead=`<tr><th style="width:${timeW}px;min-width:${timeW}px;font-size:${compact?'10px':'13px'}">시간</th>`;
   DAYS.forEach((d,i)=>{
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
-    thead+=`<th style="font-size:${compact?'11px':'13px'};padding:${compact?'4px 2px':'8px'}">${d}<br><span style="font-weight:400;color:var(--sub);font-size:${compact?'9px':'11px'}">${dt.getMonth()+1}/${dt.getDate()}</span></th>`;
+    const hol=dayHolMap[d];
+    thead+=`<th style="font-size:${compact?'11px':'13px'};padding:${compact?'4px 2px':'8px'}">${d}<br><span style="font-weight:400;color:var(--sub);font-size:${compact?'9px':'11px'}">${dt.getMonth()+1}/${dt.getDate()}</span>${hol?`<br><span style="font-weight:500;color:var(--re);font-size:${compact?'8px':'9.5px'}">${hol}</span>`:''}</th>`;
   });
   thead+=`</tr>`;
   let tbody='';
@@ -2432,10 +2482,12 @@ function buildSchedModalHtml(intern,mon,label,gs,internId,weekOff){
     const rowH=s%2===0?'border-top:1px solid var(--bd)':'border-top:1px dashed var(--bd2)';
     let row=`<tr style="height:28px"><td class="stime" style="width:${timeW}px;min-width:${timeW}px;font-size:${compact?'8.5px':'10px'};white-space:nowrap;height:28px;${rowH}">${compact?slotLabel(s).replace(/:00/g,'').replace(/~/,'-'):slotLabel(s)}</td>`;
     DAYS.forEach(d=>{
-      const on=!!gs[`${d}-${s}`];
-      const bg=on?ic.bg:'';
+      const hol=dayHolMap[d];
+      const on=!hol&&!!gs[`${d}-${s}`];
+      const bg=hol?'var(--hover)':(on?ic.bg:'');
       const bdr=s%2===0?'border-top:1px solid var(--bd)':'border-top:1px dashed var(--bd2)';
-      row+=`<td class="sslot" style="vertical-align:middle;text-align:center;background:${bg};cursor:${editing?'pointer':'default'};height:28px;${bdr}" data-ws-d="${d}" data-ws-s="${s}" onpointerdown="wsStartDrag('${d}',${s},event)" onpointerenter="wsDragOver('${d}',${s},event)">${on?`<span style="font-size:${compact?'9.5px':'11px'};color:${ic.tc};font-weight:600">${intern.name}</span>`:''}</td>`;
+      const clickable=editing&&!hol;
+      row+=`<td class="sslot" style="vertical-align:middle;text-align:center;background:${bg};cursor:${clickable?'pointer':'default'};height:28px;${bdr}${hol?';opacity:.6':''}" data-ws-d="${d}" data-ws-s="${s}" onpointerdown="wsStartDrag('${d}',${s},event,${hol?1:0})" onpointerenter="wsDragOver('${d}',${s},event,${hol?1:0})">${on?`<span style="font-size:${compact?'9.5px':'11px'};color:${ic.tc};font-weight:600">${intern.name}</span>`:(hol&&s===20?`<span style="font-size:${compact?'8px':'9.5px'};color:var(--sub)">휴무</span>`:'')}</td>`;
     });
     tbody+=row+`</tr>`;
   }
@@ -2467,15 +2519,15 @@ function wsApplyCell(d,s,mode){
     cell.innerHTML=mode&&intern?`<span style="font-size:11px;color:${ic.tc};font-weight:600">${intern.name}</span>`:'';
   }
 }
-function wsStartDrag(d,s,ev){
-  if(!window._wsEditing)return;
+function wsStartDrag(d,s,ev,isHol){
+  if(!window._wsEditing||isHol)return; // 공휴일 칸은 편집 불가
   if(ev)ev.preventDefault();
   _wsDragActive=true;
   _wsDragMode=!window._wsGs[`${d}-${s}`];
   wsApplyCell(d,s,_wsDragMode);
 }
-function wsDragOver(d,s,ev){
-  if(!_wsDragActive||!window._wsEditing)return;
+function wsDragOver(d,s,ev,isHol){
+  if(!_wsDragActive||!window._wsEditing||isHol)return;
   if(ev)ev.preventDefault();
   wsApplyCell(d,s,_wsDragMode);
 }
@@ -2483,8 +2535,11 @@ function saveInternSchedGrid(internId,weekOff){
   const intern=S.interns.find(x=>x.id===internId);if(!intern)return;
   const gs=window._wsGs||{};
   const DAYS=['월','화','수','목','금'];
+  const {mon}=getWeekInfo(weekOff);
+  const dayHolMap={};
+  DAYS.forEach((d,i)=>{const dt=new Date(mon);dt.setDate(mon.getDate()+i);dayHolMap[d]=getHolidayForDay(fmt(dt));});
   const byDay={};DAYS.forEach(d=>{byDay[d]=[]});
-  Object.entries(gs).forEach(([k,v])=>{if(v){const pts=k.split('-');byDay[pts[0]].push(parseInt(pts[1]))}});
+  Object.entries(gs).forEach(([k,v])=>{if(v){const pts=k.split('-');if(dayHolMap[pts[0]])return;byDay[pts[0]].push(parseInt(pts[1]))}}); // 공휴일 요일은 저장하지 않음
   const slots=[];
   DAYS.forEach(d=>{
     const idxs=byDay[d].sort((a,b)=>a-b);
@@ -2669,7 +2724,7 @@ function renderWSTable(){
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
     const hol=getHolidayForDay(fmt(dt));
     const dateLabel=compact?`${d}<br>${dt.getMonth()+1}/${dt.getDate()}`:`${d} ${dt.getMonth()+1}/${dt.getDate()}`;
-    thead+=`<th style="border:1px solid var(--sub2);background:var(--sb);padding:0;font-size:${compact?'10.5px':'12px'};color:var(--sub)"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:${compact?'34px':'40px'};padding:${compact?'4px 2px':'6px 4px'};line-height:1.3">${dateLabel}<br><span style="font-size:${compact?'8.5px':'10px'};color:var(--re)">${hol||'\u00A0'}</span></div></th>`;
+    thead+=`<th style="border:1px solid var(--sub2);background:var(--sb);padding:0;font-size:${compact?'10.5px':'12px'};color:var(--sub);vertical-align:middle"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:${compact?'34px':'40px'};box-sizing:border-box;padding:${compact?'4px 2px':'6px 4px'};line-height:1.3">${dateLabel}<br><span style="font-size:${compact?'8.5px':'10px'};color:var(--re)">${hol||'\u00A0'}</span></div></th>`;
   });
   thead+=`</tr>`;
 
