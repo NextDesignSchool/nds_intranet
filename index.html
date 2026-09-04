@@ -2152,7 +2152,7 @@ function buildInternGrid(mode){
       ${DAYS.map((d,i)=>{
         const dt=new Date(mon);dt.setDate(mon.getDate()+i);
         const hol=getHolidayForDay(fmt(dt));
-        return `<th style="background:var(--hover);font-size:11px;font-weight:600;border:1px solid var(--sub2);padding:3px 2px;text-align:center;line-height:1.3;vertical-align:middle">${d} ${dt.getMonth()+1}/${dt.getDate()}<br><span style="font-size:9px;font-weight:500;color:var(--re)">${hol||'\u00A0'}</span></th>`;
+        return `<th style="background:var(--hover);font-size:11px;font-weight:600;border:1px solid var(--sub2);padding:0;text-align:center"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:36px;padding:3px 2px;line-height:1.3">${d} ${dt.getMonth()+1}/${dt.getDate()}<br><span style="font-size:9px;font-weight:500;color:var(--re)">${hol||'\u00A0'}</span></div></th>`;
       }).join('')}
     </tr>`;
     let tbody='';
@@ -2669,7 +2669,7 @@ function renderWSTable(){
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
     const hol=getHolidayForDay(fmt(dt));
     const dateLabel=compact?`${d}<br>${dt.getMonth()+1}/${dt.getDate()}`:`${d} ${dt.getMonth()+1}/${dt.getDate()}`;
-    thead+=`<th style="border:1px solid var(--sub2);background:var(--sb);padding:${compact?'4px 2px':'6px 4px'};font-size:${compact?'10.5px':'12px'};color:var(--sub);line-height:1.3;vertical-align:middle">${dateLabel}<br><span style="font-size:${compact?'8.5px':'10px'};color:var(--re)">${hol||'\u00A0'}</span></th>`;
+    thead+=`<th style="border:1px solid var(--sub2);background:var(--sb);padding:0;font-size:${compact?'10.5px':'12px'};color:var(--sub)"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:${compact?'34px':'40px'};padding:${compact?'4px 2px':'6px 4px'};line-height:1.3">${dateLabel}<br><span style="font-size:${compact?'8.5px':'10px'};color:var(--re)">${hol||'\u00A0'}</span></div></th>`;
   });
   thead+=`</tr>`;
 
