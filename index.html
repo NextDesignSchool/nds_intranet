@@ -264,9 +264,10 @@ body.tbl-resizing *{cursor:inherit!important}
 .intern-card-actions{display:flex;flex-wrap:wrap;gap:6px}
 .st-table{width:100%;border-collapse:collapse;table-layout:fixed}
 /* 수업시간표/근무스케줄 등 격자형 테이블 공통 스타일 */
-.st-table th,.st-table td{border:1px solid var(--sub2);padding:0;text-align:center;overflow:hidden}
+.st-table th,.st-table td{border:1px solid var(--bd);padding:0;text-align:center;overflow:hidden}
+.st-table th{border-color:var(--sub2)}
 .st-table th{background:var(--sb);font-size:12px;font-weight:500;padding:6px 4px;color:var(--sub)}
-.st-table tr:last-child td{border-bottom:1px solid var(--sub2)}
+.st-table tr:last-child td{border-bottom:1px solid var(--bd)}
 .st-table tr:hover td{background:transparent}
 .stime{font-size:10.5px;color:var(--sub);background:var(--sb);padding:0 4px;min-width:48px;text-align:center;vertical-align:middle}
 .sslot{position:relative;vertical-align:middle}
@@ -283,7 +284,8 @@ body.tbl-resizing *{cursor:inherit!important}
 .drop-zone{border:1px dashed var(--bd2);border-radius:8px;padding:28px;text-align:center;color:var(--sub);font-size:13px;cursor:pointer;transition:all .15s}
 .drop-zone:hover,.drop-zone.dragover{border-color:var(--sub);background:var(--hover)}
 .tg-table{width:100%;border-collapse:collapse;table-layout:fixed}
-.tg-table th,.tg-table td{border:1px solid var(--sub2);text-align:center;font-size:12px;padding:0}
+.tg-table th,.tg-table td{border:1px solid var(--bd);text-align:center;font-size:12px;padding:0}
+.tg-table th{border-color:var(--sub2)}
 .tg-table th{background:var(--hover);padding:5px;font-weight:500;color:var(--sub)}
 .tg-table tr:hover td{background:transparent}
 .tg-cell{min-height:30px;height:auto;cursor:pointer;transition:background .08s;white-space:normal;word-break:keep-all;overflow-wrap:break-word;line-height:1.3;padding:4px 3px}
@@ -293,7 +295,7 @@ body.tbl-resizing *{cursor:inherit!important}
 .st-table-fixed{table-layout:fixed;width:100%}
 .tg-cell:hover{background:var(--hover) !important}
 .tg-cell.sel{background:#F0EFFC;color:#5B5BD6;font-weight:600}
-.tg-table tr:last-child td{border-bottom:1px solid var(--sub2)}
+.tg-table tr:last-child td{border-bottom:1px solid var(--bd)}
 #menu-toggle{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--card);border:1px solid var(--bd);border-radius:var(--r-sm);padding:7px 10px;cursor:pointer;font-size:16px;color:var(--sub)}
 .pg-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .pg-hd h3{font-size:19px;font-weight:700;color:var(--tx);letter-spacing:-0.01em}
@@ -2167,7 +2169,7 @@ function buildInternGrid(mode){
         const next=slotMap[s+1]||{};
         const bdrL=di>0?'border-left:1px solid var(--bd);':'';
         if(!Object.keys(cur).length){
-          row+=`<td style="${bdrL}border:1px solid var(--sub2);height:${RH}px;padding:0;background:#fff"></td>`;
+          row+=`<td style="${bdrL}border:1px solid var(--bd);height:${RH}px;padding:0;background:#fff"></td>`;
           return;
         }
         const numCols=Math.max(...Object.values(cur).map(v=>v.numCols));
@@ -2185,12 +2187,12 @@ function buildInternGrid(mode){
           const name=info.showName?`<span style="color:${info.c.tc};font-size:${compact?'9.5px':'11px'};font-weight:600;white-space:nowrap">${info.intern.name}</span>`:'';
           blocks.push(`<div onclick="openInternWeekSched(${info.intern.id},${wOff})" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}${sepL}">${name}</div>`);
         }
-        row+=`<td style="${bdrL}border:1px solid var(--sub2);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
+        row+=`<td style="${bdrL}border:1px solid var(--bd);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
       });
       row+=`</tr>`;tbody+=row;
     }
     return `<div style="display:flex;align-items:flex-start;gap:0">
-      <div class="ws-wide-box" style="overflow-x:auto;flex:0 0 auto;max-width:55%;min-width:380px">
+      <div class="ws-wide-box" style="overflow-x:auto;flex:0 0 auto;max-width:980px;min-width:380px">
         <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:10px">
           <button class="cal-nav" onclick="internGridWeek(-1)">‹</button>
           <span style="font-size:12.5px;font-weight:600;color:var(--sub)">${label}</span>
@@ -2225,10 +2227,10 @@ function buildInternGrid(mode){
     ${DAYS.map(d=>{
       const list=slots[`${d}-${parseInt(h)}`]||[];
       const chips=list.map(x=>`<span style="display:inline-block;background:${WS_COLORS[x.ci].bg};color:${WS_COLORS[x.ci].tc};border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px;white-space:nowrap">${x.name}</span>`).join('');
-      return `<td style="border:1px solid var(--sub2);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
+      return `<td style="border:1px solid var(--bd);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
     }).join('')}
   </tr>`).join('');
-  return `<div class="ws-wide-box" style="max-width:55%;min-width:380px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
+  return `<div class="ws-wide-box" style="max-width:980px;min-width:380px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
     <colgroup><col style="width:90px">${DAYS.map(()=>`<col>`).join('')}</colgroup>
     <thead>${theadHtml}</thead>
     <tbody>${trows}</tbody>
@@ -2555,7 +2557,7 @@ function renderWorkSchedule(){
   <div class="card" style="margin-bottom:20px">
     <div class="ws-card-inner" style="display:flex;align-items:flex-start;gap:0">
       <div style="overflow-x:auto;flex:1;min-width:0">
-        <div class="ws-wide-box" style="max-width:55%;min-width:340px">
+        <div class="ws-wide-box" style="max-width:980px;min-width:340px">
           <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:10px">
             <button class="cal-nav" onclick="wsWeek(-1)">‹</button>
             <h3 id="ws-label" style="font-size:14px;font-weight:600">${label}</h3>
