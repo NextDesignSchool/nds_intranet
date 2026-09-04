@@ -264,9 +264,9 @@ body.tbl-resizing *{cursor:inherit!important}
 .intern-card-actions{display:flex;flex-wrap:wrap;gap:6px}
 .st-table{width:100%;border-collapse:collapse;table-layout:fixed}
 /* 수업시간표/근무스케줄 등 격자형 테이블 공통 스타일 */
-.st-table th,.st-table td{border:1px solid var(--bd);padding:0;text-align:center;overflow:hidden}
+.st-table th,.st-table td{border:1px solid var(--sub2);padding:0;text-align:center;overflow:hidden}
 .st-table th{background:var(--sb);font-size:12px;font-weight:500;padding:6px 4px;color:var(--sub)}
-.st-table tr:last-child td{border-bottom:1px solid var(--bd)}
+.st-table tr:last-child td{border-bottom:1px solid var(--sub2)}
 .st-table tr:hover td{background:transparent}
 .stime{font-size:10.5px;color:var(--sub);background:var(--sb);padding:0 4px;min-width:48px;text-align:center;vertical-align:middle}
 .sslot{position:relative;vertical-align:middle}
@@ -283,7 +283,7 @@ body.tbl-resizing *{cursor:inherit!important}
 .drop-zone{border:1px dashed var(--bd2);border-radius:8px;padding:28px;text-align:center;color:var(--sub);font-size:13px;cursor:pointer;transition:all .15s}
 .drop-zone:hover,.drop-zone.dragover{border-color:var(--sub);background:var(--hover)}
 .tg-table{width:100%;border-collapse:collapse;table-layout:fixed}
-.tg-table th,.tg-table td{border:1px solid var(--bd);text-align:center;font-size:12px;padding:0}
+.tg-table th,.tg-table td{border:1px solid var(--sub2);text-align:center;font-size:12px;padding:0}
 .tg-table th{background:var(--hover);padding:5px;font-weight:500;color:var(--sub)}
 .tg-table tr:hover td{background:transparent}
 .tg-cell{min-height:30px;height:auto;cursor:pointer;transition:background .08s;white-space:normal;word-break:keep-all;overflow-wrap:break-word;line-height:1.3;padding:4px 3px}
@@ -293,7 +293,7 @@ body.tbl-resizing *{cursor:inherit!important}
 .st-table-fixed{table-layout:fixed;width:100%}
 .tg-cell:hover{background:var(--hover) !important}
 .tg-cell.sel{background:#F0EFFC;color:#5B5BD6;font-weight:600}
-.tg-table tr:last-child td{border-bottom:1px solid var(--bd)}
+.tg-table tr:last-child td{border-bottom:1px solid var(--sub2)}
 #menu-toggle{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--card);border:1px solid var(--bd);border-radius:var(--r-sm);padding:7px 10px;cursor:pointer;font-size:16px;color:var(--sub)}
 .pg-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .pg-hd h3{font-size:19px;font-weight:700;color:var(--tx);letter-spacing:-0.01em}
@@ -1018,6 +1018,7 @@ async function fetchHolidays(y,m){
     else if(S.page==='schedule')renderSchedulePage();
   }
   if(S.page==='workschedule')renderWSTable();
+  if(S.page==='interns'&&_internActiveTab===2)renderInterns();
   if(S.page==='projects'&&_pActiveId&&_pCalBase){
     // 프로젝트 캘린더가 지금 보여주는 3개월 범위 안에 이 공휴일 데이터의 달이 포함되면 다시 그림
     for(let i=0;i<3;i++){
@@ -2123,26 +2124,41 @@ function internGridWeek(d){
 function buildInternGrid(mode){
   const DAYS=['월','화','수','목','금'];
   const TIMES=['10','11','12','13','14','15','16','17','18'];
-  const COLORS=['#F0EFFC','#EEF6F1','#FEF5E9','#FEF0EF','#EBF3FF','#F4F1FF'];
-  const TXCOLORS=['#5B5BD6','#2A6041','#92511A','#C0392B','#2A5DA8','#6E4FB0'];
   const theadHtml=`<tr style="height:36px">
-    <th style="background:var(--hover);font-size:11px;font-weight:500;border:1px solid var(--bd);padding:0;text-align:center;color:var(--sub)"></th>
-    ${DAYS.map(d=>`<th style="background:var(--hover);font-size:11px;font-weight:600;border:1px solid var(--bd);padding:0;text-align:center">${d}</th>`).join('')}
+    <th style="background:var(--hover);font-size:11px;font-weight:500;border:1px solid var(--sub2);padding:0;text-align:center;color:var(--sub)"></th>
+    ${DAYS.map(d=>`<th style="background:var(--hover);font-size:11px;font-weight:600;border:1px solid var(--sub2);padding:0;text-align:center">${d}</th>`).join('')}
   </tr>`;
   if(mode==='work'){
     const activeInterns=S.interns.filter(isInternActive);
     const wOff=S.weekOffset; // 근무스케줄 메뉴와 동일한 주차를 사용해 동기화
     const dd=buildWSDayData(activeInterns,wOff);
-    const {label}=getWeekInfo(wOff);
+    const {label,mon}=getWeekInfo(wOff);
     const compact=(window.innerWidth||1024)<=600;
     const RH=22;
+    // 이 주가 걸쳐있는 달의 공휴일 데이터를 아직 안 불러왔으면 불러옴 (근무스케줄 메뉴와 동일한 처리)
+    const neededMonths=new Set();
+    DAYS.forEach((d,i)=>{const dt=new Date(mon);dt.setDate(mon.getDate()+i);neededMonths.add(`${dt.getFullYear()}-${p2(dt.getMonth()+1)}`);});
+    neededMonths.forEach(ym=>{
+      if(S.holidayCache[ym]===undefined){
+        const[yy,mm]=ym.split('-').map(Number);
+        fetchHolidays(yy,mm);
+      }
+    });
+    let workTheadHtml=`<tr style="height:36px">
+      <th style="background:var(--hover);font-size:11px;font-weight:500;border:1px solid var(--sub2);padding:0;text-align:center;color:var(--sub)"></th>
+      ${DAYS.map((d,i)=>{
+        const dt=new Date(mon);dt.setDate(mon.getDate()+i);
+        const hol=getHolidayForDay(fmt(dt));
+        return `<th style="background:var(--hover);font-size:11px;font-weight:600;border:1px solid var(--sub2);padding:3px 2px;text-align:center;line-height:1.3">${d} ${dt.getMonth()+1}/${dt.getDate()}${hol?`<br><span style="font-size:9px;font-weight:500;color:var(--re)">${hol}</span>`:''}</th>`;
+      }).join('')}
+    </tr>`;
     let tbody='';
     for(let s=20;s<38;s++){
       const isFirst=s%2===0;
       const h=Math.floor(s/2);
       let row=`<tr style="height:${RH}px">`;
       if(isFirst){
-        row+=`<td style="width:${compact?'24px':'90px'};min-width:${compact?'24px':'90px'};font-size:${compact?'8px':'11px'};line-height:${compact?'1.3':'normal'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+        row+=`<td style="width:${compact?'24px':'90px'};min-width:${compact?'24px':'90px'};font-size:${compact?'8px':'11px'};line-height:${compact?'1.3':'normal'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--sub2);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
       }
       DAYS.forEach((d,di)=>{
         const {slotMap}=dd[d];
@@ -2151,7 +2167,7 @@ function buildInternGrid(mode){
         const next=slotMap[s+1]||{};
         const bdrL=di>0?'border-left:1px solid var(--bd);':'';
         if(!Object.keys(cur).length){
-          row+=`<td style="${bdrL}border:1px solid var(--bd);height:${RH}px;padding:0;background:#fff"></td>`;
+          row+=`<td style="${bdrL}border:1px solid var(--sub2);height:${RH}px;padding:0;background:#fff"></td>`;
           return;
         }
         const numCols=Math.max(...Object.values(cur).map(v=>v.numCols));
@@ -2169,7 +2185,7 @@ function buildInternGrid(mode){
           const name=info.showName?`<span style="color:${info.c.tc};font-size:${compact?'9.5px':'11px'};font-weight:600;white-space:nowrap">${info.intern.name}</span>`:'';
           blocks.push(`<div onclick="openInternWeekSched(${info.intern.id},${wOff})" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}${sepL}">${name}</div>`);
         }
-        row+=`<td style="${bdrL}border:1px solid var(--bd);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
+        row+=`<td style="${bdrL}border:1px solid var(--sub2);height:${RH}px;padding:0;overflow:hidden;vertical-align:top"><div style="display:flex;height:100%;width:100%">${blocks.join('')}</div></td>`;
       });
       row+=`</tr>`;tbody+=row;
     }
@@ -2182,7 +2198,7 @@ function buildInternGrid(mode){
         </div>
         <div style="overflow-x:auto"><table class="st-table" style="width:100%;border-collapse:collapse;table-layout:fixed">
           <colgroup><col style="width:${compact?'24px':'90px'}">${DAYS.map(()=>`<col>`).join('')}</colgroup>
-          <thead>${theadHtml}</thead><tbody>${tbody}</tbody>
+          <thead>${workTheadHtml}</thead><tbody>${tbody}</tbody>
         </table></div>
       </div>
       <div style="width:320px;flex-shrink:0;border-left:1px solid var(--bd);padding:12px 16px;margin-top:32px">${internListPanelHtml(activeInterns,wOff)}</div>
@@ -2191,25 +2207,25 @@ function buildInternGrid(mode){
   // class mode — hourly display
   const RH=56;
   const slots={};
-  S.interns.filter(isInternActive).forEach((intern,idx)=>{
+  S.interns.filter(isInternActive).forEach((intern)=>{
     (S.internTimetable[intern.name]||[]).forEach(s=>{
       const sh=parseInt(s.start),eh=parseInt(s.end);
       for(let h=sh;h<eh;h++){
         const k=`${s.day}-${h}`;
         if(!slots[k])slots[k]=[];
-        slots[k].push({name:intern.name,ci:idx%6});
+        slots[k].push({name:intern.name,ci:internColorIdx(intern)%WS_COLORS.length});
       }
     });
   });
   const trows=TIMES.map(h=>`<tr style="height:${RH}px">
-    <td style="width:90px;min-width:90px;font-size:11px;color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd);white-space:nowrap;height:${RH}px;padding:0">
+    <td style="width:90px;min-width:90px;font-size:11px;color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--sub2);white-space:nowrap;height:${RH}px;padding:0">
       <div>${h}:00~${parseInt(h)+1}:00</div>
       <div style="font-size:10px;color:var(--sub2);margin-top:2px">${parseInt(h)-8}교시</div>
     </td>
     ${DAYS.map(d=>{
       const list=slots[`${d}-${parseInt(h)}`]||[];
-      const chips=list.map(x=>`<span style="display:inline-block;background:${COLORS[x.ci]};color:${TXCOLORS[x.ci]};border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px;white-space:nowrap">${x.name}</span>`).join('');
-      return `<td style="border:1px solid var(--bd);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
+      const chips=list.map(x=>`<span style="display:inline-block;background:${WS_COLORS[x.ci].bg};color:${WS_COLORS[x.ci].tc};border-radius:5px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px;white-space:nowrap">${x.name}</span>`).join('');
+      return `<td style="border:1px solid var(--sub2);padding:0;height:${RH}px;overflow:hidden"><div style="height:${RH}px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:2px;padding:4px">${chips}</div></td>`;
     }).join('')}
   </tr>`).join('');
   return `<div class="ws-wide-box" style="max-width:55%;min-width:380px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">
@@ -2645,12 +2661,12 @@ function renderWSTable(){
 
   // 헤더
   let thead=`<tr>
-    <th style="width:${compact?'24px':'90px'};border:1px solid var(--bd);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
+    <th style="width:${compact?'24px':'90px'};border:1px solid var(--sub2);background:var(--sb);padding:6px 2px;font-size:${compact?'10.5px':'12px'};color:var(--sub)">시간</th>`;
   DAYS.forEach((d,i)=>{
     const dt=new Date(mon);dt.setDate(mon.getDate()+i);
     const hol=getHolidayForDay(fmt(dt));
     const dateLabel=compact?`${d}<br>${dt.getMonth()+1}/${dt.getDate()}`:`${d} ${dt.getMonth()+1}/${dt.getDate()}`;
-    thead+=`<th style="border:1px solid var(--bd);background:var(--sb);padding:${compact?'4px 2px':'6px 4px'};font-size:${compact?'10.5px':'12px'};color:var(--sub);line-height:1.3">${dateLabel}${hol?`<br><span style="font-size:${compact?'8.5px':'10px'};color:var(--re)">${hol}</span>`:''}</th>`;
+    thead+=`<th style="border:1px solid var(--sub2);background:var(--sb);padding:${compact?'4px 2px':'6px 4px'};font-size:${compact?'10.5px':'12px'};color:var(--sub);line-height:1.3">${dateLabel}${hol?`<br><span style="font-size:${compact?'8.5px':'10px'};color:var(--re)">${hol}</span>`:''}</th>`;
   });
   thead+=`</tr>`;
 
@@ -2667,7 +2683,7 @@ function renderWSTable(){
 
     // 시간 열: 1시간 단위로 rowspan=2
     if(isFirst){
-      row+=`<td style="border:1px solid var(--bd);background:var(--sb);font-size:${compact?'8px':'10.5px'};line-height:${compact?'1.3':'normal'};color:var(--sub);text-align:center;white-space:nowrap;vertical-align:middle;padding:0 2px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+      row+=`<td style="border:1px solid var(--sub2);background:var(--sb);font-size:${compact?'8px':'10.5px'};line-height:${compact?'1.3':'normal'};color:var(--sub);text-align:center;white-space:nowrap;vertical-align:middle;padding:0 2px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
     }
 
     DAYS.forEach(d=>{
@@ -2680,7 +2696,7 @@ function renderWSTable(){
 
       // 블록이 없으면 빈 td
       if(!Object.keys(cur).length){
-        row+=`<td style="border:1px solid var(--bd);height:${RH}px;padding:0;background:#fff"></td>`;
+        row+=`<td style="border:1px solid var(--sub2);height:${RH}px;padding:0;background:#fff"></td>`;
         return;
       }
 
