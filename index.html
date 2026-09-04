@@ -2163,9 +2163,11 @@ function buildInternGrid(mode){
       const isFirst=s%2===0;
       const h=Math.floor(s/2);
       let row=`<tr style="height:${RH}px">`;
-      if(isFirst){
-        row+=`<td style="width:${compact?'24px':'90px'};min-width:${compact?'24px':'90px'};font-size:${compact?'8px':'11px'};line-height:${compact?'1.3':'normal'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd3);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
-      }
+      // 시간 열: rowspan 대신 30분마다 별도 칸을 만들고, 두 칸 사이 경계선만 지워서 합쳐 보이게 함
+      const miniTimeCellBase=`width:${compact?'24px':'90px'};min-width:${compact?'24px':'90px'};font-size:${compact?'8px':'11px'};line-height:${compact?'1.3':'normal'};color:var(--sub);background:var(--hover);text-align:center;white-space:nowrap;vertical-align:middle;padding:0;height:${RH}px;border-left:1px solid var(--sub2);border-right:1px solid var(--sub2)`;
+      row+=isFirst
+        ?`<td style="${miniTimeCellBase};border-top:1px solid var(--sub2);border-bottom:none">${wsTimeLabel(h,compact)}</td>`
+        :`<td style="${miniTimeCellBase};border-top:none;border-bottom:1px solid var(--sub2)"></td>`;
       DAYS.forEach((d,di)=>{
         const {slotMap}=dd[d];
         const cur=slotMap[s]||{};
@@ -2200,7 +2202,9 @@ function buildInternGrid(mode){
         row+=`<td style="${bdrL}border:1px solid var(--bd3);height:${RH}px;padding:0;overflow:visible;vertical-align:top"><div style="display:flex;height:100%;width:100%;overflow:hidden">${blocks.join('')}</div></td>`;
       });
       if(isFirst){
-        row+=`<td style="width:${compact?'24px':'90px'};min-width:${compact?'24px':'90px'};font-size:${compact?'8px':'11px'};line-height:${compact?'1.3':'normal'};color:var(--sub);background:var(--hover);text-align:center;border:1px solid var(--bd3);white-space:nowrap;vertical-align:middle;padding:0;height:${RH*2}px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
+        row+=`<td style="${miniTimeCellBase};border-top:1px solid var(--sub2);border-bottom:none">${wsTimeLabel(h,compact)}</td>`;
+      }else{
+        row+=`<td style="${miniTimeCellBase};border-top:none;border-bottom:1px solid var(--sub2)"></td>`;
       }
       row+=`</tr>`;tbody+=row;
     }
@@ -2709,10 +2713,13 @@ function renderWSTable(){
     const h=Math.floor(s/2);
     let row=`<tr style="height:${RH}px">`;
 
-    // 시간 열: 1시간 단위로 rowspan=2
-    if(isFirst){
-      row+=`<td style="border:1px solid var(--bd3);background:var(--sb);font-size:${compact?'8px':'10.5px'};line-height:${compact?'1.3':'normal'};color:var(--sub);text-align:center;white-space:nowrap;vertical-align:middle;padding:0 2px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
-    }
+    // 시간 열: rowspan 대신 30분마다 별도 칸을 만들고, 두 칸 사이 경계선만 지워서 합쳐 보이게 함
+    // (rowspan으로 병합하면 옆 칸과 테두리 충돌이 생겨서 선이 끊겨 보이는 문제가 있었음)
+    const timeCellBase=`background:var(--sb);font-size:${compact?'8px':'10.5px'};line-height:${compact?'1.3':'normal'};color:var(--sub);text-align:center;white-space:nowrap;vertical-align:middle;padding:0 2px;border-left:1px solid var(--sub2);border-right:1px solid var(--sub2);height:${RH}px`;
+    const timeCellL=isFirst
+      ?`<td style="${timeCellBase};border-top:1px solid var(--sub2);border-bottom:none">${wsTimeLabel(h,compact)}</td>`
+      :`<td style="${timeCellBase};border-top:none;border-bottom:1px solid var(--sub2)"></td>`;
+    row+=timeCellL;
 
     DAYS.forEach(d=>{
       const {slotMap}=dd[d];
@@ -2783,10 +2790,11 @@ function renderWSTable(){
       row+=`<td style="border:1px solid var(--bd3);height:${RH}px;padding:0;overflow:visible;vertical-align:top"><div style="display:flex;height:100%;width:100%;overflow:hidden">${blocks.join('')}</div></td>`;
     });
 
-    // 오른쪽 시간 열: 왼쪽과 동일하게 1시간 단위로 rowspan=2
-    if(isFirst){
-      row+=`<td style="border:1px solid var(--bd3);background:var(--sb);font-size:${compact?'8px':'10.5px'};line-height:${compact?'1.3':'normal'};color:var(--sub);text-align:center;white-space:nowrap;vertical-align:middle;padding:0 2px" rowspan="2">${wsTimeLabel(h,compact)}</td>`;
-    }
+    // 오른쪽 시간 열: 왼쪽과 동일하게 rowspan 없이 30분마다 별도 칸 + 경계선만 지움
+    const timeCellR=isFirst
+      ?`<td style="${timeCellBase};border-top:1px solid var(--sub2);border-bottom:none">${wsTimeLabel(h,compact)}</td>`
+      :`<td style="${timeCellBase};border-top:none;border-bottom:1px solid var(--sub2)"></td>`;
+    row+=timeCellR;
 
     row+=`</tr>`;
     tbody+=row;
