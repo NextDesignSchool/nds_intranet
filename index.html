@@ -3009,7 +3009,8 @@ function sanitizeRichHtml(html){
       const keep=[];
       if(st&&st.color&&colorRe.test(st.color.trim()))keep.push('color:'+st.color);
       if(st&&st.backgroundColor&&colorRe.test(st.backgroundColor.trim()))keep.push('background-color:'+st.backgroundColor);
-      if(st&&['left','center','right','justify'].includes(st.textAlign))keep.push('text-align:'+st.textAlign);
+      if(st&&st.textAlign&&['left','center','right','justify'].includes(st.textAlign))keep.push('text-align:'+st.textAlign);
+      if(st&&st.textDecorationLine&&/^(underline|line-through|underline line-through|line-through underline)$/.test(st.textDecorationLine.trim()))keep.push('text-decoration:'+st.textDecorationLine);
       if(tag==='COL'&&st&&st.width&&pxRe.test(st.width.trim()))keep.push('width:'+st.width);
       if(tag==='TR'&&st&&st.height&&pxRe.test(st.height.trim()))keep.push('height:'+st.height);
       const href=(tag==='A')?child.getAttribute('href'):null;
@@ -3389,6 +3390,7 @@ function richApplyColor(elId,hex){
   if(_richSavedRange){const sel=window.getSelection();sel.removeAllRanges();sel.addRange(_richSavedRange);}
   document.execCommand('styleWithCSS',false,true); // <font color> 태그 대신 <span style="color:..">로 만들도록 강제(저장 시 안 걸러지게 함)
   document.execCommand('foreColor',false,hex);
+  document.execCommand('styleWithCSS',false,false); // 다른 서식(취소선 등)에 영향 안 주도록 바로 원래대로 꺼둠
 }
 function richApplyBgColor(elId,hex){
   const el=document.getElementById(elId);if(!el)return;
@@ -3397,6 +3399,7 @@ function richApplyBgColor(elId,hex){
   document.execCommand('styleWithCSS',false,true);
   // 브라우저별로 지원하는 명령 이름이 달라서(hiliteColor/backColor) 둘 다 시도함
   if(!document.execCommand('hiliteColor',false,hex))document.execCommand('backColor',false,hex);
+  document.execCommand('styleWithCSS',false,false); // 다른 서식(취소선 등)에 영향 안 주도록 바로 원래대로 꺼둠
 }
 function sanitizeNoticeHtml(html){
   const div=document.createElement('div');
@@ -3416,6 +3419,7 @@ function sanitizeNoticeHtml(html){
       const keep=[];
       if(st&&st.color&&colorRe.test(st.color.trim()))keep.push('color:'+st.color);
       if(st&&st.backgroundColor&&colorRe.test(st.backgroundColor.trim()))keep.push('background-color:'+st.backgroundColor);
+      if(st&&st.textDecorationLine&&/^(underline|line-through|underline line-through|line-through underline)$/.test(st.textDecorationLine.trim()))keep.push('text-decoration:'+st.textDecorationLine);
       [...child.attributes].forEach(attr=>child.removeAttribute(attr.name));
       if(tag==='SPAN'&&keep.length)child.setAttribute('style',keep.join(';'));
       clean(child);
