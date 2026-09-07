@@ -2961,10 +2961,12 @@ function openWriteNotice(id){
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
         <button type="button" class="btn btn-o btn-sm" style="font-weight:700" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')" title="굵게">B</button>
         <button type="button" class="btn btn-o btn-sm" style="text-decoration:underline" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')" title="밑줄">U</button>
-        <input type="color" id="nt-color-pick" value="#B03025" style="width:30px;height:30px;padding:2px;border:1px solid var(--bd);border-radius:6px;cursor:pointer;background:#fff" title="선택한 글자 색 바꾸기" onmousedown="ntSaveSelection()" onchange="ntApplyColor(this.value)">
+        <button type="button" class="btn btn-o btn-sm" style="text-decoration:line-through" onmousedown="event.preventDefault()" onclick="document.execCommand('strikeThrough')" title="취소선">S</button>
+        <button type="button" class="btn btn-o btn-sm" data-color-trigger onmousedown="event.preventDefault()" onclick="richOpenColorPicker(this,'fg','nt-content')" title="글자 색" style="font-weight:700;color:#E03131">A</button>
+        <button type="button" class="btn btn-o btn-sm" data-color-trigger onmousedown="event.preventDefault()" onclick="richOpenColorPicker(this,'bg','nt-content')" title="배경 색" style="background:#FFF3B0">A</button>
         <span style="font-size:11px;color:var(--sub)">글자를 선택한 뒤 눌러주세요 — 바로 적용돼요</span>
       </div>
-      <div id="nt-content" contenteditable="true" data-ph="내용 입력..." onmouseup="ntSaveSelection()" onkeyup="ntSaveSelection()" style="min-height:320px;max-height:55vh;overflow-y:auto;border:1px solid var(--bd);border-radius:var(--r-sm);padding:12px 14px;font-size:14.5px;line-height:1.6;outline:none">${n?n.content:''}</div>
+      <div id="nt-content" contenteditable="true" data-ph="내용 입력..." style="min-height:320px;max-height:55vh;overflow-y:auto;border:1px solid var(--bd);border-radius:var(--r-sm);padding:12px 14px;font-size:14.5px;line-height:1.6;outline:none">${n?n.content:''}</div>
     </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
       <input type="checkbox" id="nt-pinned" style="width:auto;accent-color:var(--ac)" ${n&&n.pinned?'checked':''}>
@@ -2975,29 +2977,11 @@ function openWriteNotice(id){
   <button class="btn btn-p" onclick="saveNotice(${id||'null'})">저장</button></div>`,'lg');
   setTimeout(()=>{const el=document.getElementById('nt-content');if(el)el.focus();},50);
 }
-// 공지 내용은 이제 실시간 편집(contenteditable)으로 굵게/밑줄/색상을 바로 눈으로 보면서 적용함.
+// 공지 내용은 이제 실시간 편집(contenteditable)으로 굵게/밑줄/취소선/색상을 바로 눈으로 보면서 적용함.
+// 색상 적용은 게시판/프로젝트 에디터와 같은 팝업(richOpenColorPicker)을 그대로 재사용함.
 // 다만 이 편집 영역에 사용자가 다른 웹페이지에서 텍스트를 복사해서 붙여넣으면, 원치 않는
 // 태그나 악성 스크립트가 함께 딸려올 수 있음. 그래서 저장할 때 반드시 허용된 태그
-// (굵게/밑줄/색상/줄바꿈)만 남기고 나머지는 전부 걸러내는 정리 과정을 거침.
-let _ntSavedRange=null;
-function ntSaveSelection(){
-  const el=document.getElementById('nt-content');
-  const sel=window.getSelection();
-  if(el&&sel&&sel.rangeCount>0){
-    const r=sel.getRangeAt(0);
-    if(el.contains(r.commonAncestorContainer))_ntSavedRange=r.cloneRange();
-  }
-}
-function ntApplyColor(hex){
-  const el=document.getElementById('nt-content');if(!el)return;
-  el.focus();
-  if(_ntSavedRange){
-    const sel=window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(_ntSavedRange);
-  }
-  document.execCommand('foreColor',false,hex);
-}
+// (굵게/밑줄/취소선/색상/줄바꿈)만 남기고 나머지는 전부 걸러내는 정리 과정을 거침.
 // 허용된 태그(B/STRONG/U/SPAN/BR/DIV)만 남기고, 그 외 태그는 벗겨내되 안의 글자는 그대로 살림.
 // SPAN에는 color 스타일 외 다른 속성(예: onclick 같은 이벤트 핸들러)은 전부 제거함.
 // ─── 일반 글쓰기 에디터 (게시판/프로젝트 본문 공용) ──────────────
@@ -3007,7 +2991,7 @@ function ntApplyColor(hex){
 function sanitizeRichHtml(html){
   const div=document.createElement('div');
   div.innerHTML=html;
-  const allowed=['B','STRONG','I','EM','U','SPAN','BR','DIV','P','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','HR','TABLE','COLGROUP','COL','TBODY','THEAD','TR','TD','TH','CODE','PRE','A'];
+  const allowed=['B','STRONG','I','EM','U','S','STRIKE','SPAN','BR','DIV','P','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','HR','TABLE','COLGROUP','COL','TBODY','THEAD','TR','TD','TH','CODE','PRE','A'];
   const colorRe=/^(#[0-9a-fA-F]{3,8}|rgb\([\d\s,]+\)|rgba\([\d\s,.]+\))$/;
   const pxRe=/^\d+(\.\d+)?px$/;
   function clean(node){
@@ -3071,6 +3055,7 @@ function richToolbarHtml(elId){
     <button type="button" class="rt-btn" style="font-weight:700" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')" data-tip="굵게">B</button>
     <button type="button" class="rt-btn" style="font-style:italic" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')" data-tip="기울임">I</button>
     <button type="button" class="rt-btn" style="text-decoration:underline" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')" data-tip="밑줄">U</button>
+    <button type="button" class="rt-btn" style="text-decoration:line-through" onmousedown="event.preventDefault()" onclick="document.execCommand('strikeThrough')" data-tip="취소선">S</button>
     <span class="rt-sep"></span>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H1')" data-tip="제목 1">H1</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'H2')" data-tip="제목 2">H2</button>
@@ -3363,15 +3348,34 @@ function richOpenColorPicker(anchorEl,mode,elId){
   panel.style.display='block';
   const chips=RICH_PRESET_COLORS.map(c=>`<div class="rcp-swatch" style="background:${c.hex}" title="${c.name}"
     onmousedown="event.preventDefault();event.stopPropagation()" onclick="event.stopPropagation();richPickColor('${mode}','${elId}','${c.hex}')"></div>`).join('');
+  // 최근에 실제로 사용했던 색을 작은 칩으로 팔레트 아래에 따로 보여줌 (있을 때만)
+  const recent=richGetRecentColors(mode);
+  const recentHtml=recent.length?`
+    <div style="font-size:10px;color:var(--sub);margin-bottom:5px">최근 사용한 색</div>
+    <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">${recent.map(hex=>`<div class="rcp-swatch" style="width:14px;height:14px;background:${hex}" title="${hex}"
+      onmousedown="event.preventDefault();event.stopPropagation()" onclick="event.stopPropagation();richPickColor('${mode}','${elId}','${hex}')"></div>`).join('')}</div>`:'';
   panel.innerHTML=`
     <div style="font-size:11px;color:var(--sub);margin-bottom:7px">${mode==='fg'?'글자 색':'배경 색'}</div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px">${chips}</div>
+    ${recentHtml}
     <input type="color" id="rcp-custom" value="${mode==='fg'?'#B03025':'#FFF3B0'}" style="width:100%;height:28px;border:1px solid var(--bd);border-radius:6px;cursor:pointer"
       onmousedown="event.stopPropagation()" onchange="event.stopPropagation();richPickColor('${mode}','${elId}',this.value)">`;
   clampPanelToViewport(panel);
 }
+// 최근 사용 색 저장/조회: 글자색·배경색을 각각 따로 최대 8개까지 최신순으로 localStorage에 보관
+function richGetRecentColors(mode){
+  try{return JSON.parse(localStorage.getItem('nds_recent_colors_'+mode)||'[]');}catch{return [];}
+}
+function richAddRecentColor(mode,hex){
+  hex=hex.toUpperCase();
+  let list=richGetRecentColors(mode).filter(h=>h!==hex);
+  list.unshift(hex);
+  list=list.slice(0,8);
+  try{localStorage.setItem('nds_recent_colors_'+mode,JSON.stringify(list));}catch{}
+}
 function richPickColor(mode,elId,hex){
   closeRichColorPicker();
+  richAddRecentColor(mode,hex);
   if(mode==='fg')richApplyColor(elId,hex);else richApplyBgColor(elId,hex);
 }
 function closeRichColorPicker(){const p=document.getElementById('rich-color-picker');if(p)p.style.display='none';}
@@ -3397,7 +3401,8 @@ function richApplyBgColor(elId,hex){
 function sanitizeNoticeHtml(html){
   const div=document.createElement('div');
   div.innerHTML=html;
-  const allowed=['B','STRONG','U','SPAN','BR','DIV'];
+  const allowed=['B','STRONG','U','S','STRIKE','SPAN','BR','DIV'];
+  const colorRe=/^(#[0-9a-fA-F]{3,8}|rgb\([\d\s,]+\)|rgba\([\d\s,.]+\))$/;
   function clean(node){
     [...node.childNodes].forEach(child=>{
       if(child.nodeType!==1){return;}
@@ -3407,9 +3412,12 @@ function sanitizeNoticeHtml(html){
         node.removeChild(child);
         return;
       }
-      const color=child.style&&child.style.color;
+      const st=child.style;
+      const keep=[];
+      if(st&&st.color&&colorRe.test(st.color.trim()))keep.push('color:'+st.color);
+      if(st&&st.backgroundColor&&colorRe.test(st.backgroundColor.trim()))keep.push('background-color:'+st.backgroundColor);
       [...child.attributes].forEach(attr=>child.removeAttribute(attr.name));
-      if(tag==='SPAN'&&color)child.style.color=color;
+      if(tag==='SPAN'&&keep.length)child.setAttribute('style',keep.join(';'));
       clean(child);
     });
   }
