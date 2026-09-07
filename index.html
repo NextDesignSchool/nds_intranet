@@ -3654,27 +3654,58 @@ function postComment(type,id,text){
 let _bPosts=[],_bActiveId=null,_bSearch='',_bTagFilter=null,_bCatFilter=null,_bCatOpen={};
 let _bDragId=null;
 let _bCategories=[];
-// 게시판 데이터: 예전엔 localStorage에만 저장돼서 기기마다 따로 놀았음.
-// 이제 Firestore(appdata/board 문서)에 저장해서 어느 기기에서 접속해도 같은 내용이 보이도록 함.
-// 매 키 입력마다 Firestore에 쓰면 비용/속도 문제가 있어서, 입력이 잠시 멈춘 뒤(1.5초) 저장하는 방식(디바운스)을 씀.
+// 게시판 데이터 저장 방식 (2026-09 개편):
+// 예전엔 글 전체를 배열 하나로 묶어서 appdata/board 문서 하나에 통째로 저장했음.
+// → 문제: 한 사람이 아무 글이나 하나만 고쳐도 "전체 글 목록"을 통째로 다시 써야 해서,
+//   두 사람이 거의 동시에 다른 글을 고치면 나중에 저장하는 쪽이 앞사람 걸 덮어써버릴 위험이 있었음.
+// 이제는 글 하나하나를 Firestore의 'boardPosts' 컬렉션에 각자 별도 문서로 저장함.
+// → 서로 다른 글을 고치면 완전히 다른 문서를 쓰는 거라 절대 덮어쓸 일이 없음.
+//   (카테고리 목록은 개수가 적고 자주 안 바뀌어서 예전처럼 appdata/board 문서 하나에 그대로 둠)
 let _boardSaveTimer=null;
+let _bDirty=new Set();      // 아직 서버에 저장 안 된(저장 대기 중인) 글 id 모음
 function _bLoad(){ /* 게시판 데이터는 앱 시작 시 loadAppData()에서 한 번만 불러옴 */ }
 function _bCatLoad(){ /* 위와 동일: 카테고리도 게시글과 함께 한 번에 불러옴 */ }
-function _bSave(){
+// postId를 주면 "이 글이 방금 바뀌었다"고 표시만 해두고, 1.5초 뒤 한 번에 저장(디바운스).
+// postId 없이 부르면(카테고리만 바뀐 경우) 글은 그대로 두고 카테고리만 같이 저장됨.
+function _bSave(postId){
+  if(postId)_bDirty.add(postId);
   if(_boardSaveTimer)clearTimeout(_boardSaveTimer);
   _boardSaveTimer=setTimeout(saveBoardData,1500);
 }
 function _bCatSave(){_bSave();}
 async function saveBoardData(){
+  _boardSaveTimer=null;
+  const ids=[..._bDirty];_bDirty.clear();
   try{
     const db=window._db;
     if(!db) throw new Error('Firebase 미준비');
-    await db.collection('appdata').doc('board').set({posts:_bPosts,categories:_bCategories});
+    const batch=db.batch();
+    ids.forEach(id=>{
+      const p=_bPosts.find(x=>x.id===id);
+      if(p)batch.set(db.collection('boardPosts').doc(id),p);
+    });
+    batch.set(db.collection('appdata').doc('board'),{categories:_bCategories});
+    await batch.commit();
     hideSaveFailBanner();
+    try{localStorage.setItem('nds_board',JSON.stringify(_bPosts));localStorage.setItem('nds_board_cats',JSON.stringify(_bCategories));}catch{}
   }catch(e){
+    ids.forEach(id=>_bDirty.add(id)); // 실패했으니 다음 저장 때 다시 시도되도록 대기 상태로 되돌려놓음
     try{localStorage.setItem('nds_board',JSON.stringify(_bPosts));localStorage.setItem('nds_board_cats',JSON.stringify(_bCategories));}catch{}
     console.warn('게시판 Firestore 저장 실패, localStorage 백업 사용:', e);
     showSaveFailBanner();
+  }
+}
+// 예전 방식(appdata/board 문서 안의 posts 배열)으로 저장된 글들을 새 구조(글마다 별도 문서)로 한 번 옮김
+async function migrateBoardPostsToCollection(){
+  try{
+    const db=window._db;
+    const batch=db.batch();
+    _bPosts.forEach(p=>batch.set(db.collection('boardPosts').doc(p.id),p));
+    batch.set(db.collection('appdata').doc('board'),{categories:_bCategories});
+    await batch.commit();
+    console.log('✅ 게시판 글 마이그레이션 완료 (글마다 별도 문서로 전환)');
+  }catch(e){
+    console.warn('게시판 마이그레이션 실패, 다음 접속 때 다시 시도됩니다:', e);
   }
 }
 async function loadBoardData(retried){
@@ -3684,15 +3715,22 @@ async function loadBoardData(retried){
       if(!retried){await new Promise(r=>setTimeout(r,1000));return loadBoardData(true);}
       throw new Error('Firebase 미준비');
     }
-    const snap=await db.collection('appdata').doc('board').get();
-    if(snap.exists){
-      const d=snap.data();
-      _bPosts=d.posts||[];_bCategories=d.categories||[];
+    const postsSnap=await db.collection('boardPosts').get();
+    const metaSnap=await db.collection('appdata').doc('board').get();
+    const meta=metaSnap.exists?metaSnap.data():null;
+    if(!postsSnap.empty){
+      _bPosts=postsSnap.docs.map(d=>d.data());
+      _bCategories=meta?.categories||[];
+    } else if(meta&&Array.isArray(meta.posts)&&meta.posts.length){
+      // 예전 방식(문서 하나에 배열 통째로) 데이터가 남아있으면 새 구조로 1회 이전
+      _bPosts=meta.posts;
+      _bCategories=meta.categories||[];
+      await migrateBoardPostsToCollection();
     } else {
-      // Firestore에 없으면 예전 localStorage 데이터를 1회 마이그레이션
+      // 그것도 없으면 예전 localStorage 데이터를 1회 마이그레이션
       try{_bPosts=JSON.parse(localStorage.getItem('nds_board')||'[]');}catch{_bPosts=[];}
       try{_bCategories=JSON.parse(localStorage.getItem('nds_board_cats')||'[]');}catch{_bCategories=[];}
-      if(_bPosts.length||_bCategories.length)await saveBoardData();
+      if(_bPosts.length||_bCategories.length)await migrateBoardPostsToCollection();
     }
   }catch(e){
     if(!retried){await new Promise(r=>setTimeout(r,1000));return loadBoardData(true);}
@@ -3716,8 +3754,9 @@ function bDeleteCategory(id,e){
   if(e){e.stopPropagation();}
   if(!confirm('카테고리를 삭제하시겠습니까?\n(포스트는 삭제되지 않습니다)'))return;
   _bCategories=_bCategories.filter(c=>c.id!==id);
-  _bPosts.forEach(p=>{if(p.category===id)p.category=null;});
-  _bCatSave();_bSave();bRenderSb();renderSidebar();
+  // 이 카테고리에 속해있던 글들도 함께 바뀌는 거라, 그 글들도 전부 저장 대기 목록에 넣어야 함
+  _bPosts.forEach(p=>{if(p.category===id){p.category=null;_bDirty.add(p.id);}});
+  _bCatSave();bRenderSb();renderSidebar();
 }
 function bToggleCat(id){
   _bCatOpen[id]=_bCatOpen[id]===undefined?false:!_bCatOpen[id]; // 기본값이 '열림'이므로 첫 클릭엔 닫힘으로
@@ -3727,7 +3766,7 @@ function bToggleCat(id){
 function bSetCat(id){_bCatFilter=_bCatFilter===id?null:id;bRenderSb();renderSidebar();}
 function bSetPostCat(postId,catId){
   const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  p.category=catId||null;p.updatedAt=today();_bSave();bRenderSb();
+  p.category=catId||null;p.updatedAt=today();_bSave(postId);bRenderSb();
 }
 
 function renderBoard(){
@@ -3799,11 +3838,11 @@ function bSetTag(t){_bTagFilter=_bTagFilter===t?null:t;bRenderSb()}
 
 function bUpdateTitle(postId,val){
   const p=_bPosts.find(x=>x.id===postId);if(!p)return;
-  p.title=val;p.updatedAt=today();_bSave();bRenderSb();
+  p.title=val;p.updatedAt=today();_bSave(postId);bRenderSb();
 }
 function bNewPost(){
   const post={id:_bNewId(),title:'',icon:'',tags:[],createdAt:today(),updatedAt:today(),content:''};
-  _bPosts.unshift(post);_bSave();_bActiveId=post.id;_bEditMode=true;bRenderSb();bOpenPost(post.id);
+  _bPosts.unshift(post);_bSave(post.id);_bActiveId=post.id;_bEditMode=true;bRenderSb();bOpenPost(post.id);
 }
 function bCloseView(){
   bFlushRich(_bActiveId);
@@ -3816,7 +3855,11 @@ function bDeletePost(id){
   if(!confirm('이 글을 삭제하시겠습니까?'))return;
   if(_bActiveId===id){clearTimeout(_bRichTimer);_bRichTimer=null;_bActiveId=null;}
   _bPosts=_bPosts.filter(x=>x.id!==id);
-  _bSave();renderBoard();
+  _bDirty.delete(id); // 저장 대기 중이었다면 취소 (이미 지운 글이니 다시 쓰면 안 됨)
+  const db=window._db;
+  if(db){db.collection('boardPosts').doc(id).delete().catch(e=>console.warn('게시글 삭제(서버) 실패:',e));}
+  try{localStorage.setItem('nds_board',JSON.stringify(_bPosts));}catch{}
+  renderBoard();
 }
 
 let _bEditMode=false; // 게시판 글 보기/편집 모드. 글을 열 때마다 기본은 '보기'로 시작함
@@ -3863,7 +3906,7 @@ function bRichInput(postId){
     const el=document.getElementById('b-rich-content');if(!el)return;
     p.content=sanitizeRichHtml(el.innerHTML);
     p.updatedAt=today();
-    _bSave();
+    _bSave(postId);
   },400);
 }
 // 다른 글로 넘어가거나 편집을 마칠 때, 대기 중인 저장을 즉시 확정함(유실 방지)
@@ -3872,13 +3915,13 @@ function bFlushRich(postId){
   clearTimeout(_bRichTimer);_bRichTimer=null;
   const p=_bPosts.find(x=>x.id===postId);
   const el=document.getElementById('b-rich-content');
-  if(p&&el){p.content=sanitizeRichHtml(el.innerHTML);p.updatedAt=today();_bSave();}
+  if(p&&el){p.content=sanitizeRichHtml(el.innerHTML);p.updatedAt=today();_bSave(postId);}
 }
 
 // Tags, icon, cover
-function bAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_bPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_bSave();bOpenPost(postId);bRenderSb();}
-function bRemoveTag(postId,tag){const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_bSave();bOpenPost(postId);bRenderSb();}
-function bPickIcon(postId){const icons='📄📝📊💡🔗📌⭐🎨🔧📐💬📅🗂🏆🚀📋🎯📎🗒🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'📄';const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'📄';_bSave();bOpenPost(postId);bRenderSb();}
+function bAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_bPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_bSave(postId);bOpenPost(postId);bRenderSb();}
+function bRemoveTag(postId,tag){const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_bSave(postId);bOpenPost(postId);bRenderSb();}
+function bPickIcon(postId){const icons='📄📝📊💡🔗📌⭐🎨🔧📐💬📅🗂🏆🚀📋🎯📎🗒🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'📄';const p=_bPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'📄';_bSave(postId);bOpenPost(postId);bRenderSb();}
 
 // ─── PROJECTS ─────────────────────────────────────
 let _pPosts=[],_pActiveId=null,_pSearch='',_pStatusFilter=null;
@@ -4311,7 +4354,12 @@ function modalBgClick(e){if(e.target===document.getElementById('modal'))closeMod
 const PERSIST_KEYS=['events','etypes','etypeColors','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','navLabels','navOrder','nid','settlements','openItems','closeItems'];
 
 // Firestore에 저장
+// _mainSaveInFlight: 지금 saveAppData()가 서버에 쓰는 중인지 표시하는 카운터.
+// (아래 유사한 게시판 버그 참고: 저장이 끝나기 전에 자동 동기화가 서버의 옛날 값을
+//  가져와 덮어쓰면, 방금 한 수정이 사라질 수 있어서 이 값으로 그 틈을 막음)
+let _mainSaveInFlight=0;
 async function saveAppData(){
+  _mainSaveInFlight++;
   try{
     const db=window._db;
     if(!db) throw new Error('Firebase 미준비');
@@ -4326,6 +4374,8 @@ async function saveAppData(){
     }catch{}
     console.warn('Firestore 저장 실패, localStorage 백업 사용:', e);
     showSaveFailBanner();
+  }finally{
+    _mainSaveInFlight--;
   }
 }
 // 저장이 실패하면 화면(devtools 콘솔 말고 실제 화면)에 눈에 띄게 알려줌.
@@ -4511,19 +4561,28 @@ async function _initApp(){
     try{
       const db=window._db;
       if(db){
-        const snap=await db.collection('appdata').doc('main').get();
-        if(snap.exists){
-          const d=snap.data();
-          PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
+        // 방금 어딘가(공지/업무일지/직원·인턴 정보 등)를 수정해서 saveAppData()가 지금 서버에
+        // 쓰는 중이라면, 그게 끝나기 전에 서버의 옛날 버전을 가져와 덮어쓰지 않음
+        // (게시판과 똑같은 이유의 유실 버그를 막기 위함)
+        if(!_mainSaveInFlight){
+          const snap=await db.collection('appdata').doc('main').get();
+          if(snap.exists){
+            const d=snap.data();
+            PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
+          }
         }
         // 게시판/프로젝트는 지금 그 화면을 직접 보며 편집 중이면 건드리지 않음(입력 중 화면이
-        // 갑자기 바뀌는 걸 막기 위함). 그 외의 경우(다른 메뉴를 보고 있거나 방치된 탭)엔
+        // 갑자기 바뀌는 걸 막기 위함). 또한 방금 수정해서 서버 저장이 예정된 상태(디바운스 대기 중)라면
+        // 그 저장이 실제로 끝나기 전에 서버의 옛날 버전을 가져와 덮어써버리는 사고를 막기 위해
+        // 역시 건드리지 않음. 그 외의 경우(다른 메뉴를 보고 있거나 방치된 탭)엔
         // 항상 서버 최신본을 먼저 당겨와, 오래된 상태를 다시 밀어넣는 사고를 막음.
-        if(S.page!=='board'){
+        if(S.page!=='board'&&!_boardSaveTimer){
+          const postsSnap=await db.collection('boardPosts').get();
           const bSnap=await db.collection('appdata').doc('board').get();
-          if(bSnap.exists){const bd=bSnap.data();_bPosts=bd.posts||_bPosts;_bCategories=bd.categories||_bCategories;}
+          _bPosts=postsSnap.docs.map(d=>d.data());
+          if(bSnap.exists)_bCategories=bSnap.data().categories||_bCategories;
         }
-        if(S.page!=='projects'){
+        if(S.page!=='projects'&&!_projectSaveTimer){
           const pSnap=await db.collection('appdata').doc('projects').get();
           if(pSnap.exists){_pPosts=pSnap.data().posts||_pPosts;}
         }
