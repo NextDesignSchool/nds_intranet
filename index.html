@@ -3675,11 +3675,13 @@ let _bCategories=[];
 //   (카테고리 목록은 개수가 적고 자주 안 바뀌어서 예전처럼 appdata/board 문서 하나에 그대로 둠)
 let _boardSaveTimer=null;
 let _bDirty=new Set();      // 아직 서버에 저장 안 된(저장 대기 중인) 글 id 모음
+let _bSaveVersion=0;        // 글이 수정될 때마다 올라가는 값(자동 동기화의 타이밍 틈 방지용, main과 동일한 이유)
 function _bLoad(){ /* 게시판 데이터는 앱 시작 시 loadAppData()에서 한 번만 불러옴 */ }
 function _bCatLoad(){ /* 위와 동일: 카테고리도 게시글과 함께 한 번에 불러옴 */ }
 // postId를 주면 "이 글이 방금 바뀌었다"고 표시만 해두고, 1.5초 뒤 한 번에 저장(디바운스).
 // postId 없이 부르면(카테고리만 바뀐 경우) 글은 그대로 두고 카테고리만 같이 저장됨.
 function _bSave(postId){
+  _bSaveVersion++;
   if(postId)_bDirty.add(postId);
   if(_boardSaveTimer)clearTimeout(_boardSaveTimer);
   _boardSaveTimer=setTimeout(saveBoardData,1500);
@@ -3940,8 +3942,10 @@ let _pPosts=[],_pActiveId=null,_pSearch='',_pStatusFilter=null;
 const PRJ_STATUSES=['진행중','완료','대기','보류'];
 // 프로젝트 데이터도 게시판과 동일한 이유로 Firestore(appdata/projects 문서)로 전환.
 let _projectSaveTimer=null;
+let _pSaveVersion=0; // main/board와 동일한 이유(자동 동기화 타이밍 틈 방지)
 function _pLoad(){ /* 앱 시작 시 loadAppData()에서 한 번만 불러옴 */ }
 function _pSave(){
+  _pSaveVersion++;
   if(_projectSaveTimer)clearTimeout(_projectSaveTimer);
   _projectSaveTimer=setTimeout(saveProjectData,1500);
 }
@@ -4367,11 +4371,15 @@ const PERSIST_KEYS=['events','etypes','etypeColors','employees','interns','inter
 
 // Firestore에 저장
 // _mainSaveInFlight: 지금 saveAppData()가 서버에 쓰는 중인지 표시하는 카운터.
-// (아래 유사한 게시판 버그 참고: 저장이 끝나기 전에 자동 동기화가 서버의 옛날 값을
-//  가져와 덮어쓰면, 방금 한 수정이 사라질 수 있어서 이 값으로 그 틈을 막음)
+// _mainSaveVersion: saveAppData()가 "시작"될 때마다 하나씩 올라가는 값.
+// (자동 동기화가 서버에서 최신본을 읽어오는 동안(await로 잠깐 시간이 걸림), 그 사이에
+//  누군가 뭔가를 수정해서 저장을 시작하면, 그 "읽어온 값"은 이미 낡은 값이 됨.
+//  단순히 "지금 저장 중인가"만 확인하면, 읽기 시작할 땐 저장 중이 아니었다가 읽는 도중에
+//  저장이 시작+끝나버리는 경우를 놓칠 수 있어서, 버전 번호로 "그 사이에 뭔가 바뀌었는지"까지 확인함)
 let _mainSaveInFlight=0;
+let _mainSaveVersion=0;
 async function saveAppData(){
-  _mainSaveInFlight++;
+  _mainSaveInFlight++;_mainSaveVersion++;
   try{
     const db=window._db;
     if(!db) throw new Error('Firebase 미준비');
@@ -4574,11 +4582,14 @@ async function _initApp(){
       const db=window._db;
       if(db){
         // 방금 어딘가(공지/업무일지/직원·인턴 정보 등)를 수정해서 saveAppData()가 지금 서버에
-        // 쓰는 중이라면, 그게 끝나기 전에 서버의 옛날 버전을 가져와 덮어쓰지 않음
-        // (게시판과 똑같은 이유의 유실 버그를 막기 위함)
+        // 쓰는 중이라면, 그게 끝나기 전에 서버의 옛날 버전을 가져와 덮어쓰지 않음.
+        // 그런데 서버에서 읽어오는 동안에도 시간이 걸리므로("읽기 시작"할 땐 저장 중이 아니었다가
+        // 읽는 도중에 누군가 수정을 시작해버릴 수 있음), 다 읽어온 뒤에 "혹시 그 사이에 뭔가
+        // 바뀌었는지"(버전 번호가 그대로인지)까지 한 번 더 확인한 뒤에만 실제로 화면에 반영함.
         if(!_mainSaveInFlight){
+          const versionBefore=_mainSaveVersion;
           const snap=await db.collection('appdata').doc('main').get();
-          if(snap.exists){
+          if(snap.exists&&!_mainSaveInFlight&&_mainSaveVersion===versionBefore){
             const d=snap.data();
             PERSIST_KEYS.forEach(k=>{if(d[k]!==undefined)S[k]=d[k]});
           }
@@ -4586,17 +4597,20 @@ async function _initApp(){
         // 게시판/프로젝트는 지금 그 화면을 직접 보며 편집 중이면 건드리지 않음(입력 중 화면이
         // 갑자기 바뀌는 걸 막기 위함). 또한 방금 수정해서 서버 저장이 예정된 상태(디바운스 대기 중)라면
         // 그 저장이 실제로 끝나기 전에 서버의 옛날 버전을 가져와 덮어써버리는 사고를 막기 위해
-        // 역시 건드리지 않음. 그 외의 경우(다른 메뉴를 보고 있거나 방치된 탭)엔
-        // 항상 서버 최신본을 먼저 당겨와, 오래된 상태를 다시 밀어넣는 사고를 막음.
+        // 역시 건드리지 않음. 위 main과 동일하게, 읽어오는 도중에 수정이 시작됐는지도 버전 번호로 확인함.
         if(S.page!=='board'&&!_boardSaveTimer){
+          const bVersionBefore=_bSaveVersion;
           const postsSnap=await db.collection('boardPosts').get();
           const bSnap=await db.collection('appdata').doc('board').get();
-          _bPosts=postsSnap.docs.map(d=>d.data());
-          if(bSnap.exists)_bCategories=bSnap.data().categories||_bCategories;
+          if(!_boardSaveTimer&&_bSaveVersion===bVersionBefore){
+            _bPosts=postsSnap.docs.map(d=>d.data());
+            if(bSnap.exists)_bCategories=bSnap.data().categories||_bCategories;
+          }
         }
         if(S.page!=='projects'&&!_projectSaveTimer){
+          const pVersionBefore=_pSaveVersion;
           const pSnap=await db.collection('appdata').doc('projects').get();
-          if(pSnap.exists){_pPosts=pSnap.data().posts||_pPosts;}
+          if(pSnap.exists&&!_projectSaveTimer&&_pSaveVersion===pVersionBefore){_pPosts=pSnap.data().posts||_pPosts;}
         }
         if(S.page)renderPage(S.page);
       }
