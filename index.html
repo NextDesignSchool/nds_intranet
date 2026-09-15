@@ -3940,25 +3940,50 @@ function bPickIcon(postId){const icons='📄📝📊💡🔗📌⭐🎨🔧📐�
 // ─── PROJECTS ─────────────────────────────────────
 let _pPosts=[],_pActiveId=null,_pSearch='',_pStatusFilter=null;
 const PRJ_STATUSES=['진행중','완료','대기','보류'];
-// 프로젝트 데이터도 게시판과 동일한 이유로 Firestore(appdata/projects 문서)로 전환.
+// 프로젝트도 게시판과 동일한 이유로(2026-09) "프로젝트 하나 = 문서 하나" 구조로 전환.
+// projectPosts 컬렉션에 프로젝트별로 각자 문서를 두고, 예전처럼 appdata/projects 문서 하나에
+// 전부 몰아넣지 않음 → 서로 다른 프로젝트를 동시에 고쳐도 절대 덮어쓸 일이 없음.
 let _projectSaveTimer=null;
+let _pDirty=new Set();      // 아직 서버에 저장 안 된(저장 대기 중인) 프로젝트 id 모음
 let _pSaveVersion=0; // main/board와 동일한 이유(자동 동기화 타이밍 틈 방지)
 function _pLoad(){ /* 앱 시작 시 loadAppData()에서 한 번만 불러옴 */ }
-function _pSave(){
+function _pSave(postId){
   _pSaveVersion++;
+  if(postId)_pDirty.add(postId);
   if(_projectSaveTimer)clearTimeout(_projectSaveTimer);
   _projectSaveTimer=setTimeout(saveProjectData,1500);
 }
 async function saveProjectData(){
+  _projectSaveTimer=null;
+  const ids=[..._pDirty];_pDirty.clear();
   try{
     const db=window._db;
     if(!db) throw new Error('Firebase 미준비');
-    await db.collection('appdata').doc('projects').set({posts:_pPosts});
+    const batch=db.batch();
+    ids.forEach(id=>{
+      const p=_pPosts.find(x=>x.id===id);
+      if(p)batch.set(db.collection('projectPosts').doc(id),p);
+    });
+    await batch.commit();
     hideSaveFailBanner();
+    try{localStorage.setItem('nds_projects',JSON.stringify(_pPosts));}catch{}
   }catch(e){
+    ids.forEach(id=>_pDirty.add(id)); // 실패했으니 다음 저장 때 다시 시도되도록 대기 상태로 되돌려놓음
     try{localStorage.setItem('nds_projects',JSON.stringify(_pPosts));}catch{}
     console.warn('프로젝트 Firestore 저장 실패, localStorage 백업 사용:', e);
     showSaveFailBanner();
+  }
+}
+// 예전 방식(appdata/projects 문서 안의 posts 배열)으로 저장된 프로젝트를 새 구조로 한 번 옮김
+async function migrateProjectPostsToCollection(){
+  try{
+    const db=window._db;
+    const batch=db.batch();
+    _pPosts.forEach(p=>batch.set(db.collection('projectPosts').doc(p.id),p));
+    await batch.commit();
+    console.log('✅ 프로젝트 마이그레이션 완료 (프로젝트마다 별도 문서로 전환)');
+  }catch(e){
+    console.warn('프로젝트 마이그레이션 실패, 다음 접속 때 다시 시도됩니다:', e);
   }
 }
 async function loadProjectData(retried){
@@ -3968,12 +3993,21 @@ async function loadProjectData(retried){
       if(!retried){await new Promise(r=>setTimeout(r,1000));return loadProjectData(true);}
       throw new Error('Firebase 미준비');
     }
-    const snap=await db.collection('appdata').doc('projects').get();
-    if(snap.exists){
-      _pPosts=snap.data().posts||[];
+    const postsSnap=await db.collection('projectPosts').get();
+    if(!postsSnap.empty){
+      _pPosts=postsSnap.docs.map(d=>d.data());
     } else {
-      try{_pPosts=JSON.parse(localStorage.getItem('nds_projects')||'[]');}catch{_pPosts=[];}
-      if(_pPosts.length)await saveProjectData();
+      const oldSnap=await db.collection('appdata').doc('projects').get();
+      const oldPosts=oldSnap.exists?(oldSnap.data().posts||[]):[];
+      if(oldPosts.length){
+        // 예전 방식(문서 하나에 배열 통째로) 데이터가 남아있으면 새 구조로 1회 이전
+        _pPosts=oldPosts;
+        await migrateProjectPostsToCollection();
+      } else {
+        // 그것도 없으면 예전 localStorage 데이터를 1회 마이그레이션
+        try{_pPosts=JSON.parse(localStorage.getItem('nds_projects')||'[]');}catch{_pPosts=[];}
+        if(_pPosts.length)await migrateProjectPostsToCollection();
+      }
     }
   }catch(e){
     if(!retried){await new Promise(r=>setTimeout(r,1000));return loadProjectData(true);}
@@ -4031,7 +4065,7 @@ function pNewPost(){
   const calStartMonth=(input&&/^\d{4}-\d{2}$/.test(input.trim()))?input.trim():defaultStart;
   const post={id:_pNewId(),name:'',status:'대기',dueDate:'',icon:'🗃',tags:[],createdAt:today(),updatedAt:today(),
     calEvents:[],calStartMonth,content:''};
-  _pPosts.unshift(post);_pSave();_pActiveId=post.id;_pEditMode=true;renderProjects();pOpenPost(post.id);
+  _pPosts.unshift(post);_pSave(post.id);_pActiveId=post.id;_pEditMode=true;renderProjects();pOpenPost(post.id);
 }
 
 function pCloseView(){
@@ -4045,7 +4079,11 @@ function pDeletePost(id){
   if(!confirm('이 프로젝트를 삭제하시겠습니까?'))return;
   if(_pActiveId===id){clearTimeout(_pRichTimer);_pRichTimer=null;_pActiveId=null;}
   _pPosts=_pPosts.filter(x=>x.id!==id);
-  _pSave();renderProjects();
+  _pDirty.delete(id); // 저장 대기 중이었다면 취소 (이미 지운 걸 다시 쓰면 안 됨)
+  const db=window._db;
+  if(db){db.collection('projectPosts').doc(id).delete().catch(e=>console.warn('프로젝트 삭제(서버) 실패:',e));}
+  try{localStorage.setItem('nds_projects',JSON.stringify(_pPosts));}catch{}
+  renderProjects();
 }
 
 let _pEditMode=false; // 프로젝트 글 보기/편집 모드. 글을 열 때마다 기본은 '보기'로 시작함
@@ -4112,7 +4150,7 @@ function pRichInput(postId){
     const el=document.getElementById('p-rich-content');if(!el)return;
     p.content=sanitizeRichHtml(el.innerHTML);
     p.updatedAt=today();
-    _pSave();
+    _pSave(postId);
   },400);
 }
 function pFlushRich(postId){
@@ -4120,7 +4158,7 @@ function pFlushRich(postId){
   clearTimeout(_pRichTimer);_pRichTimer=null;
   const p=_pPosts.find(x=>x.id===postId);
   const el=document.getElementById('p-rich-content');
-  if(p&&el){p.content=sanitizeRichHtml(el.innerHTML);p.updatedAt=today();_pSave();}
+  if(p&&el){p.content=sanitizeRichHtml(el.innerHTML);p.updatedAt=today();_pSave(postId);}
 }
 
 // ─── 프로젝트 전용 캘린더 (메인 일정관리와 별개, 프로젝트 데이터에 함께 저장됨) ──
@@ -4158,7 +4196,7 @@ function pChangeCalStartMonth(postId,anchorEl){
   openMonthJump(anchorEl,cur,(y,m)=>{
     p.calStartMonth=`${y}-${p2(m+1)}`;
     pCalRenderAll(postId);
-    _pSave();
+    _pSave(postId);
   });
 }
 function openAddProjectEvent(postId,dateStr){
@@ -4240,7 +4278,7 @@ function saveProjectEvent(postId,id){
   else p.calEvents.push({id:newId(),title,start,end,type,content,time,startTime});
   closeModal();
   pCalRenderAll(postId);
-  _pSave();
+  _pSave(postId);
 }
 function deleteProjectEvent(postId,id){
   if(!confirm('일정을 삭제하시겠습니까?'))return;
@@ -4248,24 +4286,24 @@ function deleteProjectEvent(postId,id){
   p.calEvents=(p.calEvents||[]).filter(x=>x.id!==id);
   closeModal();
   pCalRenderAll(postId);
-  _pSave();
+  _pSave(postId);
 }
 
 function pUpdateTitle(postId,val){
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  p.name=val;p.updatedAt=today();_pSave();pRenderSb();
+  p.name=val;p.updatedAt=today();_pSave(postId);pRenderSb();
 }
 function pUpdateStatus(postId,val){
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  p.status=val;p.updatedAt=today();_pSave();pRenderSb();
+  p.status=val;p.updatedAt=today();_pSave(postId);pRenderSb();
 }
 function pUpdateDue(postId,val){
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
-  p.dueDate=val;p.updatedAt=today();_pSave();
+  p.dueDate=val;p.updatedAt=today();_pSave(postId);
 }
-function pAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_pPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_pSave();pOpenPost(postId);pRenderSb();}
-function pRemoveTag(postId,tag){const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_pSave();pOpenPost(postId);pRenderSb();}
-function pPickIcon(postId){const icons='🗃📁📂🚀🎯💡🔧📊📋🏆⭐🎨🔗📌📅💬🗂📐🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'🗃';const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'🗃';_pSave();pOpenPost(postId);pRenderSb();}
+function pAddTag(postId){const t=prompt('태그 입력:');if(!t?.trim())return;const p=_pPosts.find(x=>x.id===postId);if(!p)return;if(!p.tags)p.tags=[];if(!p.tags.includes(t.trim()))p.tags.push(t.trim());_pSave(postId);pOpenPost(postId);pRenderSb();}
+function pRemoveTag(postId,tag){const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.tags=(p.tags||[]).filter(t=>t!==tag);_pSave(postId);pOpenPost(postId);pRenderSb();}
+function pPickIcon(postId){const icons='🗃📁📂🚀🎯💡🔧📊📋🏆⭐🎨🔗📌📅💬🗂📐🔖';const i=prompt(`아이콘 (이모지):\n${icons}`)||'🗃';const p=_pPosts.find(x=>x.id===postId);if(!p)return;p.icon=[...i.trim()][0]||'🗃';_pSave(postId);pOpenPost(postId);pRenderSb();}
 // ─── SETTLEMENT (정산 리스트) ──────────────────────
 // 노션 표처럼 셀을 바로 클릭해서 편집하는 간단한 표. 텍스트 칸은 contenteditable
 // div를 써서 내용이 길어지면 셀 폭은 고정된 채 자동으로 줄바꿈되도록 함(입력창은
@@ -4609,8 +4647,8 @@ async function _initApp(){
         }
         if(S.page!=='projects'&&!_projectSaveTimer){
           const pVersionBefore=_pSaveVersion;
-          const pSnap=await db.collection('appdata').doc('projects').get();
-          if(pSnap.exists&&!_projectSaveTimer&&_pSaveVersion===pVersionBefore){_pPosts=pSnap.data().posts||_pPosts;}
+          const projSnap=await db.collection('projectPosts').get();
+          if(!_projectSaveTimer&&_pSaveVersion===pVersionBefore){_pPosts=projSnap.docs.map(d=>d.data());}
         }
         if(S.page)renderPage(S.page);
       }
