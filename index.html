@@ -3483,7 +3483,7 @@ async function loadNoticeData(retried){
     }
     const postsSnap=await db.collection('noticePosts').get();
     if(!postsSnap.empty){
-      S.notices=postsSnap.docs.map(d=>d.data());
+      S.notices=postsSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id); // id는 생성 순서대로 커지는 값이라, 큰 값(최신)이 앞에 오도록 정렬
     } else {
       const oldSnap=await db.collection('appdata').doc('main').get();
       const oldNotices=oldSnap.exists?(oldSnap.data().notices||[]):[];
@@ -3712,7 +3712,7 @@ async function loadWorkLogData(retried){
     }
     const postsSnap=await db.collection('workLogPosts').get();
     if(!postsSnap.empty){
-      S.workLogs=postsSnap.docs.map(d=>d.data());
+      S.workLogs=postsSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id); // 위 공지사항과 동일한 이유
     } else {
       const oldSnap=await db.collection('appdata').doc('main').get();
       const oldLogs=oldSnap.exists?(oldSnap.data().workLogs||[]):[];
@@ -4199,11 +4199,12 @@ function pRenderSb(){
   const el=document.getElementById('p-sb-list');if(!el)return;
   const q=_pSearch.trim().toLowerCase();
   let list=_pPosts.filter(p=>(!q||(p.name||'').toLowerCase().includes(q))&&(!_pStatusFilter||p.status===_pStatusFilter));
+  list=[...list].sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||'')); // 최신 수정순 (게시판과 동일한 방식)
   el.innerHTML=list.length?list.map(p=>`<div class="board-li${p.id===_pActiveId?' active':''}" onclick="pOpenPost('${p.id}')" style="display:flex;align-items:center;gap:6px">
     <span style="font-size:18px;flex-shrink:0">${p.icon||'🗃'}</span>
-    <div style="flex:1;min-width:0">
-      <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name||'제목 없음'}</div>
-      <span class="prj-status ps-${p.status||'대기'}">${p.status||'대기'}</span>
+    <div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px">
+      <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${p.name||'제목 없음'}</div>
+      <span class="prj-status ps-${p.status||'대기'}" style="flex-shrink:0">${p.status||'대기'}</span>
     </div>
     <button class="btn btn-d btn-sm" style="flex-shrink:0;padding:2px 7px" onclick="event.stopPropagation();pDeletePost('${p.id}')">삭제</button>
   </div>`).join(''):'<div style="padding:16px;color:var(--sub);font-size:13px;text-align:center">프로젝트가 없습니다</div>';
@@ -4816,12 +4817,12 @@ async function _initApp(){
         if(S.page!=='notice'&&!_noticeSaveTimer){
           const nVersionBefore=_noticeSaveVersion;
           const noticeSnap=await db.collection('noticePosts').get();
-          if(!_noticeSaveTimer&&_noticeSaveVersion===nVersionBefore){S.notices=noticeSnap.docs.map(d=>d.data());}
+          if(!_noticeSaveTimer&&_noticeSaveVersion===nVersionBefore){S.notices=noticeSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id);}
         }
         if(S.page!=='worklog'&&!_wlSaveTimer){
           const wlVersionBefore=_wlSaveVersion;
           const wlSnap=await db.collection('workLogPosts').get();
-          if(!_wlSaveTimer&&_wlSaveVersion===wlVersionBefore){S.workLogs=wlSnap.docs.map(d=>d.data());}
+          if(!_wlSaveTimer&&_wlSaveVersion===wlVersionBefore){S.workLogs=wlSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id);}
         }
         if(S.page)renderPage(S.page);
       }
