@@ -3428,14 +3428,89 @@ function sanitizeNoticeHtml(html){
   clean(div);
   return div.innerHTML;
 }
+// ─── 인턴 공지 저장 방식 (2026-09, 게시판/프로젝트와 동일한 이유로 개편) ──
+// 공지 하나하나를 noticePosts 컬렉션에 별도 문서로 저장. 예전엔 appdata/main 문서 안에
+// notices 배열로 다른 모든 데이터와 함께 저장돼서, 서로 다른 공지를 거의 동시에 고치면
+// (혹은 공지 고치는 중에 전혀 상관없는 다른 메뉴를 저장해도) 덮어쓸 위험이 있었음.
+let _noticeSaveTimer=null;
+let _noticeDirty=new Set();
+let _noticeSaveVersion=0;
+function _noticeSave(id){
+  _noticeSaveVersion++;
+  if(id)_noticeDirty.add(id);
+  if(_noticeSaveTimer)clearTimeout(_noticeSaveTimer);
+  _noticeSaveTimer=setTimeout(saveNoticeData,1500);
+}
+async function saveNoticeData(){
+  _noticeSaveTimer=null;
+  const ids=[..._noticeDirty];_noticeDirty.clear();
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    const batch=db.batch();
+    ids.forEach(id=>{
+      const n=S.notices.find(x=>x.id===id);
+      if(n)batch.set(db.collection('noticePosts').doc(String(id)),n);
+    });
+    await batch.commit();
+    hideSaveFailBanner();
+    try{localStorage.setItem('nds_notices',JSON.stringify(S.notices));}catch{}
+  }catch(e){
+    ids.forEach(id=>_noticeDirty.add(id)); // 실패했으니 다음 저장 때 다시 시도되도록 대기 상태로 되돌려놓음
+    try{localStorage.setItem('nds_notices',JSON.stringify(S.notices));}catch{}
+    console.warn('공지 Firestore 저장 실패, localStorage 백업 사용:', e);
+    showSaveFailBanner();
+  }
+}
+// 예전 방식(appdata/main 문서 안의 notices 배열)으로 저장된 공지를 새 구조로 한 번 옮김
+async function migrateNoticePostsToCollection(){
+  try{
+    const db=window._db;
+    const batch=db.batch();
+    S.notices.forEach(n=>batch.set(db.collection('noticePosts').doc(String(n.id)),n));
+    await batch.commit();
+    console.log('✅ 공지 마이그레이션 완료 (공지마다 별도 문서로 전환)');
+  }catch(e){
+    console.warn('공지 마이그레이션 실패, 다음 접속 때 다시 시도됩니다:', e);
+  }
+}
+async function loadNoticeData(retried){
+  try{
+    const db=window._db;
+    if(!db){
+      if(!retried){await new Promise(r=>setTimeout(r,1000));return loadNoticeData(true);}
+      throw new Error('Firebase 미준비');
+    }
+    const postsSnap=await db.collection('noticePosts').get();
+    if(!postsSnap.empty){
+      S.notices=postsSnap.docs.map(d=>d.data());
+    } else {
+      const oldSnap=await db.collection('appdata').doc('main').get();
+      const oldNotices=oldSnap.exists?(oldSnap.data().notices||[]):[];
+      if(oldNotices.length){
+        S.notices=oldNotices;
+        await migrateNoticePostsToCollection();
+      } else {
+        try{const raw=localStorage.getItem('nds_notices');if(raw)S.notices=JSON.parse(raw);}catch{}
+        if(S.notices.length)await migrateNoticePostsToCollection();
+      }
+    }
+  }catch(e){
+    if(!retried){await new Promise(r=>setTimeout(r,1000));return loadNoticeData(true);}
+    try{const raw=localStorage.getItem('nds_notices');if(raw)S.notices=JSON.parse(raw);}catch{}
+    console.warn('공지 Firestore 로드 실패(재시도 후에도), localStorage 사용:', e);
+  }
+}
 function saveNotice(id){
   const title=document.getElementById('nt-title').value.trim();
   const contentEl=document.getElementById('nt-content');
   const content=sanitizeNoticeHtml(contentEl?contentEl.innerHTML:'');
   const pinned=document.getElementById('nt-pinned').checked;
   if(!title){alert('제목을 입력해주세요');return}
+  let savedId=id;
   if(id){const n=S.notices.find(x=>x.id===id);Object.assign(n,{title,content,pinned})}
-  else S.notices.unshift({id:newId(),title,content,pinned,author:S.user.name,date:today(),comments:[]});
+  else{savedId=newId();S.notices.unshift({id:savedId,title,content,pinned,author:S.user.name,date:today(),comments:[]});}
+  _noticeSave(savedId);
   closeModal();renderNotice();
 }
 function renderCmt(c,type,itemId){
@@ -3452,7 +3527,7 @@ function deleteComment(type,itemId,commentId){
   item.comments=item.comments.filter(c=>c.id!==commentId);
   const el=document.getElementById('cmt-list');
   if(el)el.innerHTML=item.comments.map(c=>renderCmt(c,type,itemId)).join('');
-  saveAppData().catch(()=>{});
+  if(type==='notice')_noticeSave(itemId);else _wlSave(itemId);
 }
 function openNoticeDetail(id){
   const n=S.notices.find(x=>x.id===id);if(!n)return;
@@ -3480,6 +3555,10 @@ function openNoticeDetail(id){
 function deleteNotice(id){
   if(!confirm('공지를 삭제하시겠습니까?'))return;
   S.notices=S.notices.filter(x=>x.id!==id);
+  _noticeDirty.delete(id); // 저장 대기 중이었다면 취소 (이미 지운 걸 다시 쓰면 안 됨)
+  const db=window._db;
+  if(db){db.collection('noticePosts').doc(String(id)).delete().catch(e=>console.warn('공지 삭제(서버) 실패:',e));}
+  try{localStorage.setItem('nds_notices',JSON.stringify(S.notices));}catch{}
   closeModal();renderNotice();
 }
 
@@ -3582,6 +3661,75 @@ function deleteChecklistItem(type,id){
   saveAppData().catch(()=>{});
   openManageChecklist(type);
 }
+// ─── 근무일지 저장 방식 (2026-09, 인턴 공지와 동일한 이유로 개편) ──
+let _wlSaveTimer=null;
+let _wlDirty=new Set();
+let _wlSaveVersion=0;
+function _wlSave(id){
+  _wlSaveVersion++;
+  if(id)_wlDirty.add(id);
+  if(_wlSaveTimer)clearTimeout(_wlSaveTimer);
+  _wlSaveTimer=setTimeout(saveWorkLogData,1500);
+}
+async function saveWorkLogData(){
+  _wlSaveTimer=null;
+  const ids=[..._wlDirty];_wlDirty.clear();
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    const batch=db.batch();
+    ids.forEach(id=>{
+      const l=S.workLogs.find(x=>x.id===id);
+      if(l)batch.set(db.collection('workLogPosts').doc(String(id)),l);
+    });
+    await batch.commit();
+    hideSaveFailBanner();
+    try{localStorage.setItem('nds_worklogs',JSON.stringify(S.workLogs));}catch{}
+  }catch(e){
+    ids.forEach(id=>_wlDirty.add(id));
+    try{localStorage.setItem('nds_worklogs',JSON.stringify(S.workLogs));}catch{}
+    console.warn('근무일지 Firestore 저장 실패, localStorage 백업 사용:', e);
+    showSaveFailBanner();
+  }
+}
+async function migrateWorkLogPostsToCollection(){
+  try{
+    const db=window._db;
+    const batch=db.batch();
+    S.workLogs.forEach(l=>batch.set(db.collection('workLogPosts').doc(String(l.id)),l));
+    await batch.commit();
+    console.log('✅ 근무일지 마이그레이션 완료 (일지마다 별도 문서로 전환)');
+  }catch(e){
+    console.warn('근무일지 마이그레이션 실패, 다음 접속 때 다시 시도됩니다:', e);
+  }
+}
+async function loadWorkLogData(retried){
+  try{
+    const db=window._db;
+    if(!db){
+      if(!retried){await new Promise(r=>setTimeout(r,1000));return loadWorkLogData(true);}
+      throw new Error('Firebase 미준비');
+    }
+    const postsSnap=await db.collection('workLogPosts').get();
+    if(!postsSnap.empty){
+      S.workLogs=postsSnap.docs.map(d=>d.data());
+    } else {
+      const oldSnap=await db.collection('appdata').doc('main').get();
+      const oldLogs=oldSnap.exists?(oldSnap.data().workLogs||[]):[];
+      if(oldLogs.length){
+        S.workLogs=oldLogs;
+        await migrateWorkLogPostsToCollection();
+      } else {
+        try{const raw=localStorage.getItem('nds_worklogs');if(raw)S.workLogs=JSON.parse(raw);}catch{}
+        if(S.workLogs.length)await migrateWorkLogPostsToCollection();
+      }
+    }
+  }catch(e){
+    if(!retried){await new Promise(r=>setTimeout(r,1000));return loadWorkLogData(true);}
+    try{const raw=localStorage.getItem('nds_worklogs');if(raw)S.workLogs=JSON.parse(raw);}catch{}
+    console.warn('근무일지 Firestore 로드 실패(재시도 후에도), localStorage 사용:', e);
+  }
+}
 function saveWorkLog(id){
   const title=document.getElementById('wl-title').value.trim();
   const content=document.getElementById('wl-content').value.trim();
@@ -3591,8 +3739,10 @@ function saveWorkLog(id){
   const closeItems={};S.closeItems.forEach(it=>{closeItems[it.id]=document.getElementById('wl-ci-'+it.id)?.checked||false});
   const tasks={open:openOn,openItems,close:closeOn,closeItems};
   if(!title){alert('제목을 입력해주세요');return}
+  let savedId=id;
   if(id){const l=S.workLogs.find(x=>x.id===id);Object.assign(l,{title,content,tasks})}
-  else S.workLogs.unshift({id:newId(),title,content,tasks,author:S.user.name,date:today(),comments:[]});
+  else{savedId=newId();S.workLogs.unshift({id:savedId,title,content,tasks,author:S.user.name,date:today(),comments:[]});}
+  _wlSave(savedId);
   closeModal();renderWorkLog();
 }
 function openWorkLogDetail(id){
@@ -3632,6 +3782,10 @@ function openWorkLogDetail(id){
 function deleteWorkLog(id){
   if(!confirm('근무일지를 삭제하시겠습니까?'))return;
   S.workLogs=S.workLogs.filter(x=>x.id!==id);
+  _wlDirty.delete(id);
+  const db=window._db;
+  if(db){db.collection('workLogPosts').doc(String(id)).delete().catch(e=>console.warn('근무일지 삭제(서버) 실패:',e));}
+  try{localStorage.setItem('nds_worklogs',JSON.stringify(S.workLogs));}catch{}
   closeModal();renderWorkLog();
 }
 
@@ -3659,7 +3813,7 @@ function postComment(type,id,text){
   const cmts=item.comments.map(c=>renderCmt(c,type,id)).join('');
   const el=document.getElementById('cmt-list');
   if(el)el.innerHTML=cmts;
-  saveAppData().catch(()=>{});
+  if(type==='notice')_noticeSave(id);else _wlSave(id);
 }
 
 // ─── BOARD ────────────────────────────────────────
@@ -4405,7 +4559,8 @@ function closeModal(){
 function modalBgClick(e){if(e.target===document.getElementById('modal'))closeModal()}
 
 // ─── DATA PERSISTENCE (Firestore) ──────────────────
-const PERSIST_KEYS=['events','etypes','etypeColors','employees','interns','internSchedules','internSchedHistory','internTimetable','notices','workLogs','workIssues','navLabels','navOrder','nid','settlements','openItems','closeItems'];
+// notices/workLogs는 이제 각자 별도 문서(noticePosts/workLogPosts 컬렉션)로 저장하므로 여기서 뺌
+const PERSIST_KEYS=['events','etypes','etypeColors','employees','interns','internSchedules','internSchedHistory','internTimetable','workIssues','navLabels','navOrder','nid','settlements','openItems','closeItems'];
 
 // Firestore에 저장
 // _mainSaveInFlight: 지금 saveAppData()가 서버에 쓰는 중인지 표시하는 카운터.
@@ -4486,9 +4641,12 @@ async function loadAppData(){
     }catch{}
     console.warn('Firestore 로드 실패, localStorage 사용:', e);
   }
-  // 게시판/프로젝트 데이터도 함께 로드 (예전엔 localStorage 전용이라 기기마다 따로 놀았던 부분)
+  // 게시판/프로젝트/공지/근무일지 데이터도 함께 로드 (예전엔 appdata/main 문서 안에 다른 모든 데이터와
+  // 뒤섞여 있거나 localStorage 전용이라 기기마다 따로 놀았던 부분들을, 각자 별도 컬렉션으로 분리함)
   await loadBoardData();
   await loadProjectData();
+  await loadNoticeData();
+  await loadWorkLogData();
   migrateSchedHistoryToWeekKey();
   // 예전 버전에서 자동으로 만들어졌던 빈 정산 행을 1회 정리
   if(Array.isArray(S.settlements)){
@@ -4603,6 +4761,10 @@ async function _initApp(){
     saveBoardData();
     if(_projectSaveTimer){clearTimeout(_projectSaveTimer);_projectSaveTimer=null;}
     saveProjectData();
+    if(_noticeSaveTimer){clearTimeout(_noticeSaveTimer);_noticeSaveTimer=null;}
+    saveNoticeData();
+    if(_wlSaveTimer){clearTimeout(_wlSaveTimer);_wlSaveTimer=null;}
+    saveWorkLogData();
   }
   // 30초마다 자동저장하기 '직전'에, 서버의 최신 데이터를 먼저 한 번 당겨와 화면에 반영함.
   // (예전엔 이 브라우저가 기억하는 걸 무조건 통째로 덮어써서, 방치해둔 탭이 뒤늦게 저장될 때
@@ -4649,6 +4811,17 @@ async function _initApp(){
           const pVersionBefore=_pSaveVersion;
           const projSnap=await db.collection('projectPosts').get();
           if(!_projectSaveTimer&&_pSaveVersion===pVersionBefore){_pPosts=projSnap.docs.map(d=>d.data());}
+        }
+        // 인턴 공지/근무일지도 위와 동일한 이유로 같은 방식 적용
+        if(S.page!=='notice'&&!_noticeSaveTimer){
+          const nVersionBefore=_noticeSaveVersion;
+          const noticeSnap=await db.collection('noticePosts').get();
+          if(!_noticeSaveTimer&&_noticeSaveVersion===nVersionBefore){S.notices=noticeSnap.docs.map(d=>d.data());}
+        }
+        if(S.page!=='worklog'&&!_wlSaveTimer){
+          const wlVersionBefore=_wlSaveVersion;
+          const wlSnap=await db.collection('workLogPosts').get();
+          if(!_wlSaveTimer&&_wlSaveVersion===wlVersionBefore){S.workLogs=wlSnap.docs.map(d=>d.data());}
         }
         if(S.page)renderPage(S.page);
       }
