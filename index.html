@@ -1455,9 +1455,10 @@ function openAddEvent(dateStr){
   showModal(`<div class="mo-hd"><h3>일정 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>제목</label><input id="ev-title" placeholder="일정 제목"></div>
-    <div class="fr fr-row">
-      <div><label>시작일</label><input type="text" id="ev-start" value="${dateStr||today()}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
-      <div><label>종료일</label><input type="text" id="ev-end" value="${dateStr||today()}" readonly style="cursor:pointer" onclick="openMiniCal('ev-end',this)"></div>
+    <div class="fr"><label>시작일</label><input type="text" id="ev-start" value="${dateStr||today()}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-endset" style="width:auto" onchange="toggleEvEnd()"> 종료일 설정</label></div>
+    <div id="ev-end-row" style="display:none" class="fr">
+      <label>종료일</label><input type="text" id="ev-end" readonly placeholder="종료일 선택" style="cursor:pointer" onclick="openMiniCal('ev-end',this)">
     </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" onchange="toggleEvTime()"> 시간 설정</label></div>
     <div id="ev-time-row" style="display:none" class="fr">
@@ -1478,14 +1479,21 @@ function toggleEvTime(){
   const chk=document.getElementById('ev-time');
   document.getElementById('ev-time-row').style.display=chk.checked?'block':'none';
 }
+// 종료일 체크박스: 안 켜면 종료일=시작일(하루짜리 일정)로 자동 처리되고, 켜면 종료일을
+// 따로 고를 수 있음. 메인 일정관리/프로젝트 캘린더의 추가·수정 모달이 모두 이 함수를 공유함.
+function toggleEvEnd(){
+  const chk=document.getElementById('ev-endset');
+  document.getElementById('ev-end-row').style.display=chk.checked?'block':'none';
+}
 function openEditEvent(id){
   const e=S.events.find(x=>x.id===id);if(!e)return;
   showModal(`<div class="mo-hd"><h3>일정 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>제목</label><input id="ev-title" value="${esc(e.title).replace(/"/g,'&quot;')}"></div>
-    <div class="fr fr-row">
-      <div><label>시작일</label><input type="text" id="ev-start" value="${e.start}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
-      <div><label>종료일</label><input type="text" id="ev-end" value="${e.end}" readonly style="cursor:pointer" onclick="openMiniCal('ev-end',this)"></div>
+    <div class="fr"><label>시작일</label><input type="text" id="ev-start" value="${e.start}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-endset" style="width:auto" ${e.start!==e.end?'checked':''} onchange="toggleEvEnd()"> 종료일 설정</label></div>
+    <div id="ev-end-row" style="display:${e.start!==e.end?'block':'none'}" class="fr">
+      <label>종료일</label><input type="text" id="ev-end" value="${e.end}" readonly placeholder="종료일 선택" style="cursor:pointer" onclick="openMiniCal('ev-end',this)">
     </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" ${e.time?'checked':''} onchange="toggleEvTime()"> 시간 설정</label></div>
     <div id="ev-time-row" style="display:${e.time?'block':'none'}" class="fr">
@@ -1522,14 +1530,20 @@ function openEventDetail(id){
 function saveEvent(id){
   const title=document.getElementById('ev-title').value.trim();
   const start=document.getElementById('ev-start').value;
-  const end=document.getElementById('ev-end').value;
+  const endSet=document.getElementById('ev-endset').checked;
+  const endVal=document.getElementById('ev-end').value;
+  const end=endSet&&endVal?endVal:start; // 종료일을 따로 설정 안 하면 시작일과 같은 날(하루짜리 일정)로 처리
   const type=document.getElementById('ev-type').value;
   const content=document.getElementById('ev-content').value.trim();
   const time=document.getElementById('ev-time').checked;
   const startTime=time?document.getElementById('ev-stime').value:'';
-  if(!title||!start||!end){alert('제목과 날짜를 입력해주세요');return}
+  if(!title||!start){alert('제목과 날짜를 입력해주세요');return}
+  if(endSet&&endVal&&endVal<start){alert('종료일은 시작일보다 빠를 수 없어요');return}
   if(id){const e=S.events.find(x=>x.id===id);Object.assign(e,{title,start,end,type,content,time,startTime});delete e.endTime;}
-  else S.events.push({id:newId(),title,start,end,type,content,time,startTime});
+  else{
+    S.events.push({id:newId(),title,start,end,type,content,time,startTime});
+    saveAppData().catch(()=>{}); // 번호표(newId) 충돌 방지: 30초 자동저장을 기다리지 않고 즉시 반영
+  }
   closeModal();
   if(S.page==='home')renderHome();
   else if(S.page==='schedule')renderSchedulePage();
@@ -1948,6 +1962,7 @@ function saveManualLeaveGrant(){
   else if(type==='월차')e.monthLeave+=days;
   else if(type==='특별휴가')e.specialLeave=(e.specialLeave||0)+days;
   closeModal();renderEmployees();
+  saveAppData().catch(()=>{});
 }
 function openEmpLeaveGrant(empId){
   const e=S.employees.find(x=>x.id===empId);if(!e)return;
@@ -2000,6 +2015,7 @@ function saveEmpLeaveGrant(empId){
   else if(type==='월차')e.monthLeave=Math.max(0,e.monthLeave-days);
   else if(type==='특별휴가')e.specialLeave=Math.max(0,(e.specialLeave||0)-days);
   closeModal();renderEmployees();
+  saveAppData().catch(()=>{});
 }
 // ─── INTERNS ──────────────────────────────────────
 let _internActiveTab=1; // 인턴 목록의 '전체 일정 현황' 탭(1=수업시간표, 2=근무스케줄) - 화면이 다시 그려져도 유지되도록 기억해둠
@@ -2929,6 +2945,7 @@ function openAddWorkIssue(){
 function saveWorkIssue(){
   S.workIssues.push({id:newId(),intern:document.getElementById('wi-intern').value,date:document.getElementById('wi-date').value,content:document.getElementById('wi-content').value,status:'처리중'});
   closeModal();renderWorkSchedule();
+  saveAppData().catch(()=>{});
 }
 
 // ─── NOTICE ───────────────────────────────────────
@@ -3509,7 +3526,11 @@ function saveNotice(id){
   if(!title){alert('제목을 입력해주세요');return}
   let savedId=id;
   if(id){const n=S.notices.find(x=>x.id===id);Object.assign(n,{title,content,pinned})}
-  else{savedId=newId();S.notices.unshift({id:savedId,title,content,pinned,author:S.user.name,date:today(),comments:[]});}
+  else{
+    savedId=newId();
+    S.notices.unshift({id:savedId,title,content,pinned,author:S.user.name,date:today(),comments:[]});
+    saveAppData().catch(()=>{}); // 번호표(newId) 충돌 방지: 30초 자동저장을 기다리지 않고 즉시 반영
+  }
   _noticeSave(savedId);
   closeModal();renderNotice();
 }
@@ -3741,7 +3762,11 @@ function saveWorkLog(id){
   if(!title){alert('제목을 입력해주세요');return}
   let savedId=id;
   if(id){const l=S.workLogs.find(x=>x.id===id);Object.assign(l,{title,content,tasks})}
-  else{savedId=newId();S.workLogs.unshift({id:savedId,title,content,tasks,author:S.user.name,date:today(),comments:[]});}
+  else{
+    savedId=newId();
+    S.workLogs.unshift({id:savedId,title,content,tasks,author:S.user.name,date:today(),comments:[]});
+    saveAppData().catch(()=>{}); // 번호표(newId) 충돌 방지: 30초 자동저장을 기다리지 않고 즉시 반영
+  }
   _wlSave(savedId);
   closeModal();renderWorkLog();
 }
@@ -3810,6 +3835,7 @@ function postComment(type,id,text){
   const item=arr.find(x=>x.id===id);
   if(!item)return;
   item.comments.push({id:newId(),author:S.user.name,text,date:today()});
+  saveAppData().catch(()=>{}); // 번호표(newId) 충돌 방지: 30초 자동저장을 기다리지 않고 즉시 반영
   const cmts=item.comments.map(c=>renderCmt(c,type,id)).join('');
   const el=document.getElementById('cmt-list');
   if(el)el.innerHTML=cmts;
@@ -4358,9 +4384,10 @@ function openAddProjectEvent(postId,dateStr){
   showModal(`<div class="mo-hd"><h3>일정 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>제목</label><input id="ev-title" placeholder="일정 제목"></div>
-    <div class="fr fr-row">
-      <div><label>시작일</label><input type="text" id="ev-start" value="${dateStr||today()}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
-      <div><label>종료일</label><input type="text" id="ev-end" value="${dateStr||today()}" readonly style="cursor:pointer" onclick="openMiniCal('ev-end',this)"></div>
+    <div class="fr"><label>시작일</label><input type="text" id="ev-start" value="${dateStr||today()}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-endset" style="width:auto" onchange="toggleEvEnd()"> 종료일 설정</label></div>
+    <div id="ev-end-row" style="display:none" class="fr">
+      <label>종료일</label><input type="text" id="ev-end" readonly placeholder="종료일 선택" style="cursor:pointer" onclick="openMiniCal('ev-end',this)">
     </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" onchange="toggleEvTime()"> 시간 설정</label></div>
     <div id="ev-time-row" style="display:none" class="fr">
@@ -4383,9 +4410,10 @@ function openEditProjectEvent(postId,id){
   showModal(`<div class="mo-hd"><h3>일정 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>제목</label><input id="ev-title" value="${esc(e.title).replace(/"/g,'&quot;')}"></div>
-    <div class="fr fr-row">
-      <div><label>시작일</label><input type="text" id="ev-start" value="${e.start}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
-      <div><label>종료일</label><input type="text" id="ev-end" value="${e.end}" readonly style="cursor:pointer" onclick="openMiniCal('ev-end',this)"></div>
+    <div class="fr"><label>시작일</label><input type="text" id="ev-start" value="${e.start}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-endset" style="width:auto" ${e.start!==e.end?'checked':''} onchange="toggleEvEnd()"> 종료일 설정</label></div>
+    <div id="ev-end-row" style="display:${e.start!==e.end?'block':'none'}" class="fr">
+      <label>종료일</label><input type="text" id="ev-end" value="${e.end}" readonly placeholder="종료일 선택" style="cursor:pointer" onclick="openMiniCal('ev-end',this)">
     </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" ${e.time?'checked':''} onchange="toggleEvTime()"> 시간 설정</label></div>
     <div id="ev-time-row" style="display:${e.time?'block':'none'}" class="fr">
@@ -4423,14 +4451,24 @@ function saveProjectEvent(postId,id){
   if(!p.calEvents)p.calEvents=[];
   const title=document.getElementById('ev-title').value.trim();
   const start=document.getElementById('ev-start').value;
-  const end=document.getElementById('ev-end').value;
+  const endSet=document.getElementById('ev-endset').checked;
+  const endVal=document.getElementById('ev-end').value;
+  const end=endSet&&endVal?endVal:start; // 종료일을 따로 설정 안 하면 시작일과 같은 날(하루짜리 일정)로 처리
   const type=document.getElementById('ev-type').value;
   const content=document.getElementById('ev-content').value.trim();
   const time=document.getElementById('ev-time').checked;
   const startTime=time?document.getElementById('ev-stime').value:'';
-  if(!title||!start||!end){alert('제목과 날짜를 입력해주세요');return}
+  if(!title||!start){alert('제목과 날짜를 입력해주세요');return}
+  if(endSet&&endVal&&endVal<start){alert('종료일은 시작일보다 빠를 수 없어요');return}
   if(id){const e=p.calEvents.find(x=>x.id===id);Object.assign(e,{title,start,end,type,content,time,startTime});}
-  else p.calEvents.push({id:newId(),title,start,end,type,content,time,startTime});
+  else{
+    p.calEvents.push({id:newId(),title,start,end,type,content,time,startTime});
+    // 새 일정을 만들면 번호표(newId)가 하나 올라가는데, 이 번호가 서버(main 문서)에
+    // 즉시 반영되지 않으면(예전엔 30초 자동저장까지 기다렸음) 그 사이 다른 곳에서
+    // 새로 만든 항목이 같은 번호를 또 받아버릴 수 있었음(→ 일정이 뒤섞이는 원인).
+    // 그래서 프로젝트 문서 저장(_pSave)과 별개로, 늘어난 번호도 곧바로 서버에 저장함.
+    saveAppData().catch(()=>{});
+  }
   closeModal();
   pCalRenderAll(postId);
   _pSave(postId);
