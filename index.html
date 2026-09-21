@@ -1828,11 +1828,17 @@ function toggleEmpSection(id){
   el.style.display=opening?'block':'none';
   if(arrow)arrow.textContent=opening?'▴':'▾';
 }
+// 지금 "열려있지만 아직 저장 안 한" 이슈 등록 폼이 있는 직원 id들.
+// 이 폼은 입력 중에 살짝 다른 곳(날짜 선택 팝업 등)을 클릭하면 포커스가 잠깐 벗어나는데,
+// 그 순간 30초 자동 동기화가 화면을 통째로 다시 그리면 폼이 닫히면서 입력하던 내용이
+// 사라져버릴 수 있었음. 그래서 포커스와 별개로 "폼이 열려있다" 자체를 추적해서 보호함.
+let _empIssueFormOpenIds=new Set();
 function toggleEmpIssueForm(empId){
   const el=document.getElementById(`emp-issue-form-${empId}`);
   if(!el)return;
   const showing=el.style.display==='flex';
   el.style.display=showing?'none':'flex';
+  if(showing)_empIssueFormOpenIds.delete(empId);else _empIssueFormOpenIds.add(empId);
   if(!showing){const inp=document.getElementById(`emp-issue-content-${empId}`);if(inp)setTimeout(()=>inp.focus(),20);}
 }
 function saveEmpIssue(empId){
@@ -1842,6 +1848,7 @@ function saveEmpIssue(empId){
   if(!content){alert('이슈 내용을 입력해주세요');return}
   if(!e.issues)e.issues=[];
   e.issues.push({id:newId(),date:date||today(),content});
+  _empIssueFormOpenIds.delete(empId);
   renderEmployees();
   saveAppData().catch(()=>{});
 }
@@ -4815,7 +4822,7 @@ async function _initApp(){
     // 다시 그려지면서 커서 위치가 날아가고, 아직 저장 안 된 방금 친 글자가 사라질 수 있었음.
     // 이 경우엔 지금 상태 그대로 조용히 저장만 하고 넘어감(다음 주기에 다시 시도).
     const activeEl=document.activeElement;
-    const isTyping=activeEl&&(activeEl.tagName==='INPUT'||activeEl.tagName==='TEXTAREA'||activeEl.isContentEditable);
+    const isTyping=(activeEl&&(activeEl.tagName==='INPUT'||activeEl.tagName==='TEXTAREA'||activeEl.isContentEditable))||_empIssueFormOpenIds.size>0;
     if(isTyping){saveEverything();return;}
     try{
       const db=window._db;
@@ -4862,7 +4869,12 @@ async function _initApp(){
           const wlSnap=await db.collection('workLogPosts').get();
           if(!_wlSaveTimer&&_wlSaveVersion===wlVersionBefore){S.workLogs=wlSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id);}
         }
-        if(S.page)renderPage(S.page);
+        // 게시판/프로젝트 화면은 바로 위에서 이미 "지금 보고 있는 글은 서버 데이터로
+        // 덮어쓰지 않음" 처리가 돼 있어서, 여기서 다시 그려봤자 화면 내용은 그대로임.
+        // 그런데도 다시 그리면 편집 중이던 글의 스크롤 위치가 맨 위로 튕기는 부작용만
+        // 생기므로(수정 중 자꾸 위로 올라가던 문제의 원인), 이 두 화면에서는 재렌더링을
+        // 건너뜀. 다른 화면은 그대로 최신 데이터로 다시 그림.
+        if(S.page&&S.page!=='board'&&S.page!=='projects')renderPage(S.page);
       }
     }catch(e){
       console.warn('자동 동기화 실패, 기존 상태로 저장 시도:', e);
