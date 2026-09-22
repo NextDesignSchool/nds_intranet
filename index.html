@@ -519,6 +519,7 @@ body.tbl-resizing *{cursor:inherit!important}
       <div class="page" id="page-settlement"></div>
       <div class="page" id="page-interns"></div>
       <div class="page" id="page-workschedule"></div>
+      <div class="page" id="page-contentcal"></div>
       <div class="page" id="page-notice"></div>
       <div class="page" id="page-worklog"></div>
     </div>
@@ -583,6 +584,10 @@ const S={
   etypeColors:{},
   navOrder:[],
   cal:new Date(new Date().getFullYear(),new Date().getMonth(),1),
+  // 콘텐츠 캘린더 전용 상태. 일정관리 캘린더(cal)와 완전히 분리된 달력 위치/정렬값이라
+  // 콘텐츠 캘린더에서 다른 달로 이동해도 일정관리 캘린더는 영향을 안 받음.
+  ccCal:new Date(new Date().getFullYear(),new Date().getMonth(),1),
+  ccSort:'date',
   weekOffset:0,
   schedSort:'date',
   nid:200,
@@ -603,6 +608,9 @@ const S={
     {id:2,title:'디자인 미팅',start:'2026-05-20',end:'2026-05-20',type:'미팅',content:'월간 디자인 리뷰',time:false},
     {id:3,title:'클라이언트 외근',start:'2026-05-22',end:'2026-05-22',type:'외근',content:'',time:false}
   ],
+  // 콘텐츠 캘린더 전용 일정 데이터. 일정관리(events)와 완전히 별도로 저장되고 화면에도
+  // 따로 표시됨 — 인턴과 공유하는 콘텐츠 일정이 회사 내부 일정관리와 섞이지 않도록 함.
+  contentEvents:[],
   etypes:['행사','미팅','외근','휴가'],
   employees:[{
     id:1,name:'김디자인',startDate:'2023-03-01',phone:'010-1234-5678',email:'design@nds.com',
@@ -832,7 +840,8 @@ const ICONS={
   workschedule:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12.5" r="8.3"/><path d="M12 8v4.5l3 2"/></svg>',
   notice:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v3.5a1 1 0 0 0 1 1h1.6l3.6 4V5l-3.6 4H5a1 1 0 0 0-1 1Z"/><path d="M15.5 8.3a5.2 5.2 0 0 1 0 8"/><path d="M18.3 6a8.8 8.8 0 0 1 0 12.6"/></svg>',
   worklog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 3H7.5a1.8 1.8 0 0 0-1.8 1.8v14.4A1.8 1.8 0 0 0 7.5 21h9a1.8 1.8 0 0 0 1.8-1.8V8.3Z"/><path d="M13.5 3v4.5a1 1 0 0 0 1 1H19M9 12.5h6M9 16h6"/></svg>',
-  settlement:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.8h12v18.4l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6-2.4-1.6Z"/><path d="M8.5 8h7M8.5 11.5h7M8.5 15h4"/></svg>'
+  settlement:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.8h12v18.4l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6-2.4-1.6Z"/><path d="M8.5 8h7M8.5 11.5h7M8.5 15h4"/></svg>',
+  contentcal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="2"/><path d="M8 2.5v4M16 2.5v4M3.5 9.5h17"/><path d="M8 13.3h2.2M8 17h2.2M13.8 13.3H16M13.8 17H16"/></svg>'
 };
 const PAGES=[
   {id:'home',label:'홈 대시보드',role:'all',section:'메인',icon:ICONS.home},
@@ -843,6 +852,7 @@ const PAGES=[
   {id:'settlement',label:'정산 리스트',role:'admin',section:'직원 관리',icon:ICONS.settlement},
   {id:'interns',label:'인턴 목록',role:'admin',section:'인턴관리',icon:ICONS.interns},
   {id:'workschedule',label:'근무스케줄',role:'all',section:'인턴관리',icon:ICONS.workschedule},
+  {id:'contentcal',label:'콘텐츠 캘린더',role:'all',section:'인턴관리',icon:ICONS.contentcal},
   {id:'notice',label:'인턴 공지',role:'all',section:'인턴관리',icon:ICONS.notice},
   {id:'worklog',label:'근무일지',role:'all',section:'인턴관리',icon:ICONS.worklog},
 ];
@@ -965,6 +975,7 @@ function renderPage(pg){
   else if(pg==='employees')renderEmployees();
   else if(pg==='interns')renderInterns();
   else if(pg==='workschedule')renderWorkSchedule();
+  else if(pg==='contentcal')renderContentCal();
   else if(pg==='notice')renderNotice();
   else if(pg==='worklog')renderWorkLog();
   else if(pg==='board')renderBoard();
@@ -1060,7 +1071,7 @@ function renderCalendar(container,month,onAddEvent){
     </div>
   </div>`;
   const compact=(window.innerWidth||1024)<=600;
-  html+=buildMonthGridHtml(S.events,month,ds=>`openAddEvent('${ds}')`,id=>`openEventDetail(${id})`,compact);
+  html+=buildMonthGridHtml(S.events,month,ds=>`openAddEvent('${ds}')`,id=>`openEventDetail('${id}')`,compact);
   document.getElementById(container).innerHTML=html;
 }
 // 한 달치 캘린더 그리드(날짜 칸 + 연속일정 막대)를 만드는 공용 함수.
@@ -1262,8 +1273,8 @@ function renderScheduleTable(){
     <td style="white-space:normal;word-break:break-word">${esc(e.title)}</td>
     <td><span class="chip ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}">${esc(e.type||'미정')}</span></td>
     <td style="white-space:normal;word-break:break-word;overflow:hidden;text-overflow:ellipsis">${esc(e.content)||'-'}</td>
-    <td style="white-space:nowrap;padding:6px 4px"><button class="btn btn-o btn-sm" style="font-size:10.5px;padding:3px 6px" onclick="openEditEvent(${e.id})">수정</button>
-    <button class="btn btn-d btn-sm" style="font-size:10.5px;padding:3px 6px;margin-left:3px" onclick="deleteEvent(${e.id})">삭제</button></td>
+    <td style="white-space:nowrap;padding:6px 4px"><button class="btn btn-o btn-sm" style="font-size:10.5px;padding:3px 6px" onclick="openEditEvent('${e.id}')">수정</button>
+    <button class="btn btn-d btn-sm" style="font-size:10.5px;padding:3px 6px;margin-left:3px" onclick="deleteEvent('${e.id}')">삭제</button></td>
   </tr>`).join('');
 }
 
@@ -1486,7 +1497,7 @@ function toggleEvEnd(){
   document.getElementById('ev-end-row').style.display=chk.checked?'block':'none';
 }
 function openEditEvent(id){
-  const e=S.events.find(x=>x.id===id);if(!e)return;
+  const e=S.events.find(x=>String(x.id)===String(id));if(!e)return;
   showModal(`<div class="mo-hd"><h3>일정 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>제목</label><input id="ev-title" value="${esc(e.title).replace(/"/g,'&quot;')}"></div>
@@ -1508,13 +1519,12 @@ function openEditEvent(id){
     </div></div>
     <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${esc(e.content)}</textarea></div>
   </div>
-  <div class="mo-ft"><button class="btn btn-d" onclick="deleteEvent(${id})">삭제</button>
-  <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveEvent(${id})">저장</button></div>`);
+  <div class="mo-ft"><button class="btn btn-d" onclick="deleteEvent('${id}')">삭제</button>
+  <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveEvent('${id}')">저장</button></div>`);
 }
 function openEventDetail(id){
   if(!isAdmin())return; // 인턴은 홈 대시보드 캘린더에서 일정을 클릭해도 상세 모달이 안 열림
-  if(typeof id==='string'&&id.startsWith('h'))return;
-  const e=S.events.find(x=>x.id===id);if(!e)return;
+  const e=S.events.find(x=>String(x.id)===String(id));if(!e)return;
   showModal(`<div class="mo-hd"><h3>${esc(e.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div style="margin-bottom:10px"><span class="chip ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}">${esc(e.type||'미정')}</span></div>
@@ -1523,10 +1533,11 @@ function openEventDetail(id){
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">닫기</button>
-    <button class="btn btn-o" onclick="closeModal();openEditEvent(${id})">수정</button>
-    <button class="btn btn-d" onclick="deleteEvent(${id})">삭제</button>
+    <button class="btn btn-o" onclick="closeModal();openEditEvent('${id}')">수정</button>
+    <button class="btn btn-d" onclick="deleteEvent('${id}')">삭제</button>
   </div>`);
 }
+function _seNewId(){return 'sev'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function saveEvent(id){
   const title=document.getElementById('ev-title').value.trim();
   const start=document.getElementById('ev-start').value;
@@ -1539,22 +1550,360 @@ function saveEvent(id){
   const startTime=time?document.getElementById('ev-stime').value:'';
   if(!title||!start){alert('제목과 날짜를 입력해주세요');return}
   if(endSet&&endVal&&endVal<start){alert('종료일은 시작일보다 빠를 수 없어요');return}
-  if(id){const e=S.events.find(x=>x.id===id);Object.assign(e,{title,start,end,type,content,time,startTime});delete e.endTime;}
+  let savedId=id;
+  if(id){const e=S.events.find(x=>String(x.id)===String(id));Object.assign(e,{title,start,end,type,content,time,startTime});delete e.endTime;}
   else{
-    S.events.push({id:newId(),title,start,end,type,content,time,startTime});
-    saveAppData().catch(()=>{}); // 번호표(newId) 충돌 방지: 30초 자동저장을 기다리지 않고 즉시 반영
+    savedId=_seNewId();
+    S.events.push({id:savedId,title,start,end,type,content,time,startTime});
   }
+  _seSave(savedId);
   closeModal();
   if(S.page==='home')renderHome();
   else if(S.page==='schedule')renderSchedulePage();
 }
 function deleteEvent(id){
   if(!confirm('일정을 삭제하시겠습니까?'))return;
-  S.events=S.events.filter(e=>e.id!==id);
+  S.events=S.events.filter(e=>String(e.id)!==String(id));
+  _seDirty.delete(id);
+  { const db=window._db; if(db){db.collection('scheduleEvents').doc(String(id)).delete().catch(e=>console.warn('일정 삭제(서버) 실패:',e));} }
+  try{localStorage.setItem('nds_events',JSON.stringify(S.events));}catch{}
   if(S.page==='home')renderHome();
   else if(S.page==='schedule')renderSchedulePage();
   closeModal();
 }
+// ─── 일정관리 저장 방식: 일정 하나하나를 scheduleEvents 컬렉션에 별도 문서로 저장 ──
+// 관리자 여러 명이 동시에 서로 다른 일정을 추가/수정할 수 있으므로, 게시판/콘텐츠
+// 캘린더와 같은 이유로 "전체 배열 통째 저장" 대신 이 방식을 씀.
+let _seSaveTimer=null;
+let _seDirty=new Set();
+let _seSaveVersion=0;
+function _seSave(id){
+  _seSaveVersion++;
+  if(id)_seDirty.add(id);
+  if(_seSaveTimer)clearTimeout(_seSaveTimer);
+  _seSaveTimer=setTimeout(saveEventData,1500);
+}
+async function saveEventData(){
+  _seSaveTimer=null;
+  const ids=[..._seDirty];_seDirty.clear();
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    const batch=db.batch();
+    ids.forEach(id=>{
+      const e=S.events.find(x=>String(x.id)===String(id));
+      if(e)batch.set(db.collection('scheduleEvents').doc(String(id)),e);
+    });
+    await batch.commit();
+    hideSaveFailBanner();
+    try{localStorage.setItem('nds_events',JSON.stringify(S.events));}catch{}
+  }catch(e){
+    ids.forEach(id=>_seDirty.add(id)); // 실패했으니 다음 저장 때 다시 시도되도록 대기 상태로 되돌려놓음
+    try{localStorage.setItem('nds_events',JSON.stringify(S.events));}catch{}
+    console.warn('일정 Firestore 저장 실패, localStorage 백업 사용:', e);
+    showSaveFailBanner();
+  }
+}
+// 예전 방식(appdata/main 문서 안의 events 배열)으로 저장됐던 데이터가 있으면 한 번 옮김
+async function migrateEventsToCollection(){
+  try{
+    const db=window._db;
+    const batch=db.batch();
+    S.events.forEach(e=>batch.set(db.collection('scheduleEvents').doc(String(e.id)),e));
+    await batch.commit();
+    console.log('✅ 일정 데이터 마이그레이션 완료 (일정마다 별도 문서로 전환)');
+  }catch(e){
+    console.warn('일정 데이터 마이그레이션 실패, 다음 접속 때 다시 시도됩니다:', e);
+  }
+}
+async function loadEventData(retried){
+  try{
+    const db=window._db;
+    if(!db){
+      if(!retried){await new Promise(r=>setTimeout(r,1000));return loadEventData(true);}
+      throw new Error('Firebase 미준비');
+    }
+    const snap=await db.collection('scheduleEvents').get();
+    if(!snap.empty){
+      S.events=snap.docs.map(d=>d.data());
+    } else {
+      const oldSnap=await db.collection('appdata').doc('main').get();
+      const oldEvents=oldSnap.exists?(oldSnap.data().events||[]):[];
+      if(oldEvents.length){
+        S.events=oldEvents;
+        await migrateEventsToCollection();
+      } else {
+        try{const raw=localStorage.getItem('nds_events');if(raw)S.events=JSON.parse(raw);}catch{}
+        if(S.events.length)await migrateEventsToCollection();
+      }
+    }
+  }catch(e){
+    if(!retried){await new Promise(r=>setTimeout(r,1000));return loadEventData(true);}
+    try{const raw=localStorage.getItem('nds_events');if(raw)S.events=JSON.parse(raw);}catch{}
+    console.warn('일정 Firestore 로드 실패(재시도 후에도), localStorage 사용:', e);
+  }
+}
+
+// ─── 콘텐츠 캘린더 ──────────────────────────────────
+// 일정관리 캘린더와 달력 모양·공휴일 표시는 완전히 동일하지만(같은 buildMonthGridHtml,
+// 같은 getHolidayForDay를 그대로 재사용함), 일정 데이터는 S.contentEvents라는 별도
+// 배열에 저장돼서 일정관리(S.events)와는 절대 섞이지 않음. 관리자와 인턴 모두 보고
+// 추가·수정할 수 있음(근무스케줄, 인턴 공지처럼 role:'all' 메뉴).
+function renderContentCal(){
+  const p=document.getElementById('page-contentcal');
+  p.innerHTML=`<div class="card" style="margin-bottom:20px"><div id="cc-cal"></div></div>
+  <div class="card">
+    <div class="pg-hd">
+      <span class="ctitle" style="margin:0">콘텐츠 일정 목록</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--sub)">정렬:</span>
+        <select id="cc-sort" style="font-size:12px;padding:4px 8px;border:1px solid var(--bd);border-radius:6px;background:#fff;width:auto" onchange="S.ccSort=this.value;renderContentTable()">
+          <option value="date"${S.ccSort==='date'?' selected':''}>날짜 순</option>
+          <option value="type"${S.ccSort==='type'?' selected':''}>종류 순</option>
+          <option value="title"${S.ccSort==='title'?' selected':''}>제목 순</option>
+        </select>
+        <button class="btn btn-p btn-sm" onclick="openAddContentEvent(null)">+ 일정 추가</button>
+      </div>
+    </div>
+    <div style="max-height:420px;overflow-y:auto;overflow-x:auto"><table style="table-layout:fixed;width:100%;min-width:600px">
+    <colgroup><col style="width:18%"><col style="width:8%"><col style="width:24%"><col style="width:11%"><col style="width:22%"><col style="width:17%"></colgroup>
+    <thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">날짜</th><th style="background:var(--card)">시간</th><th style="background:var(--card)">제목</th><th style="background:var(--card)">종류</th><th style="background:var(--card)">내용</th><th style="background:var(--card)">관리</th></tr></thead>
+    <tbody id="cc-table-body"></tbody></table></div>
+  </div>`;
+  renderCC('cc-cal',S.ccCal);
+  renderContentTable();
+}
+function renderContentTable(){
+  const tb=document.getElementById('cc-table-body');
+  if(!tb)return;
+  const sortFn=S.ccSort==='type'?(a,b)=>a.type.localeCompare(b.type)||a.start.localeCompare(b.start):S.ccSort==='title'?(a,b)=>a.title.localeCompare(b.title):(a,b)=>a.start.localeCompare(b.start);
+  const todayStr=today();
+  const twoMonthsLater=new Date();twoMonthsLater.setMonth(twoMonthsLater.getMonth()+2);
+  const maxStr=fmt(twoMonthsLater);
+  const evs=[...S.contentEvents].filter(e=>e.end>=todayStr&&e.start<=maxStr).sort(sortFn);
+  tb.innerHTML=evs.map(e=>`<tr>
+    <td style="white-space:normal;word-break:break-word">${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''}</td>
+    <td>${e.time?(e.startTime||''):'-'}</td>
+    <td style="white-space:normal;word-break:break-word">${esc(e.title)}</td>
+    <td><span class="chip ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}">${esc(e.type||'미정')}</span></td>
+    <td style="white-space:normal;word-break:break-word;overflow:hidden;text-overflow:ellipsis">${esc(e.content)||'-'}</td>
+    <td style="white-space:nowrap;padding:6px 4px"><button class="btn btn-o btn-sm" style="font-size:10.5px;padding:3px 6px" onclick="openEditContentEvent('${e.id}')">수정</button>
+    <button class="btn btn-d btn-sm" style="font-size:10.5px;padding:3px 6px;margin-left:3px" onclick="deleteContentEvent('${e.id}')">삭제</button></td>
+  </tr>`).join('');
+}
+// 달력 그리드 자체는 renderCalendar()와 완전히 동일한 구조지만, 이동 버튼(‹ › 오늘 · 월 이동)이
+// 건드리는 상태(S.ccCal)와 그려 넣는 데이터(S.contentEvents)만 콘텐츠 캘린더 전용으로 분리함.
+function renderCC(container,month){
+  const y=month.getFullYear(),m=month.getMonth();
+  const ym=`${y}-${p2(m+1)}`;
+  const loading=S.holidayCache[ym]===null;
+  const isLoaded=S.holidayCache[ym]!==undefined&&S.holidayCache[ym]!==null;
+  if(!isLoaded&&!loading)fetchHolidays(y,m+1);
+  const loadingBadge=loading?`<span style="font-size:11px;color:var(--sub);margin-left:6px">공휴일 로딩중…</span>`:
+    (S.holidayFallback&&isLoaded?`<span style="font-size:11px;color:var(--or);margin-left:6px" title="API 연결 실패, 기본 데이터 사용">⚠ 오프라인</span>`:'');
+  let html=`<div class="cal-hd">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+      <button class="cal-nav" onclick="ccPrev()">‹</button>
+      <h3 class="cal-hd-title" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--sub2);text-underline-offset:3px;flex:0 1 auto;min-width:0" onclick="event.stopPropagation();ccJump(this)" title="클릭해서 다른 달로 이동">${y}년 ${m+1}월${loadingBadge}</h3>
+      <button class="cal-nav" onclick="ccNext()">›</button>
+      <button class="cal-nav" style="padding:0 8px;width:auto;font-size:12px" onclick="ccToday()">오늘</button>
+    </div>
+    <div class="cal-hd-actions">
+      <button class="btn btn-p btn-sm" onclick="openAddContentEvent(null)">+ 일정 추가</button>
+    </div>
+  </div>`;
+  const compact=(window.innerWidth||1024)<=600;
+  html+=buildMonthGridHtml(S.contentEvents,month,ds=>`openAddContentEvent('${ds}')`,id=>`openContentEventDetail('${id}')`,compact);
+  document.getElementById(container).innerHTML=html;
+}
+function ccPrev(){S.ccCal=new Date(S.ccCal.getFullYear(),S.ccCal.getMonth()-1,1);renderCC('cc-cal',S.ccCal);}
+function ccNext(){S.ccCal=new Date(S.ccCal.getFullYear(),S.ccCal.getMonth()+1,1);renderCC('cc-cal',S.ccCal);}
+function ccToday(){const n=new Date();S.ccCal=new Date(n.getFullYear(),n.getMonth(),1);renderCC('cc-cal',S.ccCal);}
+function ccJump(anchorEl){
+  openMonthJump(anchorEl,S.ccCal,(y,m)=>{
+    S.ccCal=new Date(y,m,1);
+    renderCC('cc-cal',S.ccCal);
+  });
+}
+// 일정 추가/수정/상세 모달은 일정관리 쪽과 입력칸 id(ev-title, ev-start, ev-endset 등)를
+// 그대로 재사용함 — 모달은 한 번에 하나만 뜨는 구조라 겹칠 일이 없고, 덕분에 toggleEvTime/
+// toggleEvEnd 같은 공용 함수도 그대로 쓸 수 있음. 다만 관리자만 열 수 있던 일정관리와
+// 달리, 콘텐츠 캘린더는 인턴도 추가·수정·삭제할 수 있어서 isAdmin() 체크를 넣지 않음.
+function openAddContentEvent(dateStr){
+  showModal(`<div class="mo-hd"><h3>콘텐츠 일정 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>제목</label><input id="ev-title" placeholder="일정 제목"></div>
+    <div class="fr"><label>시작일</label><input type="text" id="ev-start" value="${dateStr||today()}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-endset" style="width:auto" onchange="toggleEvEnd()"> 종료일 설정</label></div>
+    <div id="ev-end-row" style="display:none" class="fr">
+      <label>종료일</label><input type="text" id="ev-end" readonly placeholder="종료일 선택" style="cursor:pointer" onclick="openMiniCal('ev-end',this)">
+    </div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" onchange="toggleEvTime()"> 시간 설정</label></div>
+    <div id="ev-time-row" style="display:none" class="fr">
+      <label>시작시간</label><input type="text" id="ev-stime" data-time-trigger readonly placeholder="--:--" style="cursor:pointer" onclick="openTimePicker('ev-stime',this)">
+    </div>
+    <div class="fr"><label style="font-size:14px;text-align:left;display:block">종류</label>
+    <div style="display:flex;gap:6px">
+      <select id="ev-type" style="flex:1"><option value="">선택</option>${S.etypes.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
+      <button type="button" class="btn btn-o btn-sm" onclick="editSelectedEtype()" title="선택한 종류 이름 수정">수정</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="deleteSelectedEtype()" title="선택한 종류 삭제">삭제</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">추가</button>
+    </div></div>
+    <div class="fr"><label>내용</label><textarea id="ev-content" rows="3" placeholder="내용 입력"></textarea></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveContentEvent()">저장</button></div>`);
+}
+function openEditContentEvent(id){
+  const e=S.contentEvents.find(x=>String(x.id)===String(id));if(!e)return;
+  showModal(`<div class="mo-hd"><h3>콘텐츠 일정 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div class="fr"><label>제목</label><input id="ev-title" value="${esc(e.title).replace(/"/g,'&quot;')}"></div>
+    <div class="fr"><label>시작일</label><input type="text" id="ev-start" value="${e.start}" readonly style="cursor:pointer" onclick="openMiniCal('ev-start',this)"></div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-endset" style="width:auto" ${e.start!==e.end?'checked':''} onchange="toggleEvEnd()"> 종료일 설정</label></div>
+    <div id="ev-end-row" style="display:${e.start!==e.end?'block':'none'}" class="fr">
+      <label>종료일</label><input type="text" id="ev-end" value="${e.end}" readonly placeholder="종료일 선택" style="cursor:pointer" onclick="openMiniCal('ev-end',this)">
+    </div>
+    <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="ev-time" style="width:auto" ${e.time?'checked':''} onchange="toggleEvTime()"> 시간 설정</label></div>
+    <div id="ev-time-row" style="display:${e.time?'block':'none'}" class="fr">
+      <label>시작시간</label><input type="text" id="ev-stime" data-time-trigger readonly placeholder="--:--" value="${e.startTime||''}" style="cursor:pointer" onclick="openTimePicker('ev-stime',this)">
+    </div>
+    <div class="fr"><label style="font-size:14px;text-align:left;display:block">종류</label>
+    <div style="display:flex;gap:6px">
+      <select id="ev-type" style="flex:1"><option value="">선택</option>${S.etypes.map(t=>`<option${t===e.type?' selected':''}>${esc(t)}</option>`).join('')}</select>
+      <button type="button" class="btn btn-o btn-sm" onclick="editSelectedEtype()" title="선택한 종류 이름 수정">수정</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="deleteSelectedEtype()" title="선택한 종류 삭제">삭제</button>
+      <button type="button" class="btn btn-o btn-sm" onclick="addEtypeInline()" title="새 종류 추가">추가</button>
+    </div></div>
+    <div class="fr"><label>내용</label><textarea id="ev-content" rows="3">${esc(e.content)}</textarea></div>
+  </div>
+  <div class="mo-ft"><button class="btn btn-d" onclick="deleteContentEvent('${id}')">삭제</button>
+  <button class="btn btn-o" onclick="closeModal()">취소</button><button class="btn btn-p" onclick="saveContentEvent('${id}')">저장</button></div>`);
+}
+function openContentEventDetail(id){
+  const e=S.contentEvents.find(x=>String(x.id)===String(id));if(!e)return;
+  showModal(`<div class="mo-hd"><h3>${esc(e.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
+  <div class="mo-bd">
+    <div style="margin-bottom:10px"><span class="chip ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type)}">${esc(e.type||'미정')}</span></div>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:8px">📅 ${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''} ${e.time?(e.startTime||''):'(종일)'}</div>
+    ${e.content?`<div style="font-size:14px;white-space:pre-wrap">${esc(e.content)}</div>`:''}
+  </div>
+  <div class="mo-ft" style="gap:8px">
+    <button class="btn btn-o" style="flex:1" onclick="closeModal()">닫기</button>
+    <button class="btn btn-o" style="flex:1" onclick="closeModal();openEditContentEvent('${id}')">수정</button>
+    <button class="btn btn-d" style="flex:1" onclick="deleteContentEvent('${id}')">삭제</button>
+  </div>`);
+}
+function saveContentEvent(id){
+  const title=document.getElementById('ev-title').value.trim();
+  const start=document.getElementById('ev-start').value;
+  const endSet=document.getElementById('ev-endset').checked;
+  const endVal=document.getElementById('ev-end').value;
+  const end=endSet&&endVal?endVal:start;
+  const type=document.getElementById('ev-type').value;
+  const content=document.getElementById('ev-content').value.trim();
+  const time=document.getElementById('ev-time').checked;
+  const startTime=time?document.getElementById('ev-stime').value:'';
+  if(!title||!start){alert('제목과 날짜를 입력해주세요');return}
+  if(endSet&&endVal&&endVal<start){alert('종료일은 시작일보다 빠를 수 없어요');return}
+  let savedId=id;
+  if(id){const e=S.contentEvents.find(x=>String(x.id)===String(id));Object.assign(e,{title,start,end,type,content,time,startTime});}
+  else{
+    // newId()(공용 번호표)는 서버에 반영되는 데 시간이 조금 걸려서, 두 사람이 정말 동시에
+    // 저장하면 같은 번호를 받아 서로 다른 일정인데 문서 하나를 공유하게 되는(=하나가 사라지는)
+    // 사고가 날 수 있었음(실제로 시뮬레이션에서 재현됨). 그래서 여기서는 게시판/프로젝트
+    // 글처럼 "시간+무작위값" 조합으로 절대 겹치지 않는 번호를 직접 만들어 씀.
+    savedId=_ccNewId();
+    S.contentEvents.push({id:savedId,title,start,end,type,content,time,startTime});
+  }
+  _ccSave(savedId); // 이 일정 하나만 별도 문서로 저장 (동시에 여러 명이 다른 일정을 추가해도 안전)
+  closeModal();
+  if(S.page==='contentcal')renderContentCal();
+}
+function _ccNewId(){return 'cc'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function deleteContentEvent(id){
+  if(!confirm('일정을 삭제하시겠습니까?'))return;
+  S.contentEvents=S.contentEvents.filter(e=>String(e.id)!==String(id));
+  _ccDirty.delete(id); // 저장 대기 중이었다면 취소 (이미 지운 걸 다시 쓰면 안 됨)
+  const db=window._db;
+  if(db){db.collection('contentCalEvents').doc(String(id)).delete().catch(e=>console.warn('콘텐츠 일정 삭제(서버) 실패:',e));}
+  try{localStorage.setItem('nds_contentEvents',JSON.stringify(S.contentEvents));}catch{}
+  if(S.page==='contentcal')renderContentCal();
+  closeModal();
+}
+// ─── 콘텐츠 캘린더 저장 방식: 일정 하나하나를 contentCalEvents 컬렉션에 별도 문서로 저장 ──
+// 인턴 여러 명이 동시에 서로 다른 일정을 추가/수정할 수 있으므로, 게시판/공지/근무일지와
+// 똑같은 이유로 "전체 배열 통째 저장" 대신 이 방식을 씀 (동시 저장 시 덮어쓰기 방지).
+let _ccSaveTimer=null;
+let _ccDirty=new Set();
+let _ccSaveVersion=0;
+function _ccSave(id){
+  _ccSaveVersion++;
+  if(id)_ccDirty.add(id);
+  if(_ccSaveTimer)clearTimeout(_ccSaveTimer);
+  _ccSaveTimer=setTimeout(saveContentCalData,1500);
+}
+async function saveContentCalData(){
+  _ccSaveTimer=null;
+  const ids=[..._ccDirty];_ccDirty.clear();
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    const batch=db.batch();
+    ids.forEach(id=>{
+      const e=S.contentEvents.find(x=>x.id===id);
+      if(e)batch.set(db.collection('contentCalEvents').doc(String(id)),e);
+    });
+    await batch.commit();
+    hideSaveFailBanner();
+    try{localStorage.setItem('nds_contentEvents',JSON.stringify(S.contentEvents));}catch{}
+  }catch(e){
+    ids.forEach(id=>_ccDirty.add(id)); // 실패했으니 다음 저장 때 다시 시도되도록 대기 상태로 되돌려놓음
+    try{localStorage.setItem('nds_contentEvents',JSON.stringify(S.contentEvents));}catch{}
+    console.warn('콘텐츠 일정 Firestore 저장 실패, localStorage 백업 사용:', e);
+    showSaveFailBanner();
+  }
+}
+// 예전 방식(appdata/main 문서 안의 contentEvents 배열)으로 저장됐던 데이터가 있으면 한 번 옮김
+async function migrateContentEventsToCollection(){
+  try{
+    const db=window._db;
+    const batch=db.batch();
+    S.contentEvents.forEach(e=>batch.set(db.collection('contentCalEvents').doc(String(e.id)),e));
+    await batch.commit();
+    console.log('✅ 콘텐츠 일정 마이그레이션 완료 (일정마다 별도 문서로 전환)');
+  }catch(e){
+    console.warn('콘텐츠 일정 마이그레이션 실패, 다음 접속 때 다시 시도됩니다:', e);
+  }
+}
+async function loadContentCalData(retried){
+  try{
+    const db=window._db;
+    if(!db){
+      if(!retried){await new Promise(r=>setTimeout(r,1000));return loadContentCalData(true);}
+      throw new Error('Firebase 미준비');
+    }
+    const snap=await db.collection('contentCalEvents').get();
+    if(!snap.empty){
+      // 정렬 순서는 상관없음 — 달력/목록 모두 날짜(start) 기준으로 다시 정렬해서 보여줌
+      S.contentEvents=snap.docs.map(d=>d.data());
+    } else {
+      const oldSnap=await db.collection('appdata').doc('main').get();
+      const oldEvents=oldSnap.exists?(oldSnap.data().contentEvents||[]):[];
+      if(oldEvents.length){
+        S.contentEvents=oldEvents;
+        await migrateContentEventsToCollection();
+      } else {
+        try{const raw=localStorage.getItem('nds_contentEvents');if(raw)S.contentEvents=JSON.parse(raw);}catch{}
+        if(S.contentEvents.length)await migrateContentEventsToCollection();
+      }
+    }
+  }catch(e){
+    if(!retried){await new Promise(r=>setTimeout(r,1000));return loadContentCalData(true);}
+    try{const raw=localStorage.getItem('nds_contentEvents');if(raw)S.contentEvents=JSON.parse(raw);}catch{}
+    console.warn('콘텐츠 일정 Firestore 로드 실패(재시도 후에도), localStorage 사용:', e);
+  }
+}
+
 // 종류(일정 유형)를 수정/추가할 때 별도 모달을 띄우지 않고, 지금 열려있는
 // 일정 추가/수정 모달 안에서 바로 처리함. (모달을 하나만 띄울 수 있는 구조라
 // 예전처럼 별도 "종류 관리" 모달을 열면 일정 폼이 사라지는 문제가 있었음 — 그
@@ -1638,6 +1987,7 @@ function syncEmpAutoLeave(){
       e._yearGranted=true;
       e.leaveHistory=e.leaveHistory||[];
       e.leaveHistory.push({id:newId(),type:'연차',date:today(),days:15,reason:'입사 1년 경과 자동 부여',granted:true});
+      _empSave(e.id);
     }
   });
 }
@@ -1648,11 +1998,11 @@ function renderEmployees(){
   const openAttr=wide?' open':'';
   let cards=S.employees.map(e=>`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <a href="#" style="font-size:16px;font-weight:700;color:var(--tx)" onclick="event.preventDefault();openEmpDetail(${e.id})">${e.name}</a>
+      <a href="#" style="font-size:16px;font-weight:700;color:var(--tx)" onclick="event.preventDefault();openEmpDetail('${e.id}')">${e.name}</a>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-o btn-sm" onclick="openLeaveAdjust(${e.id})">휴가 조정</button>
-        <button class="btn btn-o btn-sm" onclick="openManualLeaveGrant(${e.id})">휴가 수동 부여</button>
-        <button class="btn btn-o btn-sm" onclick="openEmpLeaveGrant(${e.id})">휴가 사용</button>
+        <button class="btn btn-o btn-sm" onclick="openLeaveAdjust('${e.id}')">휴가 조정</button>
+        <button class="btn btn-o btn-sm" onclick="openManualLeaveGrant('${e.id}')">휴가 수동 부여</button>
+        <button class="btn btn-o btn-sm" onclick="openEmpLeaveGrant('${e.id}')">휴가 사용</button>
       </div>
     </div>
     <div style="font-size:12px;color:var(--sub);margin-bottom:10px;display:flex;flex-direction:column;gap:3px">
@@ -1662,9 +2012,9 @@ function renderEmployees(){
       <span>휴가 자동 부여: ${e.autoLeave!==false?'<span style="color:var(--gr)">켜짐</span>':'<span style="color:var(--sub2)">꺼짐</span>'}</span>
     </div>
     <div class="leave-bar">
-      <div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory(${e.id},'연차')"><div class="lval">${e.annualLeave}</div><div class="llabel">연차 잔여</div></div>
-      <div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory(${e.id},'월차')"><div class="lval">${e.monthLeave}</div><div class="llabel">월차 잔여</div></div>
-      ${e.specialLeave!==undefined?`<div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory(${e.id},'특별휴가')"><div class="lval">${e.specialLeave}</div><div class="llabel">특별휴가 잔여</div></div>`:''}
+      <div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory('${e.id}','연차')"><div class="lval">${e.annualLeave}</div><div class="llabel">연차 잔여</div></div>
+      <div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory('${e.id}','월차')"><div class="lval">${e.monthLeave}</div><div class="llabel">월차 잔여</div></div>
+      ${e.specialLeave!==undefined?`<div class="leave-item" style="cursor:pointer" onclick="openLeaveTypeHistory('${e.id}','특별휴가')"><div class="lval">${e.specialLeave}</div><div class="llabel">특별휴가 잔여</div></div>`:''}
     </div>
     <div style="margin-top:14px">
       <div class="ctitle" style="font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px" onclick="toggleEmpSection('emp-hist-${e.id}')">휴가 내역 <span class="emp-detail-arrow" id="emp-hist-${e.id}-arrow">${wide?'▴':'▾'}</span></div>
@@ -1674,8 +2024,8 @@ function renderEmployees(){
         <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
         <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td><td style="white-space:nowrap">${l.days}일</td><td style="word-break:keep-all;overflow-wrap:break-word">${l.reason||'-'}</td>
         <td style="white-space:nowrap;display:flex;gap:4px;justify-content:flex-end;align-items:center">
-          <button class="btn btn-o btn-sm" onclick="openEditLeave(${e.id},${l.id})">수정</button>
-          <button class="btn btn-d btn-sm" onclick="deleteLeave(${e.id},${l.id})">삭제</button>
+          <button class="btn btn-o btn-sm" onclick="openEditLeave('${e.id}',${l.id})">수정</button>
+          <button class="btn btn-d btn-sm" onclick="deleteLeave('${e.id}',${l.id})">삭제</button>
         </td>
       </tr>`).join('')}
       </tbody></table></div>`:'<div style="color:var(--sub);font-size:13px;margin-top:8px">내역 없음</div>'}
@@ -1684,18 +2034,18 @@ function renderEmployees(){
     <div style="margin-top:14px">
       <div class="ctitle" style="margin:0;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleEmpSection('emp-issue-${e.id}')">
         <span style="display:flex;align-items:center;gap:4px">이슈 <span class="emp-detail-arrow" id="emp-issue-${e.id}-arrow">${wide?'▴':'▾'}</span></span>
-        <button class="btn btn-p btn-sm" onclick="event.stopPropagation();toggleEmpIssueForm(${e.id})">이슈 등록</button>
+        <button class="btn btn-p btn-sm" onclick="event.stopPropagation();toggleEmpIssueForm('${e.id}')">이슈 등록</button>
       </div>
       <div id="emp-issue-${e.id}" style="display:${wide?'block':'none'};margin-top:8px">
       <div id="emp-issue-form-${e.id}" style="display:none;gap:8px;margin-bottom:10px" class="fr-row">
         <div style="flex:0 0 150px"><input type="text" id="emp-issue-date-${e.id}" value="${today()}" readonly style="cursor:pointer" onclick="openMiniCal('emp-issue-date-${e.id}',this)"></div>
         <div style="flex:1"><input id="emp-issue-content-${e.id}" placeholder="이슈 내용 입력"></div>
-        <button class="btn btn-p btn-sm" style="flex:0 0 auto" onclick="saveEmpIssue(${e.id})">저장</button>
+        <button class="btn btn-p btn-sm" style="flex:0 0 auto" onclick="saveEmpIssue('${e.id}')">저장</button>
       </div>
       ${(e.issues||[]).length?(e.issues||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).map(iss=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:13px">
         <span style="color:var(--sub);flex:0 0 auto">${fmtDisp(iss.date)}</span>
         <span style="flex:1">${esc(iss.content)}</span>
-        <button class="btn btn-d btn-sm" style="flex:0 0 auto" onclick="deleteEmpIssue(${e.id},${iss.id})">삭제</button>
+        <button class="btn btn-d btn-sm" style="flex:0 0 auto" onclick="deleteEmpIssue('${e.id}',${iss.id})">삭제</button>
       </div>`).join(''):'<div style="color:var(--sub);font-size:13px">등록된 이슈가 없습니다</div>'}
       </div>
     </div>
@@ -1705,7 +2055,7 @@ function renderEmployees(){
   p.innerHTML=`<div class="emp-grid">${cards}</div>`;
 }
 function openLeaveAdjust(empId){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   showModal(`<div class="mo-hd"><h3>${e.name} — 휴가 조정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div style="background:var(--hover);border:1px solid var(--bd);border-radius:var(--r-sm);padding:12px;margin-bottom:16px;font-size:13px">
@@ -1718,26 +2068,26 @@ function openLeaveAdjust(empId){
     <div class="fr-row">
       <div class="fr">
         <label>연차 조정 (+ 증가 / - 차감)</label>
-        <input type="number" id="la-annual" value="0" step="0.5" oninput="updateLeaveAdjPreview(${empId})">
+        <input type="number" id="la-annual" value="0" step="0.5" oninput="updateLeaveAdjPreview('${empId}')">
       </div>
       <div class="fr">
         <label>월차 조정 (+ 증가 / - 차감)</label>
-        <input type="number" id="la-month" value="0" step="0.5" oninput="updateLeaveAdjPreview(${empId})">
+        <input type="number" id="la-month" value="0" step="0.5" oninput="updateLeaveAdjPreview('${empId}')">
       </div>
     </div>
     <div class="fr">
       <label>특별휴가 조정 (+ 증가 / - 차감)</label>
-      <input type="number" id="la-special" value="0" step="0.5" oninput="updateLeaveAdjPreview(${empId})">
+      <input type="number" id="la-special" value="0" step="0.5" oninput="updateLeaveAdjPreview('${empId}')">
     </div>
     <div id="la-preview" style="font-size:13px;color:var(--sub);padding:8px 0"></div>
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">취소</button>
-    <button class="btn btn-p" onclick="saveLeaveAdjust(${empId})">적용</button>
+    <button class="btn btn-p" onclick="saveLeaveAdjust('${empId}')">적용</button>
   </div>`,'sm');
 }
 function updateLeaveAdjPreview(empId){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   const da=parseFloat(document.getElementById('la-annual').value)||0;
   const dm=parseFloat(document.getElementById('la-month').value)||0;
   const ds=parseFloat(document.getElementById('la-special')?.value)||0;
@@ -1748,7 +2098,7 @@ function updateLeaveAdjPreview(empId){
   if(prev)prev.innerHTML=`조정 후 → 연차 <b>${na}</b>일 / 월차 <b>${nm}</b>일 / 특별휴가 <b>${ns}</b>일`;
 }
 function saveLeaveAdjust(empId){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   const da=parseFloat(document.getElementById('la-annual').value)||0;
   const dm=parseFloat(document.getElementById('la-month').value)||0;
   const ds=parseFloat(document.getElementById('la-special')?.value)||0;
@@ -1761,9 +2111,10 @@ function saveLeaveAdjust(empId){
   if(dm!==0)e.leaveHistory.push({id:newId(),type:'월차',date:today(),days:dm,reason:'수동 조정',adjusted:true});
   if(ds!==0)e.leaveHistory.push({id:newId(),type:'특별휴가',date:today(),days:ds,reason:'수동 조정',adjusted:true});
   closeModal();renderEmployees();
+  _empSave(e.id);
 }
 function openLeaveTypeHistory(empId,type){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   const list=(e.leaveHistory||[]).filter(l=>l.type===type).sort((a,b)=>b.date.localeCompare(a.date));
   const rows=list.map(l=>`<tr>
     <td>${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td>
@@ -1777,7 +2128,7 @@ function openLeaveTypeHistory(empId,type){
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">닫기</button></div>`,'sm');
 }
 function openEmpDetail(id){
-  const e=S.employees.find(x=>x.id===id);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(id));if(!e)return;
   const autoOn=e.autoLeave!==false;
   showModal(`<div class="mo-hd"><h3>직원 상세</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
@@ -1792,12 +2143,12 @@ function openEmpDetail(id){
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">닫기</button>
-    <button class="btn btn-o" onclick="saveEmpDetail(${id})">수정</button>
-    <button class="btn btn-d" onclick="deleteEmployee(${id})">삭제</button>
+    <button class="btn btn-o" onclick="saveEmpDetail('${id}')">수정</button>
+    <button class="btn btn-d" onclick="deleteEmployee('${id}')">삭제</button>
   </div>`);
 }
 function saveEmpDetail(id){
-  const e=S.employees.find(x=>x.id===id);
+  const e=S.employees.find(x=>String(x.id)===String(id));if(!e)return;
   e.name=document.getElementById('ed-name').value;
   e.startDate=document.getElementById('ed-start').value;
   e.phone=document.getElementById('ed-phone').value;
@@ -1813,10 +2164,15 @@ function saveEmpDetail(id){
     e.annualLeave=annual;e.monthLeave=monthly;
   }
   closeModal();renderEmployees();
+  _empSave(e.id);
 }
 function deleteEmployee(id){
   if(!confirm('직원을 삭제하시겠습니까?'))return;
-  S.employees=S.employees.filter(x=>x.id!==id);
+  S.employees=S.employees.filter(x=>String(x.id)!==String(id));
+  _empDirty.delete(id);
+  const db=window._db;
+  if(db){db.collection('employees').doc(String(id)).delete().catch(e=>console.warn('직원 삭제(서버) 실패:',e));}
+  try{localStorage.setItem('nds_employees',JSON.stringify(S.employees));}catch{}
   closeModal();renderEmployees();
 }
 // 직원 카드 안의 '휴가 내역'/'이슈' 섹션 접기·펼치기 (details 대신 순수 JS로 처리 —
@@ -1842,7 +2198,7 @@ function toggleEmpIssueForm(empId){
   if(!showing){const inp=document.getElementById(`emp-issue-content-${empId}`);if(inp)setTimeout(()=>inp.focus(),20);}
 }
 function saveEmpIssue(empId){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   const date=document.getElementById(`emp-issue-date-${empId}`).value;
   const content=document.getElementById(`emp-issue-content-${empId}`).value.trim();
   if(!content){alert('이슈 내용을 입력해주세요');return}
@@ -1850,16 +2206,16 @@ function saveEmpIssue(empId){
   e.issues.push({id:newId(),date:date||today(),content});
   _empIssueFormOpenIds.delete(empId);
   renderEmployees();
-  saveAppData().catch(()=>{});
+  _empSave(e.id);
 }
 function deleteEmpIssue(empId,issueId){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   e.issues=(e.issues||[]).filter(x=>x.id!==issueId);
   renderEmployees();
-  saveAppData().catch(()=>{});
+  _empSave(e.id);
 }
 function openEditLeave(empId,leaveId){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   const l=e.leaveHistory.find(x=>x.id===leaveId);if(!l)return;
   showModal(`<div class="mo-hd"><h3>휴가 내역 수정</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
@@ -1870,10 +2226,10 @@ function openEditLeave(empId,leaveId){
     <div class="fr"><label>기한</label><input type="text" id="el-expiry" value="${l.expiry||''}" readonly style="cursor:pointer" onclick="openMiniCal('el-expiry',this)"></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
-  <button class="btn btn-p" onclick="saveEditLeave(${empId},${leaveId})">저장</button></div>`,'sm');
+  <button class="btn btn-p" onclick="saveEditLeave('${empId}',${leaveId})">저장</button></div>`,'sm');
 }
 function saveEditLeave(empId,leaveId){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   const l=e.leaveHistory.find(x=>x.id===leaveId);if(!l)return;
   l.type=document.getElementById('el-type').value;
   l.date=document.getElementById('el-date').value;
@@ -1881,10 +2237,11 @@ function saveEditLeave(empId,leaveId){
   l.reason=document.getElementById('el-reason').value;
   l.expiry=document.getElementById('el-expiry').value||'';
   closeModal();renderEmployees();
+  _empSave(e.id);
 }
 function deleteLeave(empId,leaveId){
   if(!confirm('휴가 내역을 삭제하시겠습니까? 부여/조정됐던 일수도 잔여 일수에서 함께 차감됩니다.'))return;
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   const l=e.leaveHistory.find(x=>x.id===leaveId);
   if(l){
     if(l.type==='연차')e.annualLeave=Math.max(0,e.annualLeave-l.days);
@@ -1892,7 +2249,8 @@ function deleteLeave(empId,leaveId){
     else if(l.type==='특별휴가')e.specialLeave=Math.max(0,(e.specialLeave||0)-l.days);
   }
   e.leaveHistory=e.leaveHistory.filter(x=>x.id!==leaveId);
-  renderEmployees();saveAppData().catch(()=>{});
+  renderEmployees();
+  _empSave(e.id);
 }
 function openAddEmp(){
   showModal(`<div class="mo-hd"><h3>직원 추가</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
@@ -1934,8 +2292,9 @@ function saveNewEmp(){
   const startDate=document.getElementById('ae-start').value;
   const autoLeave=document.getElementById('ae-auto').checked;
   const{annual,monthly}=autoLeave?calcAutoLeave(startDate):{annual:0,monthly:0};
+  const savedId=_empNewId();
   S.employees.push({
-    id:newId(),name,startDate,
+    id:savedId,name,startDate,
     phone:document.getElementById('ae-phone').value,
     email:document.getElementById('ae-email').value,
     annualLeave:annual,monthLeave:monthly,
@@ -1943,11 +2302,12 @@ function saveNewEmp(){
     leaveHistory:[]
   });
   closeModal();renderEmployees();
+  _empSave(savedId);
 }
 function openManualLeaveGrant(presetEmpId){
   showModal(`<div class="mo-hd"><h3>휴가 수동 부여</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    <div class="fr"><label>직원</label><select id="mg-emp">${S.employees.map(e=>`<option value="${e.id}"${presetEmpId===e.id?' selected':''}>${esc(e.name)}</option>`).join('')}</select></div>
+    <div class="fr"><label>직원</label><select id="mg-emp">${S.employees.map(e=>`<option value="${e.id}"${String(presetEmpId)===String(e.id)?' selected':''}>${esc(e.name)}</option>`).join('')}</select></div>
     <div class="fr"><label>종류</label><select id="mg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
     <div class="fr fr-row">
       <div><label>부여 일수</label><input type="number" id="mg-days" value="1" min="0.5" step="0.5"></div>
@@ -1959,8 +2319,8 @@ function openManualLeaveGrant(presetEmpId){
   <button class="btn btn-p" onclick="saveManualLeaveGrant()">부여</button></div>`,'sm');
 }
 function saveManualLeaveGrant(){
-  const empId=parseInt(document.getElementById('mg-emp').value);
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const empId=document.getElementById('mg-emp').value;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   const type=document.getElementById('mg-type').value;
   const days=parseFloat(document.getElementById('mg-days').value)||1;
   const expiry=document.getElementById('mg-expiry').value||null;
@@ -1969,10 +2329,10 @@ function saveManualLeaveGrant(){
   else if(type==='월차')e.monthLeave+=days;
   else if(type==='특별휴가')e.specialLeave=(e.specialLeave||0)+days;
   closeModal();renderEmployees();
-  saveAppData().catch(()=>{});
+  _empSave(e.id);
 }
 function openEmpLeaveGrant(empId){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   showModal(`<div class="mo-hd"><h3>${esc(e.name)} 휴가 사용</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>종류</label><select id="elg-type"><option>연차</option><option>월차</option><option>반차</option><option>특별휴가</option></select></div>
@@ -1987,7 +2347,7 @@ function openEmpLeaveGrant(empId){
     <div class="fr"><label>사유</label><input id="elg-reason" placeholder="사유 입력"></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
-  <button class="btn btn-p" onclick="saveEmpLeaveGrant(${empId})">사용 등록</button></div>`,'sm');
+  <button class="btn btn-p" onclick="saveEmpLeaveGrant('${empId}')">사용 등록</button></div>`,'sm');
   setTimeout(toggleElgDateRange,20);
 }
 // 사용 일수가 2일 이상이면 시작일뿐 아니라 종료일도 선택할 수 있게 함
@@ -2009,7 +2369,7 @@ function syncElgEndDate(){
   endInput.value=fmt(d);
 }
 function saveEmpLeaveGrant(empId){
-  const e=S.employees.find(x=>x.id===empId);if(!e)return;
+  const e=S.employees.find(x=>String(x.id)===String(empId));if(!e)return;
   const type=document.getElementById('elg-type').value;
   const days=parseFloat(document.getElementById('elg-days').value)||1;
   const date=document.getElementById('elg-date').value||today();
@@ -2021,8 +2381,81 @@ function saveEmpLeaveGrant(empId){
   if(type==='연차')e.annualLeave=Math.max(0,e.annualLeave-days);
   else if(type==='월차')e.monthLeave=Math.max(0,e.monthLeave-days);
   else if(type==='특별휴가')e.specialLeave=Math.max(0,(e.specialLeave||0)-days);
+  _empSave(e.id);
   closeModal();renderEmployees();
-  saveAppData().catch(()=>{});
+}
+// ─── 직원 데이터 저장 방식: 직원 한 명마다 employees 컬렉션에 별도 문서로 저장 ──
+// 관리자 여러 명이 동시에 접속해서 서로 다른 직원의 정보를 고치거나 이슈를 등록할 수
+// 있으므로, 게시판/콘텐츠 캘린더와 같은 이유로 "전체 배열 통째 저장" 대신 이 방식을 씀.
+function _empNewId(){return 'emp'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+let _empSaveTimer=null;
+let _empDirty=new Set();
+let _empSaveVersion=0;
+function _empSave(id){
+  _empSaveVersion++;
+  if(id)_empDirty.add(id);
+  if(_empSaveTimer)clearTimeout(_empSaveTimer);
+  _empSaveTimer=setTimeout(saveEmployeeData,1500);
+}
+async function saveEmployeeData(){
+  _empSaveTimer=null;
+  const ids=[..._empDirty];_empDirty.clear();
+  try{
+    const db=window._db;
+    if(!db) throw new Error('Firebase 미준비');
+    const batch=db.batch();
+    ids.forEach(id=>{
+      const e=S.employees.find(x=>String(x.id)===String(id));
+      if(e)batch.set(db.collection('employees').doc(String(id)),e);
+    });
+    await batch.commit();
+    hideSaveFailBanner();
+    try{localStorage.setItem('nds_employees',JSON.stringify(S.employees));}catch{}
+  }catch(e){
+    ids.forEach(id=>_empDirty.add(id)); // 실패했으니 다음 저장 때 다시 시도되도록 대기 상태로 되돌려놓음
+    try{localStorage.setItem('nds_employees',JSON.stringify(S.employees));}catch{}
+    console.warn('직원 Firestore 저장 실패, localStorage 백업 사용:', e);
+    showSaveFailBanner();
+  }
+}
+// 예전 방식(appdata/main 문서 안의 employees 배열)으로 저장됐던 데이터가 있으면 한 번 옮김
+async function migrateEmployeesToCollection(){
+  try{
+    const db=window._db;
+    const batch=db.batch();
+    S.employees.forEach(e=>batch.set(db.collection('employees').doc(String(e.id)),e));
+    await batch.commit();
+    console.log('✅ 직원 데이터 마이그레이션 완료 (직원마다 별도 문서로 전환)');
+  }catch(e){
+    console.warn('직원 데이터 마이그레이션 실패, 다음 접속 때 다시 시도됩니다:', e);
+  }
+}
+async function loadEmployeeData(retried){
+  try{
+    const db=window._db;
+    if(!db){
+      if(!retried){await new Promise(r=>setTimeout(r,1000));return loadEmployeeData(true);}
+      throw new Error('Firebase 미준비');
+    }
+    const snap=await db.collection('employees').get();
+    if(!snap.empty){
+      S.employees=snap.docs.map(d=>d.data());
+    } else {
+      const oldSnap=await db.collection('appdata').doc('main').get();
+      const oldEmployees=oldSnap.exists?(oldSnap.data().employees||[]):[];
+      if(oldEmployees.length){
+        S.employees=oldEmployees;
+        await migrateEmployeesToCollection();
+      } else {
+        try{const raw=localStorage.getItem('nds_employees');if(raw)S.employees=JSON.parse(raw);}catch{}
+        if(S.employees.length)await migrateEmployeesToCollection();
+      }
+    }
+  }catch(e){
+    if(!retried){await new Promise(r=>setTimeout(r,1000));return loadEmployeeData(true);}
+    try{const raw=localStorage.getItem('nds_employees');if(raw)S.employees=JSON.parse(raw);}catch{}
+    console.warn('직원 Firestore 로드 실패(재시도 후에도), localStorage 사용:', e);
+  }
 }
 // ─── INTERNS ──────────────────────────────────────
 let _internActiveTab=1; // 인턴 목록의 '전체 일정 현황' 탭(1=수업시간표, 2=근무스케줄) - 화면이 다시 그려져도 유지되도록 기억해둠
@@ -4606,7 +5039,7 @@ function modalBgClick(e){if(e.target===document.getElementById('modal'))closeMod
 
 // ─── DATA PERSISTENCE (Firestore) ──────────────────
 // notices/workLogs는 이제 각자 별도 문서(noticePosts/workLogPosts 컬렉션)로 저장하므로 여기서 뺌
-const PERSIST_KEYS=['events','etypes','etypeColors','employees','interns','internSchedules','internSchedHistory','internTimetable','workIssues','navLabels','navOrder','nid','settlements','openItems','closeItems'];
+const PERSIST_KEYS=['etypes','etypeColors','interns','internSchedules','internSchedHistory','internTimetable','workIssues','navLabels','navOrder','nid','settlements','openItems','closeItems'];
 
 // Firestore에 저장
 // _mainSaveInFlight: 지금 saveAppData()가 서버에 쓰는 중인지 표시하는 카운터.
@@ -4693,6 +5126,9 @@ async function loadAppData(){
   await loadProjectData();
   await loadNoticeData();
   await loadWorkLogData();
+  await loadContentCalData();
+  await loadEventData();
+  await loadEmployeeData();
   migrateSchedHistoryToWeekKey();
   // 예전 버전에서 자동으로 만들어졌던 빈 정산 행을 1회 정리
   if(Array.isArray(S.settlements)){
@@ -4811,6 +5247,12 @@ async function _initApp(){
     saveNoticeData();
     if(_wlSaveTimer){clearTimeout(_wlSaveTimer);_wlSaveTimer=null;}
     saveWorkLogData();
+    if(_ccSaveTimer){clearTimeout(_ccSaveTimer);_ccSaveTimer=null;}
+    saveContentCalData();
+    if(_seSaveTimer){clearTimeout(_seSaveTimer);_seSaveTimer=null;}
+    saveEventData();
+    if(_empSaveTimer){clearTimeout(_empSaveTimer);_empSaveTimer=null;}
+    saveEmployeeData();
   }
   // 30초마다 자동저장하기 '직전'에, 서버의 최신 데이터를 먼저 한 번 당겨와 화면에 반영함.
   // (예전엔 이 브라우저가 기억하는 걸 무조건 통째로 덮어써서, 방치해둔 탭이 뒤늦게 저장될 때
@@ -4868,6 +5310,21 @@ async function _initApp(){
           const wlVersionBefore=_wlSaveVersion;
           const wlSnap=await db.collection('workLogPosts').get();
           if(!_wlSaveTimer&&_wlSaveVersion===wlVersionBefore){S.workLogs=wlSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id);}
+        }
+        if(S.page!=='contentcal'&&!_ccSaveTimer){
+          const ccVersionBefore=_ccSaveVersion;
+          const ccSnap=await db.collection('contentCalEvents').get();
+          if(!_ccSaveTimer&&_ccSaveVersion===ccVersionBefore){S.contentEvents=ccSnap.docs.map(d=>d.data());}
+        }
+        if(S.page!=='schedule'&&!_seSaveTimer){
+          const seVersionBefore=_seSaveVersion;
+          const seSnap=await db.collection('scheduleEvents').get();
+          if(!_seSaveTimer&&_seSaveVersion===seVersionBefore){S.events=seSnap.docs.map(d=>d.data());}
+        }
+        if(S.page!=='employees'&&!_empSaveTimer){
+          const empVersionBefore=_empSaveVersion;
+          const empSnap=await db.collection('employees').get();
+          if(!_empSaveTimer&&_empSaveVersion===empVersionBefore){S.employees=empSnap.docs.map(d=>d.data());}
         }
         // 게시판/프로젝트 화면은 바로 위에서 이미 "지금 보고 있는 글은 서버 데이터로
         // 덮어쓰지 않음" 처리가 돼 있어서, 여기서 다시 그려봤자 화면 내용은 그대로임.
