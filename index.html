@@ -966,7 +966,7 @@ function navigate(pg){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('page-'+pg);
   if(el)el.classList.add('active');
-  const titles={home:'홈 대시보드',schedule:'일정관리',employees:'직원 관리',board:'게시판',projects:'프로젝트 관리',settlement:'정산 리스트',interns:'인턴 목록',workschedule:'근무스케줄',notice:'인턴 공지',worklog:'근무일지'};
+  const titles={home:'홈 대시보드',schedule:'일정관리',employees:'직원 관리',board:'게시판',projects:'프로젝트 관리',settlement:'정산 리스트',interns:'인턴 목록',workschedule:'근무스케줄',notice:'인턴 공지',worklog:'근무일지',contentcal:'콘텐츠 캘린더'};
   const roleBadge=allowed.role==='admin'?' <span style="font-size:11.5px;font-weight:400;color:var(--sub2)">· 관리자 전용</span>':'';
   document.getElementById('pg-title').innerHTML=esc(navLabel(pg,titles[pg]||pg))+roleBadge;
   document.getElementById('sb').classList.remove('open');
