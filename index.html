@@ -53,17 +53,18 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 #sb-resizer:hover,#sb-resizer.dragging{background:var(--ac);opacity:.12}
 .sb-logo{padding:18px 14px 14px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:6px}
 .sb-logo span{font-size:17px;font-weight:700;color:var(--tx);line-height:1.4;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#sb-collapse-btn{background:none;border:none;cursor:pointer;color:var(--sub);font-size:15px;padding:4px 6px;border-radius:6px;flex-shrink:0;line-height:1}
-#sb-collapse-btn:hover{background:var(--hover)}
+#sb-collapse-btn,#sb-expand-btn{display:flex;align-items:center;justify-content:center;width:34px;height:28px;background:var(--hover);border:none;border-radius:8px;cursor:pointer;color:var(--sub);flex-shrink:0;padding:0}
+#sb-collapse-btn:hover,#sb-expand-btn:hover{background:var(--bd)}
+#sb-collapse-btn svg,#sb-expand-btn svg{width:16px;height:16px}
 /* PC 화면에서 사이드바를 완전히 접었다 펼 수 있는 기능(모바일의 햄버거 메뉴와는 별개).
    접으면 #sb 너비를 0으로 줄이고 #main을 왼쪽으로 붙여서 화면을 넓게 씀 */
-#sb-expand-btn{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--card);border:1px solid var(--bd);border-radius:var(--r-sm);padding:7px 10px;cursor:pointer;font-size:15px;color:var(--sub)}
+#sb-expand-btn{display:none;position:fixed;top:14px;left:14px;z-index:200}
 @media(min-width:769px){
   #sb{transition:width .18s ease}
   #main{transition:margin-left .18s ease}
   body.sb-collapsed #sb{width:0;min-width:0;border-right:none;overflow:hidden}
   body.sb-collapsed #main{margin-left:0}
-  body.sb-collapsed #sb-expand-btn{display:block}
+  body.sb-collapsed #sb-expand-btn{display:flex}
 }
 .sb-nav{flex:1;overflow-y:auto;padding:2px 0 10px}
 .nav-sec-title{font-size:10px;font-weight:600;color:var(--sub2);padding:14px 14px 4px;letter-spacing:.08em;text-transform:uppercase}
@@ -502,9 +503,9 @@ body.tbl-resizing *{cursor:inherit!important}
 
 <div id="app">
   <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
-  <button id="sb-expand-btn" onclick="toggleSidebarCollapse()" title="메뉴 펼치기">☰</button>
+  <button id="sb-expand-btn" onclick="toggleSidebarCollapse()" title="메뉴 펼치기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   <aside id="sb">
-    <div class="sb-logo"><span style="cursor:pointer" onclick="navigate('home')">Next Design School</span><button id="sb-collapse-btn" onclick="toggleSidebarCollapse()" title="메뉴 접기">◀</button></div>
+    <div class="sb-logo"><span style="cursor:pointer" onclick="navigate('home')">Next Design School</span><button id="sb-collapse-btn" onclick="toggleSidebarCollapse()" title="메뉴 접기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button></div>
     <nav class="sb-nav" id="sb-nav"></nav>
     <div class="sb-foot">
       <div class="uinfo">
