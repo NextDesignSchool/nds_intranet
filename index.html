@@ -51,8 +51,20 @@ input:focus,textarea:focus,select:focus{border-color:var(--sub);box-shadow:none}
 #sb{position:fixed;top:0;left:0;width:var(--sw);height:100vh;background:var(--sb);border-right:1px solid var(--bd);display:flex;flex-direction:column;z-index:100;overflow:visible}
 #sb-resizer{position:absolute;right:-3px;top:0;width:6px;height:100%;cursor:col-resize;z-index:101;background:transparent;transition:background .12s}
 #sb-resizer:hover,#sb-resizer.dragging{background:var(--ac);opacity:.12}
-.sb-logo{padding:18px 14px 14px;flex-shrink:0}
-.sb-logo span{font-size:17px;font-weight:700;color:var(--tx);line-height:1.4;letter-spacing:.01em}
+.sb-logo{padding:18px 14px 14px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.sb-logo span{font-size:17px;font-weight:700;color:var(--tx);line-height:1.4;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#sb-collapse-btn{background:none;border:none;cursor:pointer;color:var(--sub);font-size:15px;padding:4px 6px;border-radius:6px;flex-shrink:0;line-height:1}
+#sb-collapse-btn:hover{background:var(--hover)}
+/* PC 화면에서 사이드바를 완전히 접었다 펼 수 있는 기능(모바일의 햄버거 메뉴와는 별개).
+   접으면 #sb 너비를 0으로 줄이고 #main을 왼쪽으로 붙여서 화면을 넓게 씀 */
+#sb-expand-btn{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--card);border:1px solid var(--bd);border-radius:var(--r-sm);padding:7px 10px;cursor:pointer;font-size:15px;color:var(--sub)}
+@media(min-width:769px){
+  #sb{transition:width .18s ease}
+  #main{transition:margin-left .18s ease}
+  body.sb-collapsed #sb{width:0;min-width:0;border-right:none;overflow:hidden}
+  body.sb-collapsed #main{margin-left:0}
+  body.sb-collapsed #sb-expand-btn{display:block}
+}
 .sb-nav{flex:1;overflow-y:auto;padding:2px 0 10px}
 .nav-sec-title{font-size:10px;font-weight:600;color:var(--sub2);padding:14px 14px 4px;letter-spacing:.08em;text-transform:uppercase}
 .nv{display:flex;align-items:center;gap:9px;padding:8px 12px;margin:1px 6px;font-size:14.5px;font-weight:500;cursor:pointer;transition:background .1s;border-radius:6px;color:var(--tx)}
@@ -490,8 +502,9 @@ body.tbl-resizing *{cursor:inherit!important}
 
 <div id="app">
   <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
+  <button id="sb-expand-btn" onclick="toggleSidebarCollapse()" title="메뉴 펼치기">☰</button>
   <aside id="sb">
-    <div class="sb-logo"><span style="cursor:pointer" onclick="navigate('home')">Next Design School</span></div>
+    <div class="sb-logo"><span style="cursor:pointer" onclick="navigate('home')">Next Design School</span><button id="sb-collapse-btn" onclick="toggleSidebarCollapse()" title="메뉴 접기">◀</button></div>
     <nav class="sb-nav" id="sb-nav"></nav>
     <div class="sb-foot">
       <div class="uinfo">
@@ -829,6 +842,12 @@ function doLogout(){
   renderLoginForm(); // 아이디/비밀번호 칸을 포함해 로그인 화면을 완전히 새로 그림
 }
 function toggleSidebar(){document.getElementById('sb').classList.toggle('open')}
+// PC 화면에서 사이드바를 완전히 접었다 펼치는 기능. 모바일의 햄버거 메뉴(toggleSidebar)와는
+// 별개로 동작하며, 이 브라우저에만 저장돼서 다른 기기/브라우저에는 영향을 안 줌.
+function toggleSidebarCollapse(){
+  const collapsed=document.body.classList.toggle('sb-collapsed');
+  try{localStorage.setItem('nds_sb_collapsed',collapsed?'1':'0');}catch{}
+}
 
 let _sbBoardOpen=true;
 function toggleBoardNav(e){if(e)e.stopPropagation();_sbBoardOpen=!_sbBoardOpen;renderSidebar();}
@@ -1233,7 +1252,7 @@ function renderRecentLogs(){
   if(!el)return;
   const logs=[...S.workLogs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
   if(!logs.length){el.innerHTML='<div style="color:var(--sub);font-size:13px">등록된 근무일지가 없습니다.</div>';return}
-  el.innerHTML=logs.map(l=>`<div class="board-item" onclick="navigate('worklog');setTimeout(()=>openWorkLogDetail(${l.id}),100)">
+  el.innerHTML=logs.map(l=>`<div class="board-item" onclick="navigate('worklog');setTimeout(()=>openWorkLogDetail('${l.id}'),100)">
     <div class="bi-title">${esc(l.title)}</div>
     <div class="bi-meta">${esc(l.author)} · ${fmtDisp(l.date)}</div>
   </div>`).join('');
@@ -3449,12 +3468,12 @@ function renderNotice(){
   const regular=S.notices.filter(n=>!n.pinned);
   const sorted=[...pinned,...regular];
   const pinnedBanner=pinned.length?`<div style="background:#FEF5E9;border:1px solid #E8C49A;border-radius:6px;padding:0;margin-bottom:12px;overflow:hidden">
-    ${pinned.map(n=>`<div class="board-item" style="padding:12px 14px;margin:0;background:transparent" onclick="openNoticeDetail(${n.id})">
+    ${pinned.map(n=>`<div class="board-item" style="padding:12px 14px;margin:0;background:transparent" onclick="openNoticeDetail('${n.id}')">
       <div class="bi-title">📌 ${esc(n.title)}</div>
       <div class="bi-meta">${esc(n.author)} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
     </div>`).join('')}
   </div>`:'';
-  const list=sorted.map(n=>`<div class="board-item" onclick="openNoticeDetail(${n.id})">
+  const list=sorted.map(n=>`<div class="board-item" onclick="openNoticeDetail('${n.id}')">
     <div class="bi-title">${n.pinned?'📌 ':''}${esc(n.title)}</div>
     <div class="bi-meta">${esc(n.author)} · ${fmtDisp(n.date)} · 댓글 ${n.comments.length}</div>
   </div>`).join('');
@@ -3463,7 +3482,7 @@ function renderNotice(){
   p.innerHTML=`<div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 공지가 없습니다.</div>'}</div>`;
 }
 function openWriteNotice(id){
-  const n=id?S.notices.find(x=>x.id===id):null;
+  const n=id?S.notices.find(x=>String(x.id)===String(id)):null;
   showModal(`<div class="mo-hd"><h3>${n?'공지 수정':'공지 작성'}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>제목</label><input id="nt-title" value="${n?esc(n.title).replace(/"/g,'&quot;'):''}" placeholder="제목 입력" style="font-size:15px;padding:10px 12px"></div>
@@ -3485,7 +3504,7 @@ function openWriteNotice(id){
     </label></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
-  <button class="btn btn-p" onclick="saveNotice(${id||'null'})">저장</button></div>`,'lg');
+  <button class="btn btn-p" onclick="saveNotice(${id?`'${id}'`:'null'})">저장</button></div>`,'lg');
   setTimeout(()=>{const el=document.getElementById('nt-content');if(el)el.focus();},50);
 }
 // 공지 내용은 이제 실시간 편집(contenteditable)으로 굵게/밑줄/취소선/색상을 바로 눈으로 보면서 적용함.
@@ -3994,7 +4013,7 @@ async function loadNoticeData(retried){
     }
     const postsSnap=await db.collection('noticePosts').get();
     if(!postsSnap.empty){
-      S.notices=postsSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id); // id는 생성 순서대로 커지는 값이라, 큰 값(최신)이 앞에 오도록 정렬
+      S.notices=postsSnap.docs.map(d=>d.data()).sort((a,b)=>(b.ts||b.id||0)-(a.ts||a.id||0)); // ts(생성 시각) 큰 값(최신)이 앞. 예전 숫자 id 글은 ts가 없어서 id로 대신 정렬(항상 ts보다 작은 값이라 자연히 뒤로 감)
     } else {
       const oldSnap=await db.collection('appdata').doc('main').get();
       const oldNotices=oldSnap.exists?(oldSnap.data().notices||[]):[];
@@ -4012,6 +4031,7 @@ async function loadNoticeData(retried){
     console.warn('공지 Firestore 로드 실패(재시도 후에도), localStorage 사용:', e);
   }
 }
+function _ntNewId(){return 'nt'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function saveNotice(id){
   const title=document.getElementById('nt-title').value.trim();
   const contentEl=document.getElementById('nt-content');
@@ -4019,11 +4039,14 @@ function saveNotice(id){
   const pinned=document.getElementById('nt-pinned').checked;
   if(!title){alert('제목을 입력해주세요');return}
   let savedId=id;
-  if(id){const n=S.notices.find(x=>x.id===id);Object.assign(n,{title,content,pinned})}
+  if(id){const n=S.notices.find(x=>String(x.id)===String(id));Object.assign(n,{title,content,pinned})}
   else{
-    savedId=newId();
-    S.notices.unshift({id:savedId,title,content,pinned,author:S.user.name,date:today(),comments:[]});
-    saveAppData().catch(()=>{}); // 번호표(newId) 충돌 방지: 30초 자동저장을 기다리지 않고 즉시 반영
+    // newId()(공용 번호표)는 서버에 반영되는 데 시간이 조금 걸려서, 두 사람이 정말 동시에
+    // 저장하면 같은 번호를 받아 서로 다른 글인데 문서 하나를 공유하게 되는(=하나가 사라지는)
+    // 사고가 날 수 있었음(콘텐츠 캘린더에서 실제로 재현됐던 문제). 그래서 게시판/프로젝트
+    // 글처럼 "시간+무작위값" 조합으로 절대 겹치지 않는 번호를 직접 만들어 씀.
+    savedId=_ntNewId();
+    S.notices.unshift({id:savedId,title,content,pinned,author:S.user.name,date:today(),ts:Date.now(),comments:[]});
   }
   _noticeSave(savedId);
   closeModal();renderNotice();
@@ -4031,21 +4054,21 @@ function saveNotice(id){
 function renderCmt(c,type,itemId){
   const canDel=isAdmin()||c.author===S.user.name;
   return `<div class="cmt">
-    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}${canDel?` · <button class="btn-g" style="font-size:11px;padding:0;color:var(--re)" onclick="deleteComment('${type}',${itemId},${c.id})">삭제</button>`:''}</div>
+    <div class="cmt-meta">${esc(c.author)} · ${fmtDisp(c.date)}${canDel?` · <button class="btn-g" style="font-size:11px;padding:0;color:var(--re)" onclick="deleteComment('${type}','${itemId}',${c.id})">삭제</button>`:''}</div>
     <div class="cmt-text">${esc(c.text)}</div>
   </div>`;
 }
 function deleteComment(type,itemId,commentId){
   if(!confirm('댓글을 삭제하시겠습니까?'))return;
   const arr=type==='notice'?S.notices:S.workLogs;
-  const item=arr.find(x=>x.id===itemId);if(!item)return;
+  const item=arr.find(x=>String(x.id)===String(itemId));if(!item)return;
   item.comments=item.comments.filter(c=>c.id!==commentId);
   const el=document.getElementById('cmt-list');
   if(el)el.innerHTML=item.comments.map(c=>renderCmt(c,type,itemId)).join('');
   if(type==='notice')_noticeSave(itemId);else _wlSave(itemId);
 }
 function openNoticeDetail(id){
-  const n=S.notices.find(x=>x.id===id);if(!n)return;
+  const n=S.notices.find(x=>String(x.id)===String(id));if(!n)return;
   const cmts=n.comments.map(c=>renderCmt(c,'notice',id)).join('');
   showModal(`<div class="mo-hd"><h3>${n.pinned?'📌 ':''}${esc(n.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
@@ -4056,20 +4079,20 @@ function openNoticeDetail(id){
       <div id="cmt-list">${cmts}</div>
       <div class="cmt-form">
         <input id="cmt-input" placeholder="댓글 입력">
-        <button class="btn btn-p btn-sm" onclick="addComment('notice',${id})">등록</button>
+        <button class="btn btn-p btn-sm" onclick="addComment('notice','${id}')">등록</button>
       </div>
       ${quickEmojiBar('notice',id)}
     </div>
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">닫기</button>
-    ${isAdmin()?`<button class="btn btn-o" onclick="closeModal();openWriteNotice(${id})">수정</button>
-    <button class="btn btn-d" onclick="deleteNotice(${id})">삭제</button>`:''}
+    ${isAdmin()?`<button class="btn btn-o" onclick="closeModal();openWriteNotice('${id}')">수정</button>
+    <button class="btn btn-d" onclick="deleteNotice('${id}')">삭제</button>`:''}
   </div>`);
 }
 function deleteNotice(id){
   if(!confirm('공지를 삭제하시겠습니까?'))return;
-  S.notices=S.notices.filter(x=>x.id!==id);
+  S.notices=S.notices.filter(x=>String(x.id)!==String(id));
   _noticeDirty.delete(id); // 저장 대기 중이었다면 취소 (이미 지운 걸 다시 쓰면 안 됨)
   const db=window._db;
   if(db){db.collection('noticePosts').doc(String(id)).delete().catch(e=>console.warn('공지 삭제(서버) 실패:',e));}
@@ -4080,7 +4103,7 @@ function deleteNotice(id){
 // ─── WORK LOG ─────────────────────────────────────
 function renderWorkLog(){
   const p=document.getElementById('page-worklog');
-  const list=S.workLogs.map(l=>`<div class="board-item" onclick="openWorkLogDetail(${l.id})">
+  const list=S.workLogs.map(l=>`<div class="board-item" onclick="openWorkLogDetail('${l.id}')">
     <div class="bi-title">${esc(l.title)} ${l.tasks.close?'<span class="chip ch-g" style="font-size:10px">마감완료</span>':''}</div>
     <div class="bi-meta">${esc(l.author)} · ${fmtDisp(l.date)} · 댓글 ${l.comments.length}</div>
   </div>`).join('');
@@ -4100,12 +4123,12 @@ function renderTaskSubItems(prefix,items,checked){
     <input type="checkbox" id="${prefix}-${item.id}" style="width:auto;accent-color:var(--ac)" ${isTaskItemChecked(checked,item,i)?'checked':''}>${esc(item.text)}</label>`).join('');
 }
 function openWriteLog(id){
-  const l=id?S.workLogs.find(x=>x.id===id):null;
+  const l=id?S.workLogs.find(x=>String(x.id)===String(id)):null;
   const now=new Date();
   const defTitle=l?l.title:`[${S.user.name}] ${now.getMonth()+1}월 ${now.getDate()}일`;
   const oi=l&&l.tasks.openItems||null;
   const ci=l&&l.tasks.closeItems||null;
-  const manageBtn=type=>isAdmin()?`<button type="button" class="btn-g" style="font-size:11px" onclick="window._wlReturnId=${id||'null'};openManageChecklist('${type}')">관리</button>`:'';
+  const manageBtn=type=>isAdmin()?`<button type="button" class="btn-g" style="font-size:11px" onclick="window._wlReturnId=${id?`'${id}'`:'null'};openManageChecklist('${type}')">관리</button>`:'';
   showModal(`<div class="mo-hd"><h3>${l?'근무일지 수정':'근무일지 작성'}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div class="fr"><label>제목</label><input id="wl-title" value="${esc(defTitle).replace(/"/g,'&quot;')}"></div>
@@ -4127,7 +4150,7 @@ function openWriteLog(id){
     <div class="fr"><label>상세내용</label><textarea id="wl-content" rows="5" placeholder="업무 내용 입력">${l?esc(l.content):''}</textarea></div>
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">취소</button>
-  <button class="btn btn-p" onclick="saveWorkLog(${id||'null'})">저장</button></div>`);
+  <button class="btn btn-p" onclick="saveWorkLog(${id?`'${id}'`:'null'})">저장</button></div>`);
 }
 function toggleWlSub(type){
   const chk=document.getElementById('wl-'+type);
@@ -4143,7 +4166,7 @@ function openManageChecklist(type){
     <input type="text" value="${esc(it.text).replace(/"/g,'&quot;')}" style="flex:1;font-size:13px;padding:5px 8px" onchange="editChecklistItem('${type}','${it.id}',this.value)">
     <button class="btn btn-d btn-sm" onclick="deleteChecklistItem('${type}','${it.id}')">삭제</button>
   </div>`).join('')||'<div style="color:var(--sub);font-size:13px;padding:6px 0">등록된 항목이 없습니다</div>';
-  showModal(`<div class="mo-hd"><h3>${label} 체크리스트 관리</h3><button class="mo-cl" onclick="closeModal();openWriteLog(${window._wlReturnId||'null'})">×</button></div>
+  showModal(`<div class="mo-hd"><h3>${label} 체크리스트 관리</h3><button class="mo-cl" onclick="closeModal();openWriteLog(${window._wlReturnId?`'${window._wlReturnId}'`:'null'})">×</button></div>
   <div class="mo-bd">
     <div id="checklist-manage-list">${rows}</div>
     <div class="fr-row" style="margin-top:12px;gap:8px">
@@ -4151,7 +4174,7 @@ function openManageChecklist(type){
       <button class="btn btn-p btn-sm" style="flex:0 0 auto" onclick="addChecklistItem('${type}')">추가</button>
     </div>
   </div>
-  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal();openWriteLog(${window._wlReturnId||'null'})">닫기</button></div>`);
+  <div class="mo-ft"><button class="btn btn-o" onclick="closeModal();openWriteLog(${window._wlReturnId?`'${window._wlReturnId}'`:'null'})">닫기</button></div>`);
 }
 function addChecklistItem(type){
   const input=document.getElementById('new-checklist-item');
@@ -4227,7 +4250,7 @@ async function loadWorkLogData(retried){
     }
     const postsSnap=await db.collection('workLogPosts').get();
     if(!postsSnap.empty){
-      S.workLogs=postsSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id); // 위 공지사항과 동일한 이유
+      S.workLogs=postsSnap.docs.map(d=>d.data()).sort((a,b)=>(b.ts||b.id||0)-(a.ts||a.id||0)); // 위 공지사항과 동일한 이유(ts 우선, 없으면 예전 숫자 id로 대체)
     } else {
       const oldSnap=await db.collection('appdata').doc('main').get();
       const oldLogs=oldSnap.exists?(oldSnap.data().workLogs||[]):[];
@@ -4245,6 +4268,7 @@ async function loadWorkLogData(retried){
     console.warn('근무일지 Firestore 로드 실패(재시도 후에도), localStorage 사용:', e);
   }
 }
+function _wlNewId(){return 'wl'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 function saveWorkLog(id){
   const title=document.getElementById('wl-title').value.trim();
   const content=document.getElementById('wl-content').value.trim();
@@ -4255,17 +4279,17 @@ function saveWorkLog(id){
   const tasks={open:openOn,openItems,close:closeOn,closeItems};
   if(!title){alert('제목을 입력해주세요');return}
   let savedId=id;
-  if(id){const l=S.workLogs.find(x=>x.id===id);Object.assign(l,{title,content,tasks})}
+  if(id){const l=S.workLogs.find(x=>String(x.id)===String(id));Object.assign(l,{title,content,tasks})}
   else{
-    savedId=newId();
-    S.workLogs.unshift({id:savedId,title,content,tasks,author:S.user.name,date:today(),comments:[]});
-    saveAppData().catch(()=>{}); // 번호표(newId) 충돌 방지: 30초 자동저장을 기다리지 않고 즉시 반영
+    // 공지사항과 같은 이유로, 공용 번호표(newId) 대신 절대 겹치지 않는 번호를 직접 만들어 씀.
+    savedId=_wlNewId();
+    S.workLogs.unshift({id:savedId,title,content,tasks,author:S.user.name,date:today(),ts:Date.now(),comments:[]});
   }
   _wlSave(savedId);
   closeModal();renderWorkLog();
 }
 function openWorkLogDetail(id){
-  const l=S.workLogs.find(x=>x.id===id);if(!l)return;
+  const l=S.workLogs.find(x=>String(x.id)===String(id));if(!l)return;
   const canEdit=isAdmin()||(l.author===S.user.name);
   const canDelete=isAdmin();
   const cmts=l.comments.map(c=>renderCmt(c,'worklog',id)).join('');
@@ -4287,20 +4311,20 @@ function openWorkLogDetail(id){
       <div id="cmt-list">${cmts}</div>
       <div class="cmt-form">
         <input id="cmt-input" placeholder="댓글 입력">
-        <button class="btn btn-p btn-sm" onclick="addComment('worklog',${id})">등록</button>
+        <button class="btn btn-p btn-sm" onclick="addComment('worklog','${id}')">등록</button>
       </div>
       ${quickEmojiBar('worklog',id)}
     </div>
   </div>
   <div class="mo-ft">
     <button class="btn btn-o" onclick="closeModal()">닫기</button>
-    ${canEdit?`<button class="btn btn-o" onclick="closeModal();openWriteLog(${id})">수정</button>`:''}
-    ${canDelete?`<button class="btn btn-d" onclick="deleteWorkLog(${id})">삭제</button>`:''}
+    ${canEdit?`<button class="btn btn-o" onclick="closeModal();openWriteLog('${id}')">수정</button>`:''}
+    ${canDelete?`<button class="btn btn-d" onclick="deleteWorkLog('${id}')">삭제</button>`:''}
   </div>`);
 }
 function deleteWorkLog(id){
   if(!confirm('근무일지를 삭제하시겠습니까?'))return;
-  S.workLogs=S.workLogs.filter(x=>x.id!==id);
+  S.workLogs=S.workLogs.filter(x=>String(x.id)!==String(id));
   _wlDirty.delete(id);
   const db=window._db;
   if(db){db.collection('workLogPosts').doc(String(id)).delete().catch(e=>console.warn('근무일지 삭제(서버) 실패:',e));}
@@ -4312,7 +4336,7 @@ function deleteWorkLog(id){
 const QUICK_EMOJIS=['❤️','👍','😢','😊'];
 function quickEmojiBar(type,id){
   return `<div style="display:flex;gap:4px;margin-top:14px">
-    ${QUICK_EMOJIS.map(em=>`<button class="btn btn-o btn-sm" style="font-size:15px;padding:4px 9px" onclick="addQuickComment('${type}',${id},'${em}')">${em}</button>`).join('')}
+    ${QUICK_EMOJIS.map(em=>`<button class="btn btn-o btn-sm" style="font-size:15px;padding:4px 9px" onclick="addQuickComment('${type}','${id}','${em}')">${em}</button>`).join('')}
   </div>`;
 }
 function addComment(type,id){
@@ -4326,7 +4350,7 @@ function addQuickComment(type,id,emoji){
 }
 function postComment(type,id,text){
   const arr=type==='notice'?S.notices:S.workLogs;
-  const item=arr.find(x=>x.id===id);
+  const item=arr.find(x=>String(x.id)===String(id));
   if(!item)return;
   item.comments.push({id:newId(),author:S.user.name,text,date:today()});
   saveAppData().catch(()=>{}); // 번호표(newId) 충돌 방지: 30초 자동저장을 기다리지 않고 즉시 반영
@@ -5251,6 +5275,7 @@ async function _initApp(){
 
   const savedSw=localStorage.getItem('nds_sb_width');
   if(savedSw)document.documentElement.style.setProperty('--sw',savedSw);
+  try{if(localStorage.getItem('nds_sb_collapsed')==='1')document.body.classList.add('sb-collapsed');}catch{}
 
   // Firebase Auth 상태가 확정될 때까지 대기.
   // (브라우저에 이전 익명 로그인 세션이 남아있는 경우, 이 시점에 자동으로 복원됨)
@@ -5358,12 +5383,12 @@ async function _initApp(){
         if(S.page!=='notice'&&!_noticeSaveTimer){
           const nVersionBefore=_noticeSaveVersion;
           const noticeSnap=await db.collection('noticePosts').get();
-          if(!_noticeSaveTimer&&_noticeSaveVersion===nVersionBefore){S.notices=noticeSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id);}
+          if(!_noticeSaveTimer&&_noticeSaveVersion===nVersionBefore){S.notices=noticeSnap.docs.map(d=>d.data()).sort((a,b)=>(b.ts||b.id||0)-(a.ts||a.id||0));}
         }
         if(S.page!=='worklog'&&!_wlSaveTimer){
           const wlVersionBefore=_wlSaveVersion;
           const wlSnap=await db.collection('workLogPosts').get();
-          if(!_wlSaveTimer&&_wlSaveVersion===wlVersionBefore){S.workLogs=wlSnap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id);}
+          if(!_wlSaveTimer&&_wlSaveVersion===wlVersionBefore){S.workLogs=wlSnap.docs.map(d=>d.data()).sort((a,b)=>(b.ts||b.id||0)-(a.ts||a.id||0));}
         }
         if(S.page!=='contentcal'&&!_ccSaveTimer){
           const ccVersionBefore=_ccSaveVersion;
