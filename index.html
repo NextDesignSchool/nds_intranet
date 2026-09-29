@@ -146,6 +146,8 @@ tr:hover td{background:var(--hover)}
 .cal-compact .dnum{font-size:9.5px;width:15px;height:15px;margin-bottom:0}
 .cal-compact .cal-dn{padding:2px;font-size:10px}
 .cal-compact .cal-cell{padding:2px}
+/* 축소판(모바일)에서 공휴일 이름 대신 표시하는 작은 빨간 점 */
+.cal-hol-dot{width:5px;height:5px;border-radius:50%;background:#E24B4A;margin:0 auto 1px;cursor:pointer}
 .board-wrap{display:flex;height:calc(100vh - 108px);background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);overflow:hidden}
 .board-sb{width:240px;border-right:1px solid var(--bd);display:flex;flex-direction:column;background:var(--sb);flex-shrink:0}
 .board-sb-hd{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
@@ -1104,7 +1106,7 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeCo
     html+=`<div class="cal-cells">`;
     week.forEach((day,di)=>{
       const{ds,d,pad}=day;
-      const hol=compact?null:getHolidayForDay(ds); // 축소 모드에서는 공간이 없어 공휴일 문구는 생략
+      const hol=getHolidayForDay(ds);
       const isRed=!pad&&(hol||di===0);
       const isSat=!pad&&di===6;
       let cls=pad?' om':'';
@@ -1112,7 +1114,12 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeCo
       if(di===0)cls+=' sun';
       if(di===6)cls+=' sat';
       const dnStyle=pad?'':(isRed?'color:#E24B4A':isSat?'color:#3366AA':'');
-      const holHtml=hol&&!pad?`<div class="cal-hol">${hol}</div>`:'';
+      // 모바일(축소 모드)에서는 칸이 좁아 공휴일 이름 전체를 넣으면 다른 요소와 겹치거나
+      // 줄바꿈이 깨지는 문제가 있어서, 작은 빨간 점만 표시함. 점을 탭하면(이벤트 추가로
+      // 안 넘어가게 stopPropagation 처리) 공휴일 이름을 alert로 확인할 수 있음.
+      const holHtml=hol&&!pad?(compact
+        ?`<div class="cal-hol-dot" title="${esc(hol)}" onclick="event.stopPropagation();alert('${esc(hol).replace(/'/g,"\\'")}')"></div>`
+        :`<div class="cal-hol">${hol}</div>`):'';
       html+=`<div class="cal-cell${cls}" onclick="${dayClickFn(ds)}"><div class="dnum" style="${dnStyle}">${d}</div>${holHtml}</div>`;
     });
     html+=`</div>`;
