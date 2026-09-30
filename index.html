@@ -1178,7 +1178,12 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeCo
       }
       return{...ev,lane};
     });
-    html+=`<div class="cal-evlayer">`;
+    // 일정 막대들이 실제로 놓여있는 이 영역(cal-evlayer) 전체에 드롭을 받아주는 기능을 붙임.
+    // (cal-cell 쪽에만 붙여놨더니, 정작 막대를 자연스럽게 옮겨 놓는 이 아래 영역에서는
+    // 받아주는 곳이 없어서 드롭이 실패하고 제자리로 튕겨 돌아가던 문제가 있었음)
+    const weekDatesJs='['+week.map(d=>`'${d.ds}'`).join(',')+']';
+    const layerDropAttrs=canDrag?` ondragover="event.preventDefault()" ondrop="calDropOnLayer(event,${weekDatesJs})"`:'';
+    html+=`<div class="cal-evlayer"${layerDropAttrs}>`;
     for(let ci=0;ci<7;ci++)html+=`<div class="cal-evcol"></div>`;
     const colW=100/7;
     const rowH=compact?15:22;
@@ -1226,6 +1231,15 @@ function calDrop(ev,newDate){
   _calDragId=null;_calDragMover=null;
   if(!id||!mover)return;
   mover(id,newDate);
+}
+// 일정 막대 영역(cal-evlayer)에 놓였을 때: 그 자리가 정확히 몇 번째 요일(칸) 위인지
+// 마우스 x좌표로 계산해서 해당 날짜를 알아낸 뒤 calDrop을 그대로 재사용함.
+function calDropOnLayer(ev,weekDates){
+  ev.preventDefault();
+  const rect=ev.currentTarget.getBoundingClientRect();
+  let idx=Math.floor((ev.clientX-rect.left)/(rect.width/7));
+  idx=Math.max(0,Math.min(6,idx));
+  calDrop(ev,weekDates[idx]);
 }
 // 날짜 문자열(YYYY-MM-DD) 계산용 작은 도우미 (기존 코드 곳곳에서 쓰던 new Date+setDate 방식과 동일)
 function _calDayDiff(fromStr,toStr){return Math.round((new Date(toStr)-new Date(fromStr))/86400000)}
