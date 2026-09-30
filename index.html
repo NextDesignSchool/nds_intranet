@@ -159,6 +159,9 @@ tr:hover td{background:var(--hover)}
 .cal-compact .dnum{font-size:9.5px;width:15px;height:15px;margin-bottom:0}
 .cal-compact .cal-dn{padding:2px;font-size:10px}
 .cal-compact .cal-cell{padding:2px}
+.cal-ev[draggable="true"]{cursor:grab}
+.cal-ev[draggable="true"]:active{cursor:grabbing}
+.cal-cell-dragover{background:var(--hover);box-shadow:inset 0 0 0 2px var(--ac)}
 .board-wrap{display:flex;height:calc(100vh - 108px);background:var(--card);border:1px solid var(--bd);border-radius:var(--r-md);overflow:hidden}
 .board-sb{width:240px;border-right:1px solid var(--bd);display:flex;flex-direction:column;background:var(--sb);flex-shrink:0}
 .board-sb-hd{padding:10px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
@@ -1095,13 +1098,16 @@ function renderCalendar(container,month,onAddEvent){
     </div>
   </div>`;
   const compact=(window.innerWidth||1024)<=600;
-  html+=buildMonthGridHtml(S.events,month,ds=>`openAddEvent('${ds}')`,id=>`openEventDetail('${id}')`,compact);
+  html+=buildMonthGridHtml(S.events,month,ds=>`openAddEvent('${ds}')`,id=>`openEventDetail('${id}')`,compact,undefined,'moveScheduleEvent');
   document.getElementById(container).innerHTML=html;
 }
 // 한 달치 캘린더 그리드(날짜 칸 + 연속일정 막대)를 만드는 공용 함수.
 // 메인 일정관리와 프로젝트 전용 캘린더가 이 함수를 공유해서 똑같은 모양을 유지함.
 // dayClickFn(dateStr), eventClickFn(eventId)는 각각 "그 자리에 넣을 onclick JS 문자열"을 돌려줘야 함.
-function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeColorsSrc){
+// moverExpr: 일정을 다른 날짜로 드래그해서 옮길 때 호출할 함수를 가리키는 JS 코드 조각(문자열).
+// 예) 'moveScheduleEvent' 또는 프로젝트처럼 추가 정보가 필요하면 "(id,nd)=>moveProjectEvent('p1',id,nd)"
+// 처럼 그 자리에서 함수를 만드는 식으로 넘겨줌. 생략하면 드래그 기능이 꺼짐.
+function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeColorsSrc,moverExpr){
   const y=month.getFullYear(),m=month.getMonth();
   const first=new Date(y,m,1).getDay();
   const days=getDaysInMonth(y,m);
@@ -1114,6 +1120,9 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeCo
   for(let i=1;i<=rem;i++){const nm=m===11?0:m+1,ny=m===11?y+1:y;allDays.push({ds:`${ny}-${p2(nm+1)}-${p2(i)}`,d:i,pad:true});}
   const weeks=[];for(let i=0;i<allDays.length;i+=7)weeks.push(allDays.slice(i,i+7));
   const multiEvs=events.filter(e=>e.start!==e.end);
+  // PC(마우스)에서만 드래그로 일정 날짜를 옮길 수 있게 함. 터치 기기는 길게 눌러 드래그하는
+  // 동작이 스크롤과 자주 충돌해서 훨씬 복잡해지므로, 일단 마우스가 있는 환경에서만 켜둠.
+  const canDrag=!!moverExpr&&!!(window.matchMedia&&window.matchMedia('(pointer:fine)').matches);
   let html=`<div class="cal-grid-outer${compact?' cal-compact':''}">`;
   html+=`<div class="cal-header-row">`;
   ['일','월','화','수','목','금','토'].forEach(d=>html+=`<div class="cal-dn">${d}</div>`);
@@ -1135,7 +1144,8 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeCo
       // 모바일(축소 모드)에서는 칸이 좁아 공휴일 이름 전체를 넣으면 다른 요소와 겹치거나
       // 줄바꿈이 깨지는 문제가 있어서 문구는 생략하고, 날짜 숫자만 빨갛게(위 dnStyle) 표시함.
       const holHtml=hol&&!pad&&!compact?`<div class="cal-hol">${hol}</div>`:'';
-      html+=`<div class="cal-cell${cls}" onclick="${dayClickFn(ds)}"><div class="dnum" style="${dnStyle}">${d}</div>${holHtml}</div>`;
+      const dropAttrs=canDrag?` ondragover="event.preventDefault();this.classList.add('cal-cell-dragover')" ondragleave="this.classList.remove('cal-cell-dragover')" ondrop="this.classList.remove('cal-cell-dragover');calDrop(event,'${ds}')"`:'';
+      html+=`<div class="cal-cell${cls}" onclick="${dayClickFn(ds)}"${dropAttrs}><div class="dnum" style="${dnStyle}">${d}</div>${holHtml}</div>`;
     });
     html+=`</div>`;
     const wEvs=[];
@@ -1184,13 +1194,14 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeCo
       const width=colW*(ce-cs+1);
       const top=lane*rowH+2;
       const clickJs=eventClickFn(e.id);
+      const dragAttrs=canDrag?` draggable="true" ondragstart="event.stopPropagation();calDragStart(event,'${e.id}',${moverExpr})"`:'';
       if(isMulti){
         const isFirst=e.start>=wS,isLast=e.end<=wE;
         const r=isFirst&&isLast?'4px':isFirst?'4px 0 0 4px':isLast?'0 4px 4px 0':'0';
         const ml=isFirst?2:0,mr=isLast?2:0;
-        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type,etypeColorsSrc)}position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:${barH}px;line-height:${barH}px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:${barFont}px;border-radius:${r}" onclick="event.stopPropagation();${clickJs}">${isFirst?evLabel(e):''}</div>`;
+        html+=`<div class="cal-ev ev-${e.type||'미정'}"${dragAttrs} style="${etypeInlineStyle(e.type,etypeColorsSrc)}position:absolute;top:${top}px;left:calc(${left}% + ${ml}px);width:calc(${width}% - ${ml+mr}px);height:${barH}px;line-height:${barH}px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:${barFont}px;border-radius:${r}" onclick="event.stopPropagation();${clickJs}">${isFirst?evLabel(e):''}</div>`;
       } else {
-        html+=`<div class="cal-ev ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type,etypeColorsSrc)}position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:${barH}px;line-height:${barH}px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:${barFont}px;border-radius:4px" onclick="event.stopPropagation();${clickJs}">${evLabel(e)}</div>`;
+        html+=`<div class="cal-ev ev-${e.type||'미정'}"${dragAttrs} style="${etypeInlineStyle(e.type,etypeColorsSrc)}position:absolute;top:${top}px;left:calc(${left}% + 2px);width:calc(${width}% - 4px);height:${barH}px;line-height:${barH}px;overflow:hidden;display:flex;align-items:center;padding:0 6px;cursor:pointer;font-size:${barFont}px;border-radius:4px" onclick="event.stopPropagation();${clickJs}">${evLabel(e)}</div>`;
       }
     });
     html+=`</div></div>`;
@@ -1198,6 +1209,27 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeCo
   html+=`</div>`;
   return html;
 }
+// 일정 막대를 드래그해서 다른 날짜 칸에 놓았을 때 실제로 날짜를 바꾸는 부분.
+// dragstart에서 "어떤 일정(id)"과 "그 일정을 옮길 때 쓸 함수(mover)"를 기억해뒀다가,
+// drop된 순간 그 함수를 (id, 놓은 날짜)로 호출함. 캘린더 종류(일정관리/콘텐츠/프로젝트)에
+// 따라 mover만 다르게 넘어오고, 드래그 처리 자체는 이 함수 하나로 공용으로 씀.
+let _calDragId=null,_calDragMover=null;
+function calDragStart(ev,id,mover){
+  _calDragId=id;
+  _calDragMover=mover;
+  ev.dataTransfer.effectAllowed='move';
+  try{ev.dataTransfer.setData('text/plain',id);}catch{}
+}
+function calDrop(ev,newDate){
+  ev.preventDefault();
+  const id=_calDragId,mover=_calDragMover;
+  _calDragId=null;_calDragMover=null;
+  if(!id||!mover)return;
+  mover(id,newDate);
+}
+// 날짜 문자열(YYYY-MM-DD) 계산용 작은 도우미 (기존 코드 곳곳에서 쓰던 new Date+setDate 방식과 동일)
+function _calDayDiff(fromStr,toStr){return Math.round((new Date(toStr)-new Date(fromStr))/86400000)}
+function _calAddDays(dateStr,days){const d=new Date(dateStr);d.setDate(d.getDate()+days);return fmt(d)}
 function calPrev(c){S.cal=new Date(S.cal.getFullYear(),S.cal.getMonth()-1,1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
 function calNext(c){S.cal=new Date(S.cal.getFullYear(),S.cal.getMonth()+1,1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
 function calToday(c){const n=new Date();S.cal=new Date(n.getFullYear(),n.getMonth(),1);renderCalendar(c,S.cal,'openAddEvent(null)');if(c==='sched-cal')renderScheduleTable()}
@@ -1597,6 +1629,18 @@ function deleteEvent(id){
   else if(S.page==='schedule')renderSchedulePage();
   closeModal();
 }
+// 캘린더에서 일정을 다른 날짜 칸으로 드래그해서 놓았을 때 호출됨(buildMonthGridHtml 공용 드래그 기능).
+// 기간이 있는 일정(시작~종료)은 기간 길이를 그대로 유지한 채 통째로 옮김.
+function moveScheduleEvent(id,newDate){
+  const e=S.events.find(x=>String(x.id)===String(id));if(!e)return;
+  if(e.start===newDate)return;
+  const shiftDays=_calDayDiff(e.start,newDate);
+  e.start=newDate;
+  e.end=_calAddDays(e.end,shiftDays);
+  _seSave(id);
+  if(S.page==='home')renderHome();
+  else if(S.page==='schedule')renderSchedulePage();
+}
 // ─── 일정관리 저장 방식: 일정 하나하나를 scheduleEvents 컬렉션에 별도 문서로 저장 ──
 // 관리자 여러 명이 동시에 서로 다른 일정을 추가/수정할 수 있으므로, 게시판/콘텐츠
 // 캘린더와 같은 이유로 "전체 배열 통째 저장" 대신 이 방식을 씀.
@@ -1739,7 +1783,7 @@ function renderCC(container,month){
     </div>
   </div>`;
   const compact=(window.innerWidth||1024)<=600;
-  html+=buildMonthGridHtml(S.contentEvents,month,ds=>`openAddContentEvent('${ds}')`,id=>`openContentEventDetail('${id}')`,compact,S.contentEtypeColors);
+  html+=buildMonthGridHtml(S.contentEvents,month,ds=>`openAddContentEvent('${ds}')`,id=>`openContentEventDetail('${id}')`,compact,S.contentEtypeColors,'moveContentEvent');
   document.getElementById(container).innerHTML=html;
 }
 function ccPrev(){S.ccCal=new Date(S.ccCal.getFullYear(),S.ccCal.getMonth()-1,1);renderCC('cc-cal',S.ccCal);}
@@ -1855,6 +1899,16 @@ function deleteContentEvent(id){
   try{localStorage.setItem('nds_contentEvents',JSON.stringify(S.contentEvents));}catch{}
   if(S.page==='contentcal')renderContentCal();
   closeModal();
+}
+// 캘린더에서 드래그로 일정을 다른 날짜에 놓았을 때 호출됨(buildMonthGridHtml 공용 드래그 기능)
+function moveContentEvent(id,newDate){
+  const e=S.contentEvents.find(x=>String(x.id)===String(id));if(!e)return;
+  if(e.start===newDate)return;
+  const shiftDays=_calDayDiff(e.start,newDate);
+  e.start=newDate;
+  e.end=_calAddDays(e.end,shiftDays);
+  _ccSave(id);
+  if(S.page==='contentcal')renderContentCal();
 }
 // ─── 콘텐츠 캘린더 저장 방식: 일정 하나하나를 contentCalEvents 컬렉션에 별도 문서로 저장 ──
 // 인턴 여러 명이 동시에 서로 다른 일정을 추가/수정할 수 있으므로, 게시판/공지/근무일지와
@@ -3935,7 +3989,10 @@ function richApplyBgColor(elId,hex){
 function sanitizeNoticeHtml(html){
   const div=document.createElement('div');
   div.innerHTML=html;
-  const allowed=['B','STRONG','U','S','STRIKE','SPAN','BR','DIV'];
+  // 'P'가 빠져있으면, 브라우저가 문단을 <p> 태그로 감쌌을 때(Enter 입력 시 흔히 발생)
+  // 저장하면서 그 태그가 통째로 벗겨져 줄바꿈이 사라지는 문제가 있었음(게시판/프로젝트
+  // 글쓰기 칸의 정리 함수엔 원래 있던 항목인데, 공지사항용을 만들 때 빠뜨렸던 것).
+  const allowed=['B','STRONG','U','S','STRIKE','SPAN','BR','DIV','P'];
   const colorRe=/^(#[0-9a-fA-F]{3,8}|rgb\([\d\s,]+\)|rgba\([\d\s,.]+\))$/;
   function clean(node){
     [...node.childNodes].forEach(child=>{
@@ -4884,7 +4941,7 @@ function pCalRenderAll(postId){
     html+=buildMonthGridHtml(p.calEvents,mDate,
       ds=>`openAddProjectEvent('${postId}','${ds}')`,
       eid=>`openProjectEventDetail('${postId}',${eid})`,
-      true);
+      true,undefined,`(id,nd)=>moveProjectEvent('${postId}',id,nd)`);
     el.innerHTML=html;
   }
 }
@@ -4997,6 +5054,19 @@ function deleteProjectEvent(postId,id){
   const p=_pPosts.find(x=>x.id===postId);if(!p)return;
   p.calEvents=(p.calEvents||[]).filter(x=>x.id!==id);
   closeModal();
+  pCalRenderAll(postId);
+  _pSave(postId);
+}
+// 캘린더에서 드래그로 일정을 다른 날짜에 놓았을 때 호출됨(buildMonthGridHtml 공용 드래그 기능).
+// 드래그로 넘어오는 id는 항상 문자열이라(HTML onclick 속성에 그대로 박아 넣는 방식이라 그럼),
+// calEvents의 숫자 id와 비교할 때는 꼭 String()으로 감싸서 비교해야 함.
+function moveProjectEvent(postId,id,newDate){
+  const p=_pPosts.find(x=>x.id===postId);if(!p)return;
+  const e=(p.calEvents||[]).find(x=>String(x.id)===String(id));if(!e)return;
+  if(e.start===newDate)return;
+  const shiftDays=_calDayDiff(e.start,newDate);
+  e.start=newDate;
+  e.end=_calAddDays(e.end,shiftDays);
   pCalRenderAll(postId);
   _pSave(postId);
 }
