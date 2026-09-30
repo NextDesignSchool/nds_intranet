@@ -1161,10 +1161,17 @@ function buildMonthGridHtml(events,month,dayClickFn,eventClickFn,compact,etypeCo
         wEvs.push({e,cs:di,ce:di,isMulti:false});
       });
     });
+    // 같은 날짜에 일정이 여러 개면: 시간이 지정 안 된 일정이 맨 위(그 안에서는 등록된 순서대로),
+    // 그 아래로 시간이 지정된 일정들을 이른 시간순으로 정렬함. 정렬 결과 순서 그대로 위에서부터
+    // 차곡차곡 자리(레인)를 배정하므로, 이 정렬 순서가 곧 화면에 보이는 위→아래 순서가 됨.
     wEvs.sort((a,b)=>{
       const aL=a.ce-a.cs,bL=b.ce-b.cs;
-      if(bL!==aL)return bL-aL;
-      return a.e.start.localeCompare(b.e.start);
+      if(bL!==aL)return bL-aL; // 기간 긴(여러 날짜) 일정 먼저 배치 — 기존 로직 유지
+      if(a.e.start!==b.e.start)return a.e.start.localeCompare(b.e.start); // 시작일이 다르면 날짜순 — 기존 로직 유지
+      const aHasTime=!!(a.e.time&&a.e.startTime),bHasTime=!!(b.e.time&&b.e.startTime);
+      if(aHasTime&&bHasTime)return a.e.startTime.localeCompare(b.e.startTime); // 둘 다 시간 있으면 이른 시간순
+      if(aHasTime!==bHasTime)return aHasTime?1:-1; // 시간 미지정 쪽이 위로
+      return 0; // 나머지(둘 다 시간 미지정)는 원래 순서(등록 순) 그대로 유지 — sort는 안정 정렬이라 순서가 보존됨
     });
     const laneGrid=[];
     const assigned=wEvs.map(ev=>{
