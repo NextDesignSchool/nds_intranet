@@ -3168,14 +3168,16 @@ function getWeekInfo(offset){
   const dow=now.getDay();
   const mon=new Date(now);mon.setDate(now.getDate()-(dow===0?6:dow-1)+offset*7);
   const fri=new Date(mon);fri.setDate(mon.getDate()+4);
-  const y=mon.getFullYear(),m=mon.getMonth();
+  // 국제 표준(ISO 8601) 방식: 그 주가 몇 월/몇 주차인지는 "그 주의 목요일"이 속한 달을 기준으로 정함
+  // (월~금 중 목요일이 그 주의 중간 지점이라, 달이 바뀌는 주는 목요일이 더 많이 속한 달로 귀속됨)
+  const thu=new Date(mon);thu.setDate(mon.getDate()+3);
+  const y=thu.getFullYear(),m=thu.getMonth();
   const first=new Date(y,m,1);
   const fd=first.getDay();
-  const fmon=new Date(first);fmon.setDate(first.getDate()+(fd===0?1:fd===1?0:8-fd));
-  if(fmon.getMonth()!==m)fmon.setDate(fmon.getDate()-7);
-  const diff=Math.round((mon-fmon)/(864e5));
+  const fthu=new Date(first);fthu.setDate(first.getDate()+(4-fd+7)%7); // 그 달의 첫 번째 목요일
+  const diff=Math.round((thu-fthu)/(864e5));
   const wn=Math.floor(diff/7)+1;
-  const label=`${y}년 ${m+1}월 ${wn}주차(${m+1}/${mon.getDate()}~${fri.getMonth()+1}/${fri.getDate()})`;
+  const label=`${y}년 ${m+1}월 ${wn}주차(${mon.getMonth()+1}/${mon.getDate()}~${fri.getMonth()+1}/${fri.getDate()})`;
   return{mon,fri,label,wn};
 }
 function renderWorkSchedule(){
