@@ -194,6 +194,9 @@ tr:hover td{background:var(--hover)}
 .rich-body ul,.rich-body ol{padding-left:22px;margin:6px 0}
 .notice-rich ul,.notice-rich ol{padding-left:22px;margin:6px 0}
 .rich-body hr{border:none;border-top:1px solid var(--bd);margin:18px 0}
+.rich-body details{margin:8px 0;border:1px solid var(--bd);border-radius:var(--r-sm);padding:2px 10px}
+.rich-body details>summary{cursor:pointer;font-weight:600;padding:8px 2px;list-style:revert}
+.rich-body details>div{padding:2px 4px 10px 22px}
 .rich-body table{border-collapse:collapse;margin:10px 0}
 .rich-body table td,.rich-body table th{border:1px solid #8A8A8A;padding:6px 10px;min-width:60px}
 .tbl-edge-btns{position:fixed;display:none;gap:3px;z-index:3200}
@@ -3600,7 +3603,7 @@ function openWriteNotice(id){
 function sanitizeRichHtml(html){
   const div=document.createElement('div');
   div.innerHTML=html;
-  const allowed=['B','STRONG','I','EM','U','S','STRIKE','SPAN','BR','DIV','P','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','HR','TABLE','COLGROUP','COL','TBODY','THEAD','TR','TD','TH','CODE','PRE','A'];
+  const allowed=['B','STRONG','I','EM','U','S','STRIKE','SPAN','BR','DIV','P','H1','H2','H3','UL','OL','LI','BLOCKQUOTE','HR','TABLE','COLGROUP','COL','TBODY','THEAD','TR','TD','TH','CODE','PRE','A','DETAILS','SUMMARY'];
   const colorRe=/^(#[0-9a-fA-F]{3,8}|rgb\([\d\s,]+\)|rgba\([\d\s,.]+\))$/;
   const pxRe=/^\d+(\.\d+)?px$/;
   function clean(node){
@@ -3623,11 +3626,13 @@ function sanitizeRichHtml(html){
       if(tag==='COL'&&st&&st.width&&pxRe.test(st.width.trim()))keep.push('width:'+st.width);
       if(tag==='TR'&&st&&st.height&&pxRe.test(st.height.trim()))keep.push('height:'+st.height);
       const href=(tag==='A')?child.getAttribute('href'):null;
+      const wasOpen=(tag==='DETAILS')?child.hasAttribute('open'):false; // 토글이 펼쳐진 상태였는지(열림/닫힘)는 저장해뒀다가 그대로 유지시킴
       [...child.attributes].forEach(attr=>child.removeAttribute(attr.name));
       if(keep.length)child.setAttribute('style',keep.join(';'));
       if(tag==='A'&&href&&/^https?:\/\//i.test(href)){
         child.setAttribute('href',href);child.setAttribute('target','_blank');child.setAttribute('rel','noopener noreferrer');
       }
+      if(tag==='DETAILS'&&wasOpen)child.setAttribute('open','');
       clean(child);
     });
   }
@@ -3675,6 +3680,7 @@ function richToolbarHtml(elId){
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')" data-tip="글머리 기호">•</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertOrderedList')" data-tip="번호 목록">1.</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('formatBlock',false,'BLOCKQUOTE')" data-tip="인용구">❝</button>
+    <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertToggle()" data-tip="토글(펼치기/접기)">▸</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertCode()" data-tip="코드">&lt;/&gt;</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertLink()" data-tip="하이퍼링크">🔗</button>
     <span class="rt-sep"></span>
@@ -3687,6 +3693,13 @@ function richToolbarHtml(elId){
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertHorizontalRule')" data-tip="구분선">—</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertTable(this)" data-tip="표">⊞</button>
   </div>`;
+}
+// 토글(접고 펼치기) 블록 삽입: 브라우저 기본 <details>/<summary> 태그를 그대로 씀.
+// 이렇게 하면 따로 JS로 "보였다 숨었다"를 구현할 필요 없이, 제목(summary) 앞의 삼각형(▸)을
+// 클릭하면 브라우저가 알아서 하위 내용을 접고 펼쳐줌. 저장되는 내용도 평범한 HTML 태그라
+// 지금 있는 저장/정리(sanitizeRichHtml) 로직에 태그 이름만 허용해주면 그대로 잘 보존됨.
+function richInsertToggle(){
+  document.execCommand('insertHTML',false,'<details open><summary>토글 제목</summary><div>내용을 입력하세요</div></details><div><br></div>');
 }
 function richInsertCode(){
   const txt=window.getSelection()?.toString();
