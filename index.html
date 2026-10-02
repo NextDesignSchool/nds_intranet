@@ -192,6 +192,7 @@ tr:hover td{background:var(--hover)}
 .rich-body h3{font-size:16.5px;font-weight:700;margin:14px 0 6px}
 .rich-body blockquote{border-left:3px solid var(--bd2);padding:2px 0 2px 14px;color:var(--sub);margin:8px 0}
 .rich-body ul,.rich-body ol{padding-left:22px;margin:6px 0}
+.notice-rich ul,.notice-rich ol{padding-left:22px;margin:6px 0}
 .rich-body hr{border:none;border-top:1px solid var(--bd);margin:18px 0}
 .rich-body table{border-collapse:collapse;margin:10px 0}
 .rich-body table td,.rich-body table th{border:1px solid #8A8A8A;padding:6px 10px;min-width:60px}
@@ -3574,7 +3575,7 @@ function openWriteNotice(id){
         <button type="button" class="btn btn-o btn-sm" data-color-trigger onmousedown="event.preventDefault()" onclick="richOpenColorPicker(this,'bg','nt-content')" title="배경 색" style="background:#FFF3B0">A</button>
         <span style="font-size:11px;color:var(--sub)">글자를 선택한 뒤 눌러주세요 — 바로 적용돼요</span>
       </div>
-      <div id="nt-content" contenteditable="true" data-ph="내용 입력..." style="min-height:320px;max-height:55vh;overflow-y:auto;border:1px solid var(--bd);border-radius:var(--r-sm);padding:12px 14px;font-size:14.5px;line-height:1.6;outline:none">${n?n.content:''}</div>
+      <div id="nt-content" class="notice-rich" contenteditable="true" data-ph="내용 입력..." style="min-height:320px;max-height:55vh;overflow-y:auto;border:1px solid var(--bd);border-radius:var(--r-sm);padding:12px 14px;font-size:14.5px;line-height:1.6;outline:none">${n?n.content:''}</div>
     </div>
     <div class="fr"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
       <input type="checkbox" id="nt-pinned" style="width:auto;accent-color:var(--ac)" ${n&&n.pinned?'checked':''}>
@@ -4015,7 +4016,9 @@ function sanitizeNoticeHtml(html){
   // 'P'가 빠져있으면, 브라우저가 문단을 <p> 태그로 감쌌을 때(Enter 입력 시 흔히 발생)
   // 저장하면서 그 태그가 통째로 벗겨져 줄바꿈이 사라지는 문제가 있었음(게시판/프로젝트
   // 글쓰기 칸의 정리 함수엔 원래 있던 항목인데, 공지사항용을 만들 때 빠뜨렸던 것).
-  const allowed=['B','STRONG','U','S','STRIKE','SPAN','BR','DIV','P'];
+  // 'UL'/'OL'/'LI'는 다른 프로그램(워드/한글/노션 등)에서 글머리 기호·번호 목록을 그대로
+  // 복사해 붙여넣었을 때, 그 구조가 벗겨지면서 여러 줄이 한 줄로 붙어버리는 문제를 막기 위해 추가함.
+  const allowed=['B','STRONG','U','S','STRIKE','SPAN','BR','DIV','P','UL','OL','LI'];
   const colorRe=/^(#[0-9a-fA-F]{3,8}|rgb\([\d\s,]+\)|rgba\([\d\s,.]+\))$/;
   function clean(node){
     [...node.childNodes].forEach(child=>{
@@ -4154,7 +4157,7 @@ function openNoticeDetail(id){
   showModal(`<div class="mo-hd"><h3>${n.pinned?'📌 ':''}${esc(n.title)}</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
     <div style="font-size:12px;color:var(--sub);margin-bottom:12px">${esc(n.author)} · ${fmtDisp(n.date)}${n.pinned?' · <span style="color:var(--or)">고정됨</span>':''}</div>
-    <div style="font-size:14px;line-height:1.6;margin-bottom:20px">${n.content}</div>
+    <div class="notice-rich" style="font-size:14px;line-height:1.6;margin-bottom:20px">${n.content}</div>
     <div style="border-top:1px solid var(--bd);padding-top:14px">
       <div class="ctitle" style="font-size:13px">댓글 ${n.comments.length}</div>
       <div id="cmt-list">${cmts}</div>
