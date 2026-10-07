@@ -3556,17 +3556,19 @@ function saveWorkIssue(){
 // 한 화면에 15개씩만 보여주고, 나머지는 아래 페이지 번호(1,2,3...)를 눌러 넘겨봄.
 const LIST_PER_PAGE=15;
 let _ntPage=1,_wlPage=1;
+// 숫자가 버튼 한가운데 오도록 flex 중앙정렬 + 좌우 패딩 동일하게
+const PG_BTN='display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:32px;padding:0 6px;text-align:center';
 function pagerHtml(total,page,setFn){
   const pages=Math.ceil(total/LIST_PER_PAGE);
   if(pages<=1)return '';
   let btns='';
   for(let i=1;i<=pages;i++){
-    btns+=`<button class="btn btn-sm${i===page?' btn-p':' btn-o'}" style="min-width:34px" onclick="${setFn}(${i})">${i}</button>`;
+    btns+=`<button class="btn btn-sm${i===page?' btn-p':' btn-o'}" style="${PG_BTN}" onclick="${setFn}(${i})">${i}</button>`;
   }
   return `<div style="display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin-top:16px">
-    <button class="btn btn-o btn-sm" ${page<=1?'disabled style="opacity:.4;cursor:default"':`onclick="${setFn}(${page-1})"`}>‹</button>
+    <button class="btn btn-o btn-sm" ${page<=1?`disabled style="${PG_BTN};opacity:.4;cursor:default"`:`style="${PG_BTN}" onclick="${setFn}(${page-1})"`}>‹</button>
     ${btns}
-    <button class="btn btn-o btn-sm" ${page>=pages?'disabled style="opacity:.4;cursor:default"':`onclick="${setFn}(${page+1})"`}>›</button>
+    <button class="btn btn-o btn-sm" ${page>=pages?`disabled style="${PG_BTN};opacity:.4;cursor:default"`:`style="${PG_BTN}" onclick="${setFn}(${page+1})"`}>›</button>
   </div>`;
 }
 function pageSlice(arr,page){
