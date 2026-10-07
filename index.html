@@ -2196,11 +2196,11 @@ function renderEmployees(){
         <div style="flex:1"><input id="emp-issue-content-${e.id}" placeholder="이슈 내용 입력"></div>
         <button class="btn btn-p btn-sm" style="flex:0 0 auto" onclick="saveEmpIssue('${e.id}')">저장</button>
       </div>
-      ${(e.issues||[]).length?(e.issues||[]).slice().sort((a,b)=>b.date.localeCompare(a.date)).map(iss=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:13px">
+      ${(e.issues||[]).filter(issueInRange).length?(e.issues||[]).filter(issueInRange).sort((a,b)=>b.date.localeCompare(a.date)).map(iss=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:13px">
         <span style="color:var(--sub);flex:0 0 auto">${fmtDisp(iss.date)}</span>
         <span style="flex:1">${esc(iss.content)}</span>
         <button class="btn btn-d btn-sm" style="flex:0 0 auto" onclick="deleteEmpIssue('${e.id}',${iss.id})">삭제</button>
-      </div>`).join(''):'<div style="color:var(--sub);font-size:13px">등록된 이슈가 없습니다</div>'}
+      </div>`).join(''):'<div style="color:var(--sub);font-size:13px">오늘 이후 2개월 이내 이슈가 없습니다</div>'}
       </div>
     </div>
   </div>`).join('');
@@ -3499,9 +3499,16 @@ function renderWSInternList(){
   const active=S.interns.filter(isInternActive);
   el.innerHTML=internListPanelHtml(active,S.weekOffset);
 }
+// 이슈 목록은 "오늘 이후 ~ 2개월 이내" 날짜의 것만 보여줌 (일정 목록과 같은 기준). 데이터 자체는 지우지 않고 화면에서만 걸러냄.
+function issueInRange(iss){
+  const maxD=new Date();maxD.setMonth(maxD.getMonth()+2);
+  return iss.date>=today()&&iss.date<=fmt(maxD);
+}
 function renderWSIssues(){
   const el=document.getElementById('ws-issues');if(!el)return;
-  el.innerHTML=S.workIssues.map(iss=>`<tr>
+  const list=S.workIssues.filter(issueInRange);
+  if(!list.length){el.innerHTML='<tr><td colspan="4" style="color:var(--sub)">오늘 이후 2개월 이내 이슈가 없습니다</td></tr>';return;}
+  el.innerHTML=list.map(iss=>`<tr>
     <td>${iss.intern}</td><td>${fmtDisp(iss.date)}</td><td>${iss.content}</td>
     <td style="display:flex;gap:6px">
       <button class="btn btn-o btn-sm" onclick="openEditIssue(${iss.id})">수정</button>
@@ -3545,11 +3552,37 @@ function saveWorkIssue(){
 }
 
 // ─── NOTICE ───────────────────────────────────────
+// ─── 목록 페이지 나누기(인턴 공지/근무일지 공용) ───────────────
+// 한 화면에 15개씩만 보여주고, 나머지는 아래 페이지 번호(1,2,3...)를 눌러 넘겨봄.
+const LIST_PER_PAGE=15;
+let _ntPage=1,_wlPage=1;
+function pagerHtml(total,page,setFn){
+  const pages=Math.ceil(total/LIST_PER_PAGE);
+  if(pages<=1)return '';
+  let btns='';
+  for(let i=1;i<=pages;i++){
+    btns+=`<button class="btn btn-sm${i===page?' btn-p':' btn-o'}" style="min-width:34px" onclick="${setFn}(${i})">${i}</button>`;
+  }
+  return `<div style="display:flex;justify-content:center;align-items:center;gap:6px;flex-wrap:wrap;margin-top:16px">
+    <button class="btn btn-o btn-sm" ${page<=1?'disabled style="opacity:.4;cursor:default"':`onclick="${setFn}(${page-1})"`}>‹</button>
+    ${btns}
+    <button class="btn btn-o btn-sm" ${page>=pages?'disabled style="opacity:.4;cursor:default"':`onclick="${setFn}(${page+1})"`}>›</button>
+  </div>`;
+}
+function pageSlice(arr,page){
+  const pages=Math.max(1,Math.ceil(arr.length/LIST_PER_PAGE));
+  const pg=Math.min(Math.max(1,page),pages); // 글이 삭제돼서 페이지 수가 줄어도 범위를 벗어나지 않게 보정
+  return {pg,items:arr.slice((pg-1)*LIST_PER_PAGE,pg*LIST_PER_PAGE)};
+}
+function setNoticePage(n){_ntPage=n;renderNotice();window.scrollTo(0,0);}
+function setWorkLogPage(n){_wlPage=n;renderWorkLog();window.scrollTo(0,0);}
 function renderNotice(){
   const p=document.getElementById('page-notice');
   const pinned=S.notices.filter(n=>n.pinned);
   const regular=S.notices.filter(n=>!n.pinned);
-  const sorted=[...pinned,...regular];
+  const allSorted=[...pinned,...regular];
+  const {pg:ntPg,items:sorted}=pageSlice(allSorted,_ntPage);
+  _ntPage=ntPg;
   const pinnedBanner=pinned.length?`<div style="background:#FEF5E9;border:1px solid #E8C49A;border-radius:6px;padding:0;margin-bottom:12px;overflow:hidden">
     ${pinned.map(n=>`<div class="board-item" style="padding:12px 14px;margin:0;background:transparent" onclick="openNoticeDetail('${n.id}')">
       <div class="bi-title">📌 ${esc(n.title)}</div>
@@ -3562,7 +3595,7 @@ function renderNotice(){
   </div>`).join('');
   const ta=document.getElementById('topbar-actions');
   if(ta)ta.innerHTML=isAdmin()?`<button class="btn btn-p btn-sm" onclick="openWriteNotice()">+ 작성</button>`:'';
-  p.innerHTML=`<div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 공지가 없습니다.</div>'}</div>`;
+  p.innerHTML=`<div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 공지가 없습니다.</div>'}${pagerHtml(allSorted.length,ntPg,'setNoticePage')}</div>`;
 }
 function openWriteNotice(id){
   const n=id?S.notices.find(x=>String(x.id)===String(id)):null;
@@ -4201,13 +4234,15 @@ function deleteNotice(id){
 // ─── WORK LOG ─────────────────────────────────────
 function renderWorkLog(){
   const p=document.getElementById('page-worklog');
-  const list=S.workLogs.map(l=>`<div class="board-item" onclick="openWorkLogDetail('${l.id}')">
+  const {pg:wlPg,items:wlItems}=pageSlice(S.workLogs,_wlPage);
+  _wlPage=wlPg;
+  const list=wlItems.map(l=>`<div class="board-item" onclick="openWorkLogDetail('${l.id}')">
     <div class="bi-title">${esc(l.title)} ${l.tasks.close?'<span class="chip ch-g" style="font-size:10px">마감완료</span>':''}</div>
     <div class="bi-meta">${esc(l.author)} · ${fmtDisp(l.date)} · 댓글 ${l.comments.length}</div>
   </div>`).join('');
   const ta=document.getElementById('topbar-actions');
   if(ta)ta.innerHTML=`<button class="btn btn-p btn-sm" onclick="openWriteLog()">+ 작성</button>`;
-  p.innerHTML=`<div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 근무일지가 없습니다.</div>'}</div>`;
+  p.innerHTML=`<div class="card">${list||'<div style="color:var(--sub);font-size:13px">등록된 근무일지가 없습니다.</div>'}${pagerHtml(S.workLogs.length,wlPg,'setWorkLogPage')}</div>`;
 }
 // 체크된 상태(checked)는 신버전(id를 key로 하는 객체) 또는 구버전(항목 순서를 그대로 따르는 배열)
 // 둘 다 지원함 - 예전에 저장된 근무일지는 배열 형태라서, 항목이 추가/삭제/순서변경 되어도 안 깨지게 함.
