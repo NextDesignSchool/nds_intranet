@@ -1378,7 +1378,10 @@ function renderScheduleTable(){
 let _mcTarget=null,_mcMonth=null,_mcMode='day',_mcOnMonthPick=null,_mcAnchorEl=null;
 function openMiniCal(inputId,anchorEl){
   _mcTarget=inputId;_mcOnMonthPick=null;_mcMode='day';
-  const curVal=document.getElementById(inputId).value||today();
+  // 종료일 칸이 비어 있으면 짝이 되는 시작일 칸의 날짜(월) 기준으로 달력을 연다
+  const _pair={'ev-end':'ev-start','elg-enddate':'elg-date'};
+  const _pEl=_pair[inputId]?document.getElementById(_pair[inputId]):null;
+  const curVal=document.getElementById(inputId).value||(_pEl&&_pEl.value)||today();
   const parts=curVal.split('-').map(Number);
   _mcMonth=new Date(parts[0],parts[1]-1,1);
   openMcPanel(anchorEl);
