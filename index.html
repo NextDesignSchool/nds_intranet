@@ -5623,10 +5623,11 @@ if(document.readyState === 'loading'){
 // 예전에 따로 만들어 쓰던 "NDS 재고 관리" 페이지를 인트라넷 메뉴로 합친 것.
 // - 화면(HTML/CSS)은 Shadow DOM 안에 넣어서, 인트라넷의 .btn/.panel/table 같은 이름과
 //   서로 덮어쓰지 않도록 완전히 분리함. (그래서 원래 재고관리 코드를 거의 그대로 쓸 수 있음)
-// - 데이터는 원래 쓰던 별도 Firebase 프로젝트(nds-inventory)에 그대로 연결해서, 기존 상품/입출고
-//   기록이 하나도 옮겨지거나 바뀌지 않고 그대로 보임.
-// - 메뉴를 처음 열 때 한 번만 Firebase/엑셀 라이브러리를 불러옴(다른 메뉴 로딩엔 영향 없음).
+// - 데이터는 이제 인트라넷 Firebase(nds-intranet)의 invProducts / invTxns / invCats 컬렉션에 저장됨.
+//   (예전 별도 프로젝트 nds-inventory에 쌓인 데이터는 메뉴 안의 [예전 데이터 가져오기]로 한 번 옮길 수 있음)
+// - 엑셀 라이브러리는 다운로드 버튼을 처음 누를 때만 불러옴(다른 메뉴 로딩엔 영향 없음).
 (function(){
+  // 예전 재고관리가 쓰던 별도 Firebase 프로젝트. '예전 데이터 가져오기'에서 읽기 전용으로만 사용함.
   const INV_FB_CONFIG={
     apiKey:"AIzaSyCkOPSsoW-Oy5cHlNxgyFomNhW0T0Pvs98",
     authDomain:"nds-inventory.firebaseapp.com",
@@ -5659,6 +5660,8 @@ if(document.readyState === 'loading'){
     .loading-spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
 
+    .inv-migrate{display:none;margin-bottom:14px;padding:14px 18px;background:#fff;border:1px solid var(--border);border-radius:10px;font-size:13px;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    .inv-migrate.show{display:flex}
     .inv-error{display:none;margin-bottom:14px;padding:11px 16px;background:var(--red-bg);border:1px solid #F3D2CF;border-radius:8px;color:var(--red);font-size:13px;font-weight:500}
     .inv-error.show{display:block}
     .count-badge{background:var(--surface3);color:var(--text);font-size:11.5px;font-weight:500;padding:3px 11px;border-radius:20px}
@@ -5826,6 +5829,14 @@ if(document.readyState === 'loading'){
 
   const INV_HTML=`
 <div class="inv-loading" id="loadingScreen"><div class="loading-spinner"></div><span>데이터 불러오는 중...</span></div>
+
+<div class="inv-migrate" id="invMigrate">
+  <div>
+    <div style="font-weight:600;margin-bottom:2px;">예전 재고관리의 데이터를 가져올 수 있어요</div>
+    <div style="color:var(--text-muted);font-size:12px;">예전 별도 페이지(nds-inventory)에 쌓아둔 상품·입출고 기록을 인트라넷으로 옮겨요. 옮기기 전에 백업 파일이 자동으로 내려받아지고, 예전 데이터는 지워지지 않아요.</div>
+  </div>
+  <button class="btn btn-primary" id="btnMigrate">예전 데이터 가져오기</button>
+</div>
 
 <div class="inv-error" id="invError">재고 데이터를 불러오지 못했습니다. 네트워크 상태나 접근 권한을 확인한 뒤, 메뉴를 다시 열어주세요.</div>
 
@@ -6102,8 +6113,8 @@ if(document.readyState === 'loading'){
 
   // ── 상태 ──
   let root=null, started=false;
-  let addDoc,deleteDoc,updateDoc,writeBatch,doc,serverTimestamp; // Firebase 불러온 뒤 채워짐
-  let db,colProducts,colTxns,colCats;
+  let db,colProducts,colTxns,colCats; // 인트라넷 Firestore(compat) 컬렉션 참조
+  const ts=()=>firebase.firestore.FieldValue.serverTimestamp();
   let products=[],txns=[],cats=[];
   let txType='in';
   let editTxId=null,editTxType='in';
@@ -6169,6 +6180,7 @@ if(document.readyState === 'loading'){
   function renderAll(){
     renderInv();renderDaily();renderMonthly();
     $('countBadge').textContent=products.length+'개 상품';
+    updateMigrateBanner();
   }
 
   function renderInv(){
@@ -6320,39 +6332,31 @@ if(document.readyState === 'loading'){
       :`<tr><td colspan="4"><div class="empty"><div class="empty-text">입출고 기록이 없습니다</div></div></td></tr>`;
   }
 
-  // ── Firebase 연결(처음 메뉴를 열 때 한 번만) + 실시간 구독 ──
-  async function connectFirebase(){
-    const [appMod,fsMod]=await Promise.all([
-      import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),
-      import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js")
-    ]);
-    const {initializeApp}=appMod;
-    const {getFirestore,collection,onSnapshot,query,orderBy}=fsMod;
-    ({addDoc,deleteDoc,updateDoc,writeBatch,doc,serverTimestamp}=fsMod);
-    // 인트라넷 본체(nds-intranet)와 헷갈리지 않게 'inventory'라는 별도 이름으로 앱을 만듦
-    const app=initializeApp(INV_FB_CONFIG,'inventory');
-    db=getFirestore(app);
-    colProducts=collection(db,'products');
-    colTxns=collection(db,'txns');
-    colCats=collection(db,'cats');
+  // ── 인트라넷 Firestore 연결(처음 메뉴를 열 때 한 번만) + 실시간 구독 ──
+  function connectDb(){
+    db=window._db;
+    if(!db)throw new Error('인트라넷 Firestore가 아직 준비되지 않았습니다');
+    colProducts=db.collection('invProducts');
+    colTxns=db.collection('invTxns');
+    colCats=db.collection('invCats');
 
-    onSnapshot(query(colProducts,orderBy('createdAt')),snap=>{
+    colProducts.orderBy('createdAt').onSnapshot(snap=>{
       products=snap.docs.map(d=>({id:d.id,...d.data()}));
       loaded.products=true;checkLoaded();renderAll();setSyncStatus(true);
       if(isOpen('ov-productMgr'))renderProductMgrList();
       if(isOpen('ov-detail')&&detailId)refreshDetail();
     },()=>setSyncStatus(false));
 
-    onSnapshot(query(colTxns,orderBy('createdAt')),snap=>{
+    colTxns.orderBy('createdAt').onSnapshot(snap=>{
       txns=snap.docs.map(d=>({id:d.id,...d.data()}));
       loaded.txns=true;checkLoaded();renderAll();
       if(isOpen('ov-detail')&&detailId)refreshDetail();
     },()=>setSyncStatus(false));
 
-    onSnapshot(colCats,snap=>{
+    colCats.onSnapshot(snap=>{
       if(snap.docs.length===0&&!catsInitialized){
         catsInitialized=true;
-        ['액세서리','주변기기','가구','기타'].forEach(name=>addDoc(colCats,{name,createdAt:serverTimestamp()}));
+        ['액세서리','주변기기','가구','기타'].forEach(name=>colCats.add({name,createdAt:ts()}));
         return;
       }
       catsInitialized=true;
@@ -6362,6 +6366,85 @@ if(document.readyState === 'loading'){
       if(isOpen('ov-productMgr')){refreshCatSelects();renderProductMgrList();}
       if(isOpen('ov-addProduct'))refreshCatSelects();
     },()=>setSyncStatus(false));
+  }
+
+  // ── 예전 재고관리(nds-inventory) 데이터를 인트라넷으로 한 번 옮기는 기능 ──
+  // 안전장치: ① 옮기기 전에 백업 파일(JSON)을 자동 다운로드 ② 예전 데이터는 읽기만 하고 절대 지우지 않음
+  // ③ 문서 ID를 그대로 유지해서(입출고 기록이 상품을 가리키는 연결이 안 깨짐), 실수로 두 번 눌러도 중복 없이 덮어쓰기만 됨
+  // ④ 옮긴 뒤 개수를 다시 세어서 맞는지 확인 ⑤ 인트라넷 쪽에 이미 상품/입출고 기록이 있으면 아예 실행 안 됨
+  function updateMigrateBanner(){
+    const el=$('invMigrate');if(!el)return;
+    const ready=loaded.products&&loaded.txns&&loaded.cats;
+    el.classList.toggle('show',ready&&!products.length&&!txns.length&&!migrating);
+  }
+  let migrating=false;
+  const toTs=v=>{
+    if(v&&typeof v.toMillis==='function')return firebase.firestore.Timestamp.fromMillis(v.toMillis());
+    if(typeof v==='number')return firebase.firestore.Timestamp.fromMillis(v);
+    return firebase.firestore.Timestamp.now();
+  };
+  async function migrateFromOld(){
+    if(migrating)return;
+    if(products.length||txns.length){alert('인트라넷 재고관리에 이미 상품/입출고 기록이 있어서 가져오기를 막아뒀어요. (기존 데이터를 덮어쓰지 않기 위해서예요)');return;}
+    if(!confirm('예전 재고관리(nds-inventory)의 상품·입출고·카테고리를 인트라넷으로 가져옵니다.\n\n· 먼저 백업 파일(JSON)이 자동으로 다운로드돼요.\n· 예전 데이터는 지워지지 않아요.\n\n진행할까요?'))return;
+    migrating=true;updateMigrateBanner();
+    const btn=$('btnMigrate');btn.disabled=true;
+    const setMsg=m=>{btn.textContent=m;};
+    try{
+      setMsg('예전 데이터 읽는 중...');
+      const [appMod,fsMod]=await Promise.all([
+        import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js")
+      ]);
+      const oldApp=appMod.initializeApp(INV_FB_CONFIG,'inventory-old');
+      const oldDb=fsMod.getFirestore(oldApp);
+      const readAll=async name=>(await fsMod.getDocs(fsMod.collection(oldDb,name))).docs.map(d=>({id:d.id,data:d.data()}));
+      const oldP=await readAll('products'),oldT=await readAll('txns'),oldC=await readAll('cats');
+      if(!oldP.length&&!oldT.length){alert('예전 재고관리에서 가져올 상품/입출고 데이터를 찾지 못했어요.');return;}
+
+      // 백업 파일 다운로드
+      setMsg('백업 파일 만드는 중...');
+      const plain=arr=>arr.map(x=>({id:x.id,...x.data,createdAt:x.data.createdAt&&x.data.createdAt.toMillis?x.data.createdAt.toMillis():null}));
+      const backup={exportedAt:new Date().toISOString(),source:'nds-inventory',products:plain(oldP),txns:plain(oldT),cats:plain(oldC)};
+      const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`nds-inventory-backup-${today()}.json`;
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+
+      // 인트라넷으로 쓰기 (500개 제한을 피하려고 400개씩 끊어서)
+      const writeChunks=async ops=>{
+        for(let i=0;i<ops.length;i+=400){
+          const batch=db.batch();
+          ops.slice(i,i+400).forEach(fn=>fn(batch));
+          await batch.commit();
+        }
+      };
+      setMsg('카테고리 정리 중...');
+      // 처음 열 때 자동으로 만들어진 기본 카테고리는 예전 카테고리로 교체(이름 중복 방지)
+      const curCats=await colCats.get();
+      await writeChunks(curCats.docs.map(d=>b=>b.delete(colCats.doc(d.id))));
+      setMsg('카테고리 옮기는 중...');
+      await writeChunks(oldC.map(x=>b=>b.set(colCats.doc(x.id),{...x.data,createdAt:toTs(x.data.createdAt)})));
+      setMsg(`상품 ${oldP.length}개 옮기는 중...`);
+      await writeChunks(oldP.map(x=>b=>b.set(colProducts.doc(x.id),{...x.data,createdAt:toTs(x.data.createdAt)})));
+      setMsg(`입출고 ${oldT.length}건 옮기는 중...`);
+      await writeChunks(oldT.map(x=>b=>b.set(colTxns.doc(x.id),{...x.data,createdAt:toTs(x.data.createdAt)})));
+
+      // 확인: 새 쪽 개수 다시 세기
+      setMsg('확인 중...');
+      const [nP,nT,nC]=await Promise.all([colProducts.get(),colTxns.get(),colCats.get()]);
+      const ok=nP.size===oldP.length&&nT.size===oldT.length&&nC.size===oldC.length;
+      const report=`상품 ${oldP.length} → ${nP.size}\n입출고 ${oldT.length} → ${nT.size}\n카테고리 ${oldC.length} → ${nC.size}`;
+      alert((ok?'✅ 가져오기 완료! 개수가 모두 일치해요.\n\n':'⚠️ 개수가 다릅니다. 백업 파일을 보관해 두시고 알려주세요.\n\n')+report+'\n\n(예전 데이터는 그대로 남아 있어요)');
+    }catch(err){
+      console.warn('재고 데이터 가져오기 실패:',err);
+      alert('가져오는 중 오류가 발생했어요.\n'+(err&&err.message?err.message:err)+'\n\n이미 일부가 옮겨졌을 수 있어요. 같은 버튼을 다시 눌러도 중복 없이 이어서 덮어써져요.');
+    }finally{
+      migrating=false;btn.disabled=false;btn.textContent='예전 데이터 가져오기';
+      updateMigrateBanner();
+    }
   }
 
   // 엑셀 라이브러리는 다운로드 버튼을 처음 누를 때만 불러옴
@@ -6423,7 +6506,7 @@ if(document.readyState === 'loading'){
     if(!name){toast('상품명을 입력하세요.','err');return;}
     if(!cat){toast('카테고리를 선택하세요.','err');return;}
     if(products.find(p=>p.name===name)){toast('이미 존재하는 상품명입니다.','err');return;}
-    try{await addDoc(colProducts,{name,category:cat,initialStock:stock,createdAt:serverTimestamp()});closeOv('ov-addProduct');toast(`"${name}" 상품이 추가되었습니다.`,'ok');}
+    try{await colProducts.add({name,category:cat,initialStock:stock,createdAt:ts()});closeOv('ov-addProduct');toast(`"${name}" 상품이 추가되었습니다.`,'ok');}
     catch(e){toast('저장 중 오류가 발생했습니다.','err');}
   }
   async function submitTx(){
@@ -6432,7 +6515,7 @@ if(document.readyState === 'loading'){
     if(qty<1){toast('수량은 1 이상이어야 합니다.','err');return;}
     if(!date){toast('날짜를 입력하세요.','err');return;}
     try{
-      await addDoc(colTxns,{productId:pid,type:txType,qty,date,note,createdAt:serverTimestamp()});
+      await colTxns.add({productId:pid,type:txType,qty,date,note,createdAt:ts()});
       closeOv('ov-addTx');
       const p=products.find(x=>x.id===pid);
       toast(`${p.name} ${txType==='in'?'입고':'출고'} ${qty.toLocaleString()}개 등록 완료!`,'ok');
@@ -6444,7 +6527,7 @@ if(document.readyState === 'loading'){
     if(qty<1){toast('수량은 1 이상이어야 합니다.','err');return;}
     if(!date){toast('날짜를 입력하세요.','err');return;}
     try{
-      await addDoc(colTxns,{productId:pid,type:quickType,qty,date,note,createdAt:serverTimestamp()});
+      await colTxns.add({productId:pid,type:quickType,qty,date,note,createdAt:ts()});
       closeOv('ov-quick');
       const p=products.find(x=>x.id===pid);
       toast(`${p.name} ${quickType==='in'?'입고':'출고'} ${qty.toLocaleString()}개 등록 완료!`,'ok');
@@ -6456,7 +6539,7 @@ if(document.readyState === 'loading'){
     if(qty<1){toast('수량은 1 이상이어야 합니다.','err');return;}
     if(!date){toast('날짜를 입력하세요.','err');return;}
     try{
-      await updateDoc(doc(db,'txns',editTxId),{productId:pid,type:editTxType,qty,date,note});
+      await colTxns.doc(editTxId).update({productId:pid,type:editTxType,qty,date,note});
       closeOv('ov-editTx');
       toast('입출고 내역이 수정되었습니다.','ok');
     }catch(e){toast('수정 중 오류가 발생했습니다.','err');}
@@ -6465,7 +6548,7 @@ if(document.readyState === 'loading'){
     const name=($('cat-new').value||'').trim();
     if(!name){toast('카테고리 이름을 입력하세요.','err');return;}
     if(cats.find(c=>c.name===name)){toast('이미 존재하는 카테고리입니다.','err');return;}
-    try{await addDoc(colCats,{name,createdAt:serverTimestamp()});$('cat-new').value='';toast(`"${name}" 카테고리가 추가되었습니다.`,'ok');}
+    try{await colCats.add({name,createdAt:ts()});$('cat-new').value='';toast(`"${name}" 카테고리가 추가되었습니다.`,'ok');}
     catch(e){toast('저장 중 오류가 발생했습니다.','err');}
   }
   async function submitAddFromMgr(){
@@ -6473,13 +6556,14 @@ if(document.readyState === 'loading'){
     if(!name){toast('상품명을 입력하세요.','err');return;}
     if(!cat){toast('카테고리를 선택하세요.','err');return;}
     if(products.find(p=>p.name===name)){toast('이미 존재하는 상품명입니다.','err');return;}
-    try{await addDoc(colProducts,{name,category:cat,initialStock:stock,createdAt:serverTimestamp()});$('pmgr-name').value='';$('pmgr-stock').value='0';toast(`"${name}" 상품이 추가되었습니다.`,'ok');}
+    try{await colProducts.add({name,category:cat,initialStock:stock,createdAt:ts()});$('pmgr-name').value='';$('pmgr-stock').value='0';toast(`"${name}" 상품이 추가되었습니다.`,'ok');}
     catch(e){toast('저장 중 오류가 발생했습니다.','err');}
   }
 
   // ── 이벤트 연결 (화면을 만든 직후 한 번만) ──
   function bindEvents(){
     $('btnOpenExcel').addEventListener('click',()=>openOv('ov-excel'));
+    $('btnMigrate').addEventListener('click',migrateFromOld);
     $('btnOpenProductMgr').addEventListener('click',e=>{e.stopPropagation();refreshCatSelects();renderProductMgrList();openOv('ov-productMgr');setTimeout(()=>$('pmgr-name').focus(),120);});
     $('btnOpenCatMgr').addEventListener('click',e=>{e.stopPropagation();$('cat-new').value='';renderCatList();openOv('ov-catMgr');setTimeout(()=>$('cat-new').focus(),120);});
 
@@ -6573,7 +6657,7 @@ if(document.readyState === 'loading'){
       if(!editTxId)return;
       if(!confirm('이 입출고 기록을 삭제하시겠습니까?'))return;
       try{
-        await deleteDoc(doc(db,'txns',editTxId));
+        await colTxns.doc(editTxId).delete();
         closeOv('ov-editTx');
         toast('입출고 기록이 삭제되었습니다.','ok');
       }catch(e){toast('삭제 중 오류가 발생했습니다.','err');}
@@ -6585,9 +6669,9 @@ if(document.readyState === 'loading'){
       if(!p)return;
       if(!confirm(`"${p.name}" 상품을 삭제하시겠습니까?\n관련 입출고 기록도 함께 삭제됩니다.`))return;
       try{
-        const batch=writeBatch(db);
-        batch.delete(doc(db,'products',detailId));
-        txns.filter(t=>t.productId===detailId).forEach(t=>batch.delete(doc(db,'txns',t.id)));
+        const batch=db.batch();
+        batch.delete(colProducts.doc(detailId));
+        txns.filter(t=>t.productId===detailId).forEach(t=>batch.delete(colTxns.doc(t.id)));
         await batch.commit();
         closeOv('ov-detail');detailId=null;toast(`"${p.name}" 상품 삭제됨`,'ok');
       }catch(e){toast('삭제 중 오류가 발생했습니다.','err');}
@@ -6610,7 +6694,7 @@ if(document.readyState === 'loading'){
       const btn=e.target.closest('[data-cat-id]');if(!btn)return;
       const id=btn.dataset.catId,name=btn.dataset.catName;
       if(products.find(p=>p.category===name)){toast('사용 중인 카테고리는 삭제할 수 없습니다.','err');return;}
-      try{await deleteDoc(doc(db,'cats',id));toast(`"${name}" 카테고리 삭제됨`,'ok');}
+      try{await colCats.doc(id).delete();toast(`"${name}" 카테고리 삭제됨`,'ok');}
       catch(e){toast('삭제 중 오류가 발생했습니다.','err');}
     });
 
@@ -6621,9 +6705,9 @@ if(document.readyState === 'loading'){
       const id=btn.dataset.prodId,name=btn.dataset.prodName;
       if(!confirm(`"${name}" 상품을 삭제하시겠습니까?\n관련 입출고 기록도 함께 삭제됩니다.`))return;
       try{
-        const batch=writeBatch(db);
-        batch.delete(doc(db,'products',id));
-        txns.filter(t=>t.productId===id).forEach(t=>batch.delete(doc(db,'txns',t.id)));
+        const batch=db.batch();
+        batch.delete(colProducts.doc(id));
+        txns.filter(t=>t.productId===id).forEach(t=>batch.delete(colTxns.doc(t.id)));
         await batch.commit();toast(`"${name}" 상품 삭제됨`,'ok');
       }catch(e){toast('삭제 중 오류가 발생했습니다.','err');}
     });
@@ -6668,7 +6752,7 @@ if(document.readyState === 'loading'){
     if(!root&&!mount())return;
     if(!started){
       started=true;
-      connectFirebase().catch(err=>{
+      Promise.resolve().then(connectDb).catch(err=>{
         console.warn('재고관리 연결 실패:',err);
         started=false; // 다음에 메뉴를 다시 열면 재시도
         setSyncStatus(false);
