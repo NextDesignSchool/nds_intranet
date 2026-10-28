@@ -549,7 +549,7 @@ body.tbl-resizing *{cursor:inherit!important}
   </div>
 </div>
 
-<div class="mo" id="modal" style="display:none" onclick="modalBgClick(event)">
+<div class="mo" id="modal" style="display:none" onmousedown="_modalDownTarget=event.target" onclick="modalBgClick(event)">
   <div class="mo-box" id="modal-box"></div>
 </div>
 
@@ -5312,7 +5312,13 @@ function closeModal(){
   // closeModal 자신은 저장 완료를 기다리지 않음)
   saveAppData().catch(()=>{}).finally(()=>{const b=document.getElementById('saving-badge');if(b)b.remove();});
 }
-function modalBgClick(e){if(e.target===document.getElementById('modal'))closeModal()}
+// 바깥(어두운 영역)을 '눌렀다 뗐을 때'만 닫음. 모달 안에서 드래그를 시작해 바깥에서 놓은 경우는 닫지 않음(작성 중인 글 보호).
+let _modalDownTarget=null;
+function modalBgClick(e){
+  const bg=document.getElementById('modal');
+  if(e.target===bg&&_modalDownTarget===bg)closeModal();
+  _modalDownTarget=null;
+}
 
 // ─── DATA PERSISTENCE (Firestore) ──────────────────
 // notices/workLogs는 이제 각자 별도 문서(noticePosts/workLogPosts 컬렉션)로 저장하므로 여기서 뺌
@@ -6625,12 +6631,16 @@ if(document.readyState === 'loading'){
     $('tab-daily').addEventListener('click',()=>switchTab('daily'));
     $('tab-monthly').addEventListener('click',()=>switchTab('monthly'));
 
+    let invDownTarget=null;
     // 모달 닫기(✕/취소 버튼, 어두운 바깥 영역 클릭)
     root.addEventListener('click',e=>{
       const closeTarget=e.target.closest('[data-close]');
       if(closeTarget)closeOv(closeTarget.dataset.close);
-      if(e.target.classList&&e.target.classList.contains('overlay'))closeOv(e.target.id);
+      // 눌렀을 때도 바깥 영역이었던 경우에만 닫음 (안에서 드래그하다 바깥에서 놓아도 닫히지 않게)
+      if(e.target.classList&&e.target.classList.contains('overlay')&&invDownTarget===e.target)closeOv(e.target.id);
+      invDownTarget=null;
     });
+    root.addEventListener('mousedown',e=>{invDownTarget=e.target;});
     // 수량 +/- 및 빠른 선택 버튼
     root.addEventListener('click',e=>{
       const deltaBtn=e.target.closest('[data-qty-delta]');
