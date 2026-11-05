@@ -925,7 +925,7 @@ function renderSidebar(){
       _bCatLoad();
       html+=`<div class="nv${S.page===p.id?' active':''}" ${dragAttrs} onclick="navItemClick(event,'board')" ondblclick="navItemDblClick(event,'board')">
         ${handle}${p.icon} <span class="nv-label" data-nid="${p.id}" data-default="${p.label}">${label}</span>
-        ${_bCategories.length?`<span onclick="toggleBoardNav(event)" style="font-size:calc(9px*var(--fs));color:var(--sub2);padding:2px 4px">${_sbBoardOpen?'▾':'▸'}</span>`:''}
+        ${_bCategories.length?`<span onclick="toggleBoardNav(event)" style="display:flex;align-items:center;justify-content:center;color:var(--sub2);padding:4px 6px;margin:-4px 0">${_sbBoardOpen?'<svg width="10" height="7" viewBox="0 0 10 7" fill="currentColor"><polygon points="0,0 10,0 5,7"/></svg>':'<svg width="7" height="10" viewBox="0 0 7 10" fill="currentColor"><polygon points="0,0 7,5 0,10"/></svg>'}</span>`:''}
       </div>`;
       if(_sbBoardOpen&&_bCategories.length){
         html+=`<div class="nv-sub${!_bCatFilter&&S.page==='board'?' active':''}" onclick="navigateBoardCat(null)">전체</div>`;
@@ -1782,7 +1782,7 @@ function renderContentCal(){
     </div>
     <div style="max-height:420px;overflow-y:auto;overflow-x:auto"><table style="table-layout:fixed;width:100%;min-width:600px">
     <colgroup><col style="width:18%"><col style="width:8%"><col style="width:24%"><col style="width:11%"><col style="width:22%"><col style="width:17%"></colgroup>
-    <thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">날짜</th><th style="background:var(--card)">시간</th><th style="background:var(--card)">제목</th><th style="background:var(--card)">종류</th><th style="background:var(--card)">내용</th><th style="background:var(--card)">관리</th></tr></thead>
+    <thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">날짜</th><th style="background:var(--card);text-align:center">시간</th><th style="background:var(--card)">제목</th><th style="background:var(--card);text-align:center">종류</th><th style="background:var(--card)">내용</th><th style="background:var(--card);text-align:center">관리</th></tr></thead>
     <tbody id="cc-table-body"></tbody></table></div>
   </div>`;
   renderCC('cc-cal',S.ccCal);
@@ -1798,11 +1798,11 @@ function renderContentTable(){
   const evs=[...S.contentEvents].filter(e=>e.end>=todayStr&&e.start<=maxStr).sort(sortFn);
   tb.innerHTML=evs.map(e=>`<tr>
     <td style="white-space:normal;word-break:break-word">${fmtDisp(e.start)}${e.start!==e.end?'~'+fmtDisp(e.end):''}</td>
-    <td>${e.time?(e.startTime||''):'-'}</td>
+    <td style="text-align:center;vertical-align:middle">${e.time?(e.startTime||''):'-'}</td>
     <td style="white-space:normal;word-break:break-word">${esc(e.title)}</td>
-    <td><span class="chip ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type,S.contentEtypeColors)}">${esc(e.type||'미정')}</span></td>
+    <td style="text-align:center;vertical-align:middle"><span class="chip ev-${e.type||'미정'}" style="${etypeInlineStyle(e.type,S.contentEtypeColors)}">${esc(e.type||'미정')}</span></td>
     <td style="white-space:normal;word-break:break-word;overflow:hidden;text-overflow:ellipsis">${esc(e.content)||'-'}</td>
-    <td style="white-space:nowrap;padding:6px 4px"><button class="btn btn-o btn-sm" style="font-size:calc(10.5px*var(--fs));padding:3px 6px" onclick="openEditContentEvent('${e.id}')">수정</button>
+    <td style="white-space:nowrap;padding:6px 4px;text-align:center;vertical-align:middle"><button class="btn btn-o btn-sm" style="font-size:calc(10.5px*var(--fs));padding:3px 6px" onclick="openEditContentEvent('${e.id}')">수정</button>
     <button class="btn btn-d btn-sm" style="font-size:calc(10.5px*var(--fs));padding:3px 6px;margin-left:3px" onclick="deleteContentEvent('${e.id}')">삭제</button></td>
   </tr>`).join('');
 }
@@ -2192,13 +2192,13 @@ function renderEmployees(){
     <div style="margin-top:14px">
       <div class="ctitle" style="font-size:calc(13px*var(--fs));cursor:pointer;display:flex;align-items:center;gap:4px" onclick="toggleEmpSection('emp-hist-${e.id}')">휴가 내역 <span class="emp-detail-arrow" id="emp-hist-${e.id}-arrow">${wide?'▴':'▾'}</span></div>
       <div id="emp-hist-${e.id}" style="display:${wide?'block':'none'}">
-      ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm);margin-top:8px"><table style="table-layout:fixed;width:100%;min-width:520px"><colgroup><col style="width:88px"><col style="width:110px"><col style="width:50px"><col><col style="width:100px"></colgroup><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card)">종류</th><th style="background:var(--card)">날짜</th><th style="background:var(--card)">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
-      ${[...e.leaveHistory].sort((a,b)=>b.date.localeCompare(a.date)).map(l=>`<tr>
-        <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
-        <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td><td style="white-space:nowrap">${l.days}일</td><td style="word-break:keep-all;overflow-wrap:break-word">${l.reason||'-'}</td>
-        <td style="white-space:nowrap;display:flex;gap:4px;justify-content:flex-end;align-items:center">
+      ${e.leaveHistory.length?`<div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid var(--bd);border-radius:var(--r-sm);margin-top:8px"><table style="table-layout:fixed;width:100%;min-width:520px"><colgroup><col style="width:116px"><col style="width:92px"><col style="width:56px"><col><col style="width:112px"></colgroup><thead><tr style="position:sticky;top:0;z-index:1;background:var(--card)"><th style="background:var(--card);text-align:center">종류</th><th style="background:var(--card);text-align:center">날짜</th><th style="background:var(--card);text-align:center">일수</th><th style="background:var(--card)">사유</th><th style="background:var(--card)"></th></tr></thead><tbody>
+      ${[...e.leaveHistory].sort((a,b)=>b.date.localeCompare(a.date)).map(l=>`<tr style="vertical-align:middle">
+        <td style="white-space:nowrap;text-align:center"><span class="chip ${l.granted?'ch-g':l.adjusted?'ch-o':l.used?'ch-r':'ch-gray'}">${esc(l.type)}${l.granted?' 부여':l.adjusted?' 조정':l.used?' 사용':''}</span></td>
+        <td style="white-space:nowrap;line-height:1.5;text-align:center">${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'<br>~'+fmtDisp(l.endDate):''}</td><td style="white-space:nowrap;text-align:center">${l.days}일</td><td style="word-break:keep-all;overflow-wrap:break-word">${l.reason||'-'}</td>
+        <td style="white-space:nowrap;text-align:right;padding-right:20px">
           <button class="btn btn-o btn-sm" onclick="openEditLeave('${e.id}',${l.id})">수정</button>
-          <button class="btn btn-d btn-sm" onclick="deleteLeave('${e.id}',${l.id})">삭제</button>
+          <button class="btn btn-d btn-sm" style="margin-left:4px" onclick="deleteLeave('${e.id}',${l.id})">삭제</button>
         </td>
       </tr>`).join('')}
       </tbody></table></div>`:'<div style="color:var(--sub);font-size:calc(13px*var(--fs));margin-top:8px">내역 없음</div>'}
@@ -2291,12 +2291,12 @@ function openLeaveTypeHistory(empId,type){
   const list=(e.leaveHistory||[]).filter(l=>l.type===type).sort((a,b)=>b.date.localeCompare(a.date));
   const rows=list.map(l=>`<tr>
     <td>${fmtDisp(l.date)}${l.endDate&&l.endDate!==l.date?'~'+fmtDisp(l.endDate):''}</td>
-    <td style="color:${l.days>=0?'var(--gr)':'var(--re)'};font-weight:600;white-space:nowrap">${l.days>=0?'+':''}${l.days}일</td>
+    <td style="color:${l.days>=0?'var(--gr)':'var(--re)'};font-weight:600;white-space:nowrap;text-align:center">${l.days>=0?'+':''}${l.days}일</td>
     <td>${esc(l.reason||'-')}</td>
   </tr>`).join('');
   showModal(`<div class="mo-hd"><h3>${esc(e.name)} — ${esc(type)} 기록</h3><button class="mo-cl" onclick="closeModal()">×</button></div>
   <div class="mo-bd">
-    ${list.length?`<div style="overflow-x:auto"><table><thead><tr><th>날짜</th><th>일수</th><th>사유</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="color:var(--sub);font-size:calc(13px*var(--fs))">기록이 없습니다</div>'}
+    ${list.length?`<div style="overflow-x:auto"><table><thead><tr><th>날짜</th><th style="text-align:center">일수</th><th>사유</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div style="color:var(--sub);font-size:calc(13px*var(--fs))">기록이 없습니다</div>'}
   </div>
   <div class="mo-ft"><button class="btn btn-o" onclick="closeModal()">닫기</button></div>`,'sm');
 }
@@ -2649,15 +2649,15 @@ function renderInterns(){
   const ta=document.getElementById('topbar-actions');
   if(ta)ta.innerHTML=`<button class="btn btn-p btn-sm" onclick="openAddIntern()">+ 인턴 추가</button>`;
   p.innerHTML=`<div class="intern-table-view" style="overflow-x:auto"><table>
-    <thead><tr><th style="text-align:center">이름</th><th style="text-align:center">생년월일</th><th style="text-align:center">학기</th><th style="text-align:center">근무형태</th><th>근무일</th><th>월누적시간</th><th>관리</th></tr></thead>
+    <thead><tr><th style="text-align:center">이름</th><th style="text-align:center">생년월일</th><th style="text-align:center">학기</th><th style="text-align:center">근무형태</th><th style="text-align:center">근무일</th><th style="text-align:center">월누적시간</th><th style="text-align:center">관리</th></tr></thead>
     <tbody>${rows.map(({i,days,cc})=>`<tr>
         <td style="text-align:center"><a href="#" style="color:var(--tx);font-weight:600;white-space:nowrap" onclick="event.preventDefault();openInternDetail(${i.id})">${i.name}</a></td>
         <td style="text-align:center;white-space:nowrap">${i.birth||'-'}</td>
         <td style="text-align:center">${i.semester||'-'}</td>
         <td style="text-align:center"><span class="chip ${cc}">${i.type}</span></td>
-        <td>${days||'-'}</td>
-        <td><a href="#" style="color:var(--tx);text-decoration:underline dotted;text-underline-offset:3px;white-space:nowrap" title="월별 근무시간 보기" onclick="event.preventDefault();openInternMonthly(${i.id})"><b>${calcMonthlyAccumHours(i.name)}</b>/${i.monthTarget}h</a></td>
-        <td style="display:flex;gap:6px;flex-wrap:wrap">${actionsBtnsHtml(i)}</td>
+        <td style="text-align:center">${days||'-'}</td>
+        <td style="text-align:center"><a href="#" style="color:var(--tx);text-decoration:underline dotted;text-underline-offset:3px;white-space:nowrap" title="월별 근무시간 보기" onclick="event.preventDefault();openInternMonthly(${i.id})"><b>${calcMonthlyAccumHours(i.name)}</b>/${i.monthTarget}h</a></td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">${actionsBtnsHtml(i)}</td>
       </tr>`).join('')}</tbody>
   </table></div>
   <div class="intern-card-view">${rows.map(({i,days,cc})=>`
@@ -3240,7 +3240,7 @@ function renderWorkSchedule(){
       <div class="ctitle" style="margin-bottom:0">근무 이슈</div>
       <button class="btn btn-p btn-sm" onclick="openAddWorkIssue()">+ 이슈 등록</button>
     </div>
-    <div style="overflow-x:auto"><table><thead><tr><th style="text-align:center">인턴</th><th>날짜</th><th>내용</th><th style="text-align:center">관리</th></tr></thead>
+    <div style="overflow-x:auto"><table><thead><tr><th style="text-align:center">인턴</th><th style="text-align:center">날짜</th><th>내용</th><th style="text-align:center">관리</th></tr></thead>
     <tbody id="ws-issues"></tbody></table></div>
   </div>`:''}`;
   renderWSTable();if(isAdmin())renderWSIssues();
@@ -3566,7 +3566,7 @@ function renderWSIssues(){
   const list=S.workIssues.filter(issueInRange);
   if(!list.length){el.innerHTML='<tr><td colspan="4" style="color:var(--sub)">오늘 이후 2개월 이내 이슈가 없습니다</td></tr>';return;}
   el.innerHTML=list.map(iss=>`<tr>
-    <td style="text-align:center">${iss.intern}</td><td>${fmtDisp(iss.date)}</td><td>${iss.content}</td>
+    <td style="text-align:center">${iss.intern}</td><td style="text-align:center">${fmtDisp(iss.date)}</td><td>${iss.content}</td>
     <td style="text-align:center;white-space:nowrap">
       <button class="btn btn-o btn-sm" onclick="openEditIssue(${iss.id})">수정</button>
       <button class="btn btn-d btn-sm" style="margin-left:6px" onclick="deleteIssue(${iss.id})">삭제</button>
@@ -5734,8 +5734,8 @@ if(document.readyState === 'loading'){
     .table-wrap{overflow-x:auto}
     #invTable{table-layout:fixed;min-width:560px}
     @media(min-width:769px){
-      #invTable thead th:nth-child(3),#invTable thead th:nth-child(4),
-      #invTable tbody td:nth-child(3),#invTable tbody td:nth-child(4){text-align:center;vertical-align:middle}
+      #invTable thead th:nth-child(2),#invTable thead th:nth-child(3),#invTable thead th:nth-child(4),
+      #invTable tbody td:nth-child(2),#invTable tbody td:nth-child(3),#invTable tbody td:nth-child(4){text-align:center;vertical-align:middle}
       #invTable tbody td:nth-child(4)>div{justify-content:center}
     }
     table{width:100%;border-collapse:collapse}
