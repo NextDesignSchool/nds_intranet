@@ -925,7 +925,7 @@ function renderSidebar(){
       _bCatLoad();
       html+=`<div class="nv${S.page===p.id?' active':''}" ${dragAttrs} onclick="navItemClick(event,'board')" ondblclick="navItemDblClick(event,'board')">
         ${handle}${p.icon} <span class="nv-label" data-nid="${p.id}" data-default="${p.label}">${label}</span>
-        ${_bCategories.length?`<span onclick="toggleBoardNav(event)" style="display:flex;align-items:center;justify-content:center;color:var(--sub2);padding:4px 6px;margin:-4px 0">${_sbBoardOpen?'<svg width="10" height="7" viewBox="0 0 10 7" fill="currentColor"><polygon points="0,0 10,0 5,7"/></svg>':'<svg width="7" height="10" viewBox="0 0 7 10" fill="currentColor"><polygon points="0,0 7,5 0,10"/></svg>'}</span>`:''}
+        ${_bCategories.length?`<span onclick="toggleBoardNav(event)" style="display:flex;align-items:center;justify-content:center;color:var(--sub2);padding:4px 6px;margin:-4px 0">${_sbBoardOpen?'<svg style="width:8px;height:5.6px;opacity:1" viewBox="0 0 10 7" fill="currentColor"><polygon points="0,0 10,0 5,7"/></svg>':'<svg style="width:5.6px;height:8px;opacity:1" viewBox="0 0 7 10" fill="currentColor"><polygon points="0,0 7,5 0,10"/></svg>'}</span>`:''}
       </div>`;
       if(_sbBoardOpen&&_bCategories.length){
         html+=`<div class="nv-sub${!_bCatFilter&&S.page==='board'?' active':''}" onclick="navigateBoardCat(null)">전체</div>`;
