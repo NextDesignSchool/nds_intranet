@@ -2215,7 +2215,7 @@ function renderEmployees(){
         <div style="flex:1"><input id="emp-issue-content-${e.id}" placeholder="이슈 내용 입력"></div>
         <button class="btn btn-p btn-sm" style="flex:0 0 auto" onclick="saveEmpIssue('${e.id}')">저장</button>
       </div>
-      ${(e.issues||[]).filter(issueInRange).length?(e.issues||[]).filter(issueInRange).sort((a,b)=>b.date.localeCompare(a.date)).map(iss=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:calc(13px*var(--fs))">
+      ${(e.issues||[]).filter(issueInRange).length?(e.issues||[]).filter(issueInRange).sort((a,b)=>a.date.localeCompare(b.date)).map(iss=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--bd);font-size:calc(13px*var(--fs))">
         <span style="color:var(--sub);flex:0 0 auto">${fmtDisp(iss.date)}</span>
         <span style="flex:1">${esc(iss.content)}</span>
         <button class="btn btn-d btn-sm" style="flex:0 0 auto" onclick="deleteEmpIssue('${e.id}',${iss.id})">삭제</button>
@@ -3563,7 +3563,7 @@ function issueInRange(iss){
 }
 function renderWSIssues(){
   const el=document.getElementById('ws-issues');if(!el)return;
-  const list=S.workIssues.filter(issueInRange);
+  const list=S.workIssues.filter(issueInRange).sort((a,b)=>a.date.localeCompare(b.date)); // 날짜 오름차순(같은 날짜는 등록 순)
   if(!list.length){el.innerHTML='<tr><td colspan="4" style="color:var(--sub)">오늘 이후 2개월 이내 이슈가 없습니다</td></tr>';return;}
   el.innerHTML=list.map(iss=>`<tr>
     <td style="text-align:center">${iss.intern}</td><td style="text-align:center">${fmtDisp(iss.date)}</td><td>${iss.content}</td>
