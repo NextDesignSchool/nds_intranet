@@ -3848,25 +3848,77 @@ document.addEventListener('click',e=>{
 });
 // 표 가장자리(오른쪽 끝=열 추가, 아래쪽 끝=행 추가)에 마우스를 대면 그 자리에 +/− 버튼이 뜸.
 // (예전엔 표 안에 커서가 있을 때마다 편집 바가 튀어나왔다 들어갔다 해서 글쓰기가 불편했음)
-let _richActiveTable=null,_tblHideTimer=null;
+let _richActiveTable=null,_tblHideTimer=null,_tblCtx={table:null,row:0,col:0};
+// 표 '바깥' 가장자리에 마우스를 가져가면 +/− 버튼이 뜸:
+//  · 왼쪽 바깥  → 마우스가 있는 '그 행' 아래에 행 추가 / 그 행 삭제
+//  · 위쪽 바깥  → 마우스가 있는 '그 열' 오른쪽에 열 추가 / 그 열 삭제
+//  · 오른쪽·아래쪽 바깥 → 맨 끝에 열/행 추가, 마지막 열/행 삭제
+// (표 바깥은 이벤트 대상이 표가 아니라서, 표의 위치(rect)를 직접 계산해서 판단함)
+const TBL_ZONE=28;
 function richTableHoverCheck(e,contentElId){
   const contentEl=document.getElementById(contentElId);
   if(!contentEl)return;
   if(_tblResize)return; // 드래그로 크기 조절 중엔 +/− 버튼 로직 건드리지 않음
-  const table=e.target.closest?e.target.closest('table'):null;
-  if(!table||!contentEl.contains(table)){richHideTableAddBtns();richSetResizeCursor(null);return;}
-  const rect=table.getBoundingClientRect();
-  // +/− 추가 버튼은 표 '바깥쪽' 가장자리에서만 (안쪽 셀 경계는 크기조절 용도로 남겨둠)
-  const outsideRight=e.clientX>=rect.right&&e.clientX-rect.right<18&&e.clientY>=rect.top-4&&e.clientY<=rect.bottom+4;
-  const outsideBottom=e.clientY>=rect.bottom&&e.clientY-rect.bottom<18&&e.clientX>=rect.left-4&&e.clientX<=rect.right+4;
-  _richActiveTable=table;
-  if(outsideRight){clearTimeout(_tblHideTimer);richShowColBtns(rect);richHideRowBtnsNow();}
-  else if(outsideBottom){clearTimeout(_tblHideTimer);richShowRowBtns(rect);richHideColBtnsNow();}
-  else{richHideTableAddBtns();}
-  richUpdateResizeCursor(e,table);
+  if(!contentEl.isContentEditable){richHideTableAddBtns();richSetResizeCursor(null);return;} // 읽기 모드에선 편집 버튼 없음
+  const x=e.clientX,y=e.clientY;
+  let hit=null,zone=null;
+  for(const t of contentEl.querySelectorAll('table')){
+    const r=t.getBoundingClientRect();
+    const inX=x>=r.left&&x<=r.right,inY=y>=r.top&&y<=r.bottom;
+    if(inX&&inY){hit=t;zone='in';break;}
+    if(inY&&x<r.left&&r.left-x<=TBL_ZONE){hit=t;zone='left';break;}
+    if(inY&&x>r.right&&x-r.right<=TBL_ZONE){hit=t;zone='right';break;}
+    if(inX&&y<r.top&&r.top-y<=TBL_ZONE){hit=t;zone='top';break;}
+    if(inX&&y>r.bottom&&y-r.bottom<=TBL_ZONE){hit=t;zone='bottom';break;}
+  }
+  if(!hit){richHideTableAddBtns();richSetResizeCursor(null);return;}
+  _richActiveTable=hit;
+  const rect=hit.getBoundingClientRect();
+  if(zone==='in'){richHideTableAddBtns();richUpdateResizeCursor(e,hit);return;}
+  richSetResizeCursor(null);
+  clearTimeout(_tblHideTimer);
+  if(zone==='left'){
+    // 마우스 높이에 해당하는 행 찾기
+    let ri=0;Array.from(hit.rows).forEach((tr,i)=>{const rr=tr.getBoundingClientRect();if(y>=rr.top&&y<=rr.bottom)ri=i;});
+    const rr=hit.rows[ri].getBoundingClientRect();
+    _tblCtx={table:hit,row:ri,col:0};
+    richShowPill('tbl-rowat-btns','column','richTableInsertRowAfter()','이 행 아래에 행 추가','richTableDeleteRowAt()','이 행 삭제',rect.left-26,rr.top+rr.height/2-22);
+    richHidePill('tbl-colat-btns');richHidePill('tbl-row-btns');richHidePill('tbl-col-btns');
+  }else if(zone==='top'){
+    let ci=0;const first=hit.rows[0];
+    if(first)Array.from(first.cells).forEach((td,i)=>{const cr=td.getBoundingClientRect();if(x>=cr.left&&x<=cr.right)ci=i;});
+    const cr=first.cells[ci].getBoundingClientRect();
+    _tblCtx={table:hit,row:0,col:ci};
+    richShowPill('tbl-colat-btns','row','richTableInsertColAfter()','이 열 오른쪽에 열 추가','richTableDeleteColAt()','이 열 삭제',cr.left+cr.width/2-22,rect.top-26);
+    richHidePill('tbl-rowat-btns');richHidePill('tbl-row-btns');richHidePill('tbl-col-btns');
+  }else if(zone==='right'){
+    richShowPill('tbl-col-btns','column','richTableAddCol()','맨 끝에 열 추가','richTableDelCol()','마지막 열 삭제',rect.right+6,rect.top+rect.height/2-22);
+    richHidePill('tbl-rowat-btns');richHidePill('tbl-colat-btns');richHidePill('tbl-row-btns');
+  }else{
+    richShowPill('tbl-row-btns','row','richTableAddRow()','맨 끝에 행 추가','richTableDelRow()','마지막 행 삭제',rect.left+rect.width/2-22,rect.bottom+6);
+    richHidePill('tbl-rowat-btns');richHidePill('tbl-colat-btns');richHidePill('tbl-col-btns');
+  }
 }
+// +/− 버튼 한 쌍(알약)을 지정한 위치에 띄움
+function richShowPill(id,dir,addFn,addTitle,delFn,delTitle,left,top){
+  let wrap=document.getElementById(id);
+  if(!wrap){
+    wrap=document.createElement('div');wrap.id=id;wrap.className='tbl-edge-btns';
+    wrap.onmouseenter=()=>clearTimeout(_tblHideTimer);
+    wrap.onmouseleave=()=>richHideTableAddBtns();
+    wrap.onmousedown=ev=>ev.preventDefault(); // 버튼을 눌러도 글 쓰던 커서가 풀리지 않게
+    document.body.appendChild(wrap);
+  }
+  wrap.style.flexDirection=dir;
+  wrap.innerHTML=`<button type="button" class="tbl-fab" onclick="${addFn}" title="${addTitle}">+</button><button type="button" class="tbl-fab tbl-fab-del" onclick="${delFn}" title="${delTitle}">−</button>`;
+  wrap.style.left=Math.max(2,left)+'px';
+  wrap.style.top=Math.max(2,top)+'px';
+  wrap.style.display='flex';
+}
+function richHidePill(id){const w=document.getElementById(id);if(w)w.style.display='none';}
 // 표 안쪽 셀 경계에 마우스가 가까우면 크기조절 커서(col-resize/row-resize)로 바꿔주고,
-// 실제로 어디를 조절할 수 있는지 기억해둠(_richResizeTarget)
+// 실제로 어디를 조절할 수 있는지 기억해둠(_richResizeTarget). 경계 근처가 아니면 반드시 비움
+// (예전엔 비우지 않아서, 경계를 한 번 스쳤다가 다른 곳을 드래그해도 크기조절로 오인되어 글 드래그가 안 됐음)
 let _richResizeTarget=null;
 function richUpdateResizeCursor(e,table){
   const td=e.target.closest&&e.target.closest('td,th');
@@ -3880,74 +3932,124 @@ function richUpdateResizeCursor(e,table){
 }
 function richSetResizeCursor(cursor){
   document.querySelectorAll('.rich-body').forEach(el=>{el.style.cursor=cursor||'';});
+  if(!cursor)_richResizeTarget=null;
 }
-function richShowRowBtns(rect){
-  let wrap=document.getElementById('tbl-row-btns');
-  if(!wrap){
-    wrap=document.createElement('div');wrap.id='tbl-row-btns';wrap.className='tbl-edge-btns';
-    wrap.onmouseenter=()=>clearTimeout(_tblHideTimer);
-    wrap.onmouseleave=()=>richHideTableAddBtns();
-    wrap.innerHTML=`<button type="button" class="tbl-fab" onclick="richTableAddRow()" title="행 추가">+</button><button type="button" class="tbl-fab tbl-fab-del" onclick="richTableDelRow()" title="행 삭제">−</button>`;
-    document.body.appendChild(wrap);
-  }
-  wrap.style.left=(rect.left+rect.width/2-24)+'px';
-  wrap.style.top=(rect.bottom-2)+'px';
-  wrap.style.display='flex';
-}
-function richShowColBtns(rect){
-  let wrap=document.getElementById('tbl-col-btns');
-  if(!wrap){
-    wrap=document.createElement('div');wrap.id='tbl-col-btns';wrap.className='tbl-edge-btns';wrap.style.flexDirection='column';
-    wrap.onmouseenter=()=>clearTimeout(_tblHideTimer);
-    wrap.onmouseleave=()=>richHideTableAddBtns();
-    wrap.innerHTML=`<button type="button" class="tbl-fab" onclick="richTableAddCol()" title="열 추가">+</button><button type="button" class="tbl-fab tbl-fab-del" onclick="richTableDelCol()" title="열 삭제">−</button>`;
-    document.body.appendChild(wrap);
-  }
-  wrap.style.left=(rect.right-2)+'px';
-  wrap.style.top=(rect.top+rect.height/2-24)+'px';
-  wrap.style.display='flex';
-}
-function richHideRowBtnsNow(){const w=document.getElementById('tbl-row-btns');if(w)w.style.display='none';}
-function richHideColBtnsNow(){const w=document.getElementById('tbl-col-btns');if(w)w.style.display='none';}
+function richHideRowBtnsNow(){richHidePill('tbl-row-btns');}
+function richHideColBtnsNow(){richHidePill('tbl-col-btns');}
 function richHideTableAddBtns(){
   clearTimeout(_tblHideTimer);
-  _tblHideTimer=setTimeout(()=>{richHideRowBtnsNow();richHideColBtnsNow();},200); // 버튼 쪽으로 마우스 옮길 여유를 줌
+  _tblHideTimer=setTimeout(()=>{['tbl-row-btns','tbl-col-btns','tbl-rowat-btns','tbl-colat-btns'].forEach(richHidePill);},250); // 버튼 쪽으로 마우스 옮길 여유를 줌
+}
+// ── 표 편집 공통 처리 ──
+// 표를 직접 수정하면 브라우저의 되돌리기(Cmd+Z) 기록에 남지 않음. 그래서 '복사본 표'에 변경을 적용한 뒤,
+// 원래 표 자리에 브라우저의 정식 편집 명령(insertHTML)으로 통째로 바꿔 넣음 → Cmd+Z / Cmd+Shift+Z가 동작함.
+function richTableCurrentCell(table){
+  const sel=window.getSelection();
+  const n=sel&&sel.rangeCount?sel.anchorNode:null;
+  const td=n&&(n.nodeType===1?n:n.parentElement)&&(n.nodeType===1?n:n.parentElement).closest('td,th');
+  if(!td||!table.contains(td))return null;
+  return {r:td.parentElement.rowIndex,c:td.cellIndex};
+}
+function richTableCommit(oldTable,newTable,cell){
+  const el=oldTable.closest('.rich-body');
+  if(!el){oldTable.replaceWith(newTable);return;}
+  const idx=Array.from(el.querySelectorAll('table')).indexOf(oldTable);
+  el.focus({preventScroll:true});
+  const sel=window.getSelection();
+  const rg=document.createRange();rg.selectNode(oldTable);
+  sel.removeAllRanges();sel.addRange(rg);
+  document.execCommand('insertHTML',false,newTable.outerHTML);
+  // 커서를 작업하던 셀로 되돌림 (그 셀이 사라졌으면 가까운 셀)
+  const nt=el.querySelectorAll('table')[idx];
+  if(nt&&cell){
+    const tr=nt.rows[Math.max(0,Math.min(cell.r,nt.rows.length-1))];
+    const td=tr&&tr.cells[Math.max(0,Math.min(cell.c,tr.cells.length-1))];
+    if(td){const r2=document.createRange();r2.selectNodeContents(td);r2.collapse(true);sel.removeAllRanges();sel.addRange(r2);}
+  }
+}
+// 마우스가 있던 '그 행/열' 기준 추가·삭제
+function richTableInsertRowAfter(){
+  const {table,row}=_tblCtx;if(!table)return;
+  const cell=richTableCurrentCell(table)||{r:row,c:0};
+  const nt=table.cloneNode(true);
+  const cols=nt.rows[0]?nt.rows[0].cells.length:1;
+  const tr=nt.insertRow(row+1);
+  for(let i=0;i<cols;i++)tr.insertCell().innerHTML='<br>';
+  if(cell.r>row)cell.r+=1;
+  richTableCommit(table,nt,cell);richHideTableAddBtns();
+}
+function richTableDeleteRowAt(){
+  const {table,row}=_tblCtx;if(!table)return;
+  if(table.rows.length<=1){alert('마지막 행은 지울 수 없어요.');return;}
+  const cell=richTableCurrentCell(table)||{r:row,c:0};
+  const nt=table.cloneNode(true);nt.deleteRow(row);
+  if(cell.r>row)cell.r-=1;
+  richTableCommit(table,nt,cell);richHideTableAddBtns();
+}
+function richTableInsertColAfter(){
+  const {table,col}=_tblCtx;if(!table)return;
+  const cell=richTableCurrentCell(table)||{r:0,c:col};
+  const nt=table.cloneNode(true);
+  Array.from(nt.rows).forEach(tr=>{
+    const td=document.createElement('td');td.innerHTML='<br>';
+    tr.insertBefore(td,tr.cells[col+1]||null);
+  });
+  const cg=nt.querySelector(':scope > colgroup');
+  if(cg){const c=document.createElement('col');cg.insertBefore(c,cg.children[col+1]||null);}
+  if(cell.c>col)cell.c+=1;
+  richTableCommit(table,nt,cell);richHideTableAddBtns();
+}
+function richTableDeleteColAt(){
+  const {table,col}=_tblCtx;if(!table)return;
+  const cols=table.rows[0]?table.rows[0].cells.length:0;
+  if(cols<=1){alert('마지막 열은 지울 수 없어요.');return;}
+  const cell=richTableCurrentCell(table)||{r:0,c:col};
+  const nt=table.cloneNode(true);
+  Array.from(nt.rows).forEach(tr=>{if(tr.cells[col])tr.deleteCell(col);});
+  const cg=nt.querySelector(':scope > colgroup');
+  if(cg&&cg.children[col])cg.removeChild(cg.children[col]);
+  if(cell.c>col)cell.c-=1;
+  richTableCommit(table,nt,cell);richHideTableAddBtns();
 }
 function richTableAddRow(){
   if(!_richActiveTable)return;
-  const cols=_richActiveTable.rows[0]?.cells.length||1;
-  const row=_richActiveTable.insertRow();
+  const table=_richActiveTable;
+  const cell=richTableCurrentCell(table)||{r:0,c:0};
+  const nt=table.cloneNode(true);
+  const cols=nt.rows[0]?.cells.length||1;
+  const row=nt.insertRow();
   for(let i=0;i<cols;i++)row.insertCell().innerHTML='<br>';
-  richFlushAfterTableEdit();
+  richTableCommit(table,nt,cell);
 }
 function richTableAddCol(){
   if(!_richActiveTable)return;
-  Array.from(_richActiveTable.rows).forEach(row=>{
-    const cell=document.createElement('td');
-    cell.innerHTML='<br>';row.appendChild(cell);
-  });
-  const cg=_richActiveTable.querySelector(':scope > colgroup');
+  const table=_richActiveTable;
+  const cell=richTableCurrentCell(table)||{r:0,c:0};
+  const nt=table.cloneNode(true);
+  Array.from(nt.rows).forEach(row=>{const td=document.createElement('td');td.innerHTML='<br>';row.appendChild(td);});
+  const cg=nt.querySelector(':scope > colgroup');
   if(cg)cg.appendChild(document.createElement('col'));
-  richFlushAfterTableEdit();
+  richTableCommit(table,nt,cell);
 }
 function richTableDelRow(){
   if(!_richActiveTable)return;
-  if(_richActiveTable.rows.length<=1){alert('마지막 행은 지울 수 없어요.');return;}
-  _richActiveTable.deleteRow(_richActiveTable.rows.length-1);
-  richFlushAfterTableEdit();
+  const table=_richActiveTable;
+  if(table.rows.length<=1){alert('마지막 행은 지울 수 없어요.');return;}
+  const cell=richTableCurrentCell(table)||{r:0,c:0};
+  const nt=table.cloneNode(true);nt.deleteRow(nt.rows.length-1);
+  richTableCommit(table,nt,cell);
 }
 function richTableDelCol(){
   if(!_richActiveTable)return;
-  const cols=_richActiveTable.rows[0]?.cells.length||0;
+  const table=_richActiveTable;
+  const cols=table.rows[0]?.cells.length||0;
   if(cols<=1){alert('마지막 열은 지울 수 없어요.');return;}
-  Array.from(_richActiveTable.rows).forEach(row=>{if(row.cells.length)row.deleteCell(row.cells.length-1);});
-  const cg=_richActiveTable.querySelector(':scope > colgroup');
+  const cell=richTableCurrentCell(table)||{r:0,c:0};
+  const nt=table.cloneNode(true);
+  Array.from(nt.rows).forEach(row=>{if(row.cells.length)row.deleteCell(row.cells.length-1);});
+  const cg=nt.querySelector(':scope > colgroup');
   if(cg&&cg.lastElementChild)cg.removeChild(cg.lastElementChild);
-  richFlushAfterTableEdit();
-}
-function richFlushAfterTableEdit(){
-  const el=_richActiveTable&&_richActiveTable.closest('.rich-body');
-  if(el)el.dispatchEvent(new Event('input',{bubbles:true}));
+  richTableCommit(table,nt,cell);
 }
 // 표 셀 경계를 드래그해서 열 너비/행 높이를 조절하는 기능.
 // 열 너비는 <colgroup><col> 단위로 관리해야 표 전체에 깔끔하게 반영됨(칸마다 따로 주면
@@ -3967,6 +4069,11 @@ function ensureColgroup(table){
   return cg;
 }
 function richTableMouseDown(e,contentElId){
+  // 눌린 그 순간의 마우스 위치로 '셀 경계 위인지' 다시 판단 — 이전 hover 상태가 남아 있어도 무시
+  _richResizeTarget=null;
+  const tb=e.target.closest&&e.target.closest('table');
+  if(!tb)return;
+  richUpdateResizeCursor(e,tb);
   if(!_richResizeTarget)return;
   const contentEl=document.getElementById(contentElId);
   if(!contentEl||!contentEl.contains(_richResizeTarget.td))return;
@@ -3983,15 +4090,17 @@ function richTableMouseDown(e,contentElId){
     cleanup();
     // 드래그로 확정되는 순간, 혹시 그 사이 살짝 생겼을 수 있는 텍스트 선택을 지움
     const sel=window.getSelection();if(sel)sel.removeAllRanges();
+    const snap=table.cloneNode(true); // 조절 전 모습 (되돌리기 기록용)
+    const cellPos={r:td.parentElement.rowIndex,c:td.cellIndex};
     if(type==='col'){
       const cg=ensureColgroup(table);
       const idx=td.cellIndex;
       const col=cg.children[idx];
       if(!col)return;
-      _tblResize={type:'col',table,col,startX,startW:td.getBoundingClientRect().width};
+      _tblResize={type:'col',table,col,startX,startW:td.getBoundingClientRect().width,snap,cellPos};
     }else{
       const tr=td.parentElement;
-      _tblResize={type:'row',table,tr,startY,startH:tr.getBoundingClientRect().height};
+      _tblResize={type:'row',table,tr,startY,startH:tr.getBoundingClientRect().height,snap,cellPos};
     }
     document.body.classList.add('tbl-resizing');
     document.body.style.cursor=type==='col'?'col-resize':'row-resize';
@@ -4016,12 +4125,16 @@ document.addEventListener('mousemove',e=>{
 });
 document.addEventListener('mouseup',()=>{
   if(!_tblResize)return;
-  const table=_tblResize.table;
+  const {table,snap,cellPos}=_tblResize;
   _tblResize=null;
   document.body.classList.remove('tbl-resizing');
   document.body.style.cursor='';
-  const el=table&&table.closest('.rich-body');
-  if(el)el.dispatchEvent(new Event('input',{bubbles:true}));
+  // 조절이 끝난 순간 한 번만: 조절 전 표로 되돌려 놓고, 조절된 표를 정식 편집 명령으로 바꿔 넣음(→ Cmd+Z 한 번에 원래 크기로)
+  if(table&&table.isConnected&&snap&&table.outerHTML!==snap.outerHTML){
+    const finalTable=table.cloneNode(true);
+    table.replaceWith(snap);
+    richTableCommit(snap,finalTable,cellPos);
+  }
 });
 function richInsertLink(){
   const sel=window.getSelection();
