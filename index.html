@@ -204,7 +204,7 @@ tr:hover td{background:var(--hover)}
 .rich-body details{margin:2px 0}
 .rich-body details>summary{cursor:pointer;padding:2px 0;list-style:revert}
 .rich-body details>div{padding-left:22px}
-.rich-body table{border-collapse:collapse;margin:10px 0}
+.rich-body table{border-collapse:collapse;margin:10px 0;table-layout:fixed} /* 표 너비를 px로 지정한 표는 칸 너비를 정확히 따름(너비가 자동인 표는 기존처럼 내용에 맞춰짐) */
 .rich-body table td,.rich-body table th{border:1px solid #8A8A8A;padding:6px 10px;overflow-wrap:anywhere}
 .tbl-edge-btns{position:fixed;display:none;gap:3px;z-index:3200}
 .tbl-fab{width:20px;height:20px;border-radius:50%;border:none;background:var(--ac);color:#fff;font-size:calc(13px*var(--fs));line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.22);padding:0}
@@ -3718,6 +3718,7 @@ function sanitizeRichHtml(html){
       if(st&&st.textDecorationLine&&/^(underline|line-through|underline line-through|line-through underline)$/.test(st.textDecorationLine.trim()))keep.push('text-decoration:'+st.textDecorationLine);
       if(tag==='COL'&&st&&st.width&&pxRe.test(st.width.trim()))keep.push('width:'+st.width);
       if(tag==='TR'&&st&&st.height&&pxRe.test(st.height.trim()))keep.push('height:'+st.height);
+      if(tag==='TABLE'&&st&&st.width&&pxRe.test(st.width.trim()))keep.push('width:'+st.width);
       const href=(tag==='A')?child.getAttribute('href'):null;
       const wasOpen=(tag==='DETAILS')?child.hasAttribute('open'):false; // 토글이 펼쳐진 상태였는지(열림/닫힘)는 저장해뒀다가 그대로 유지시킴
       [...child.attributes].forEach(attr=>child.removeAttribute(attr.name));
@@ -3997,6 +3998,7 @@ function richTableInsertColAfter(){
   });
   const cg=nt.querySelector(':scope > colgroup');
   if(cg){const c=document.createElement('col');cg.insertBefore(c,cg.children[col+1]||null);}
+  richTableSyncWidth(nt);
   if(cell.c>col)cell.c+=1;
   richTableCommit(table,nt,cell);richHideTableAddBtns();
 }
@@ -4009,6 +4011,7 @@ function richTableDeleteColAt(){
   Array.from(nt.rows).forEach(tr=>{if(tr.cells[col])tr.deleteCell(col);});
   const cg=nt.querySelector(':scope > colgroup');
   if(cg&&cg.children[col])cg.removeChild(cg.children[col]);
+  richTableSyncWidth(nt);
   if(cell.c>col)cell.c-=1;
   richTableCommit(table,nt,cell);richHideTableAddBtns();
 }
@@ -4030,6 +4033,7 @@ function richTableAddCol(){
   Array.from(nt.rows).forEach(row=>{const td=document.createElement('td');td.innerHTML='<br>';row.appendChild(td);});
   const cg=nt.querySelector(':scope > colgroup');
   if(cg)cg.appendChild(document.createElement('col'));
+  richTableSyncWidth(nt);
   richTableCommit(table,nt,cell);
 }
 function richTableDelRow(){
@@ -4050,24 +4054,38 @@ function richTableDelCol(){
   Array.from(nt.rows).forEach(row=>{if(row.cells.length)row.deleteCell(row.cells.length-1);});
   const cg=nt.querySelector(':scope > colgroup');
   if(cg&&cg.lastElementChild)cg.removeChild(cg.lastElementChild);
+  richTableSyncWidth(nt);
   richTableCommit(table,nt,cell);
 }
 // 표 셀 경계를 드래그해서 열 너비/행 높이를 조절하는 기능.
 // 열 너비는 <colgroup><col> 단위로 관리해야 표 전체에 깔끔하게 반영됨(칸마다 따로 주면
 // 브라우저가 자동으로 다시 맞춰버릴 수 있음).
 let _tblResize=null;
+// 열 너비를 조절하기 전에 모든 열의 '지금 실제 너비'를 colgroup에 고정하고, 표 전체 너비도 px로 고정함.
+// (표 너비가 '자동'이면 한 칸을 바꿀 때마다 표 전체가 같이 늘고 줄어서 불편했음)
 function ensureColgroup(table){
-  if(table.querySelector(':scope > colgroup'))return table.querySelector(':scope > colgroup');
   const firstRow=table.rows[0];
   const n=firstRow?firstRow.cells.length:0;
-  const cg=document.createElement('colgroup');
-  for(let i=0;i<n;i++){
-    const col=document.createElement('col');
-    if(firstRow&&firstRow.cells[i])col.style.width=firstRow.cells[i].getBoundingClientRect().width+'px';
-    cg.appendChild(col);
-  }
-  table.insertBefore(cg,table.firstChild);
+  let cg=table.querySelector(':scope > colgroup');
+  if(!cg){cg=document.createElement('colgroup');table.insertBefore(cg,table.firstChild);}
+  while(cg.children.length<n)cg.appendChild(document.createElement('col'));
+  while(cg.children.length>n)cg.removeChild(cg.lastElementChild);
+  const widths=[];
+  for(let i=0;i<n;i++)widths.push(firstRow.cells[i].getBoundingClientRect().width);
+  widths.forEach((w,i)=>{cg.children[i].style.width=w+'px';});
+  table.style.width=widths.reduce((a,b)=>a+b,0)+'px';
   return cg;
+}
+// 열을 추가/삭제한 뒤 표 너비가 px로 고정돼 있으면, 폭이 없는 새 열에 평균 폭을 주고 표 전체 너비를 다시 맞춤
+function richTableSyncWidth(table){
+  if(!table.style.width)return;
+  const cg=table.querySelector(':scope > colgroup');if(!cg)return;
+  const cols=[...cg.children];
+  const ws=cols.map(c=>parseFloat(c.style.width)||0);
+  const known=ws.filter(w=>w>0);
+  const avg=known.length?known.reduce((a,b)=>a+b,0)/known.length:100;
+  cols.forEach((c,i)=>{if(!ws[i]){ws[i]=avg;c.style.width=avg+'px';}});
+  table.style.width=ws.reduce((a,b)=>a+b,0)+'px';
 }
 function richTableMouseDown(e,contentElId){
   // 눌린 그 순간의 마우스 위치로 '셀 경계 위인지' 다시 판단 — 이전 hover 상태가 남아 있어도 무시
@@ -4098,7 +4116,14 @@ function richTableMouseDown(e,contentElId){
       const idx=td.cellIndex;
       const col=cg.children[idx];
       if(!col)return;
-      _tblResize={type:'col',table,col,startX,startW:td.getBoundingClientRect().width,snap,cellPos};
+      const next=cg.children[idx+1]||null; // 오른쪽 이웃 열 (맨 오른쪽 열이면 없음)
+      const wA=parseFloat(col.style.width),wB=next?parseFloat(next.style.width):0;
+      const total=parseFloat(table.style.width);
+      // 표가 들어갈 수 있는 최대 너비(글쓰기 칸 안쪽 폭): 맨 오른쪽 경계를 끌어 표를 넓힐 때만 쓰임
+      const host=table.closest('.rich-body');
+      let cap=Infinity;
+      if(host){const cs=getComputedStyle(host);cap=host.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);}
+      _tblResize={type:'col',table,col,next,startX,wA,wB,total,cap,snap,cellPos};
     }else{
       const tr=td.parentElement;
       _tblResize={type:'row',table,tr,startY,startH:tr.getBoundingClientRect().height,snap,cellPos};
@@ -4117,8 +4142,17 @@ function richTableMouseDown(e,contentElId){
 document.addEventListener('mousemove',e=>{
   if(!_tblResize)return;
   if(_tblResize.type==='col'){
-    const dx=e.clientX-_tblResize.startX;
-    _tblResize.col.style.width=Math.max(12,_tblResize.startW+dx)+'px';
+    const R=_tblResize,MIN=24,dx=e.clientX-R.startX;
+    if(R.next){
+      // 경계 양옆 두 칸이 서로 주고받음 → 다른 칸과 표 전체 너비는 그대로
+      const a=Math.min(Math.max(MIN,R.wA+dx),R.wA+R.wB-MIN);
+      R.col.style.width=a+'px';R.next.style.width=(R.wA+R.wB-a)+'px';
+    }else{
+      // 맨 오른쪽 경계: 표 전체 너비가 바뀜 (글쓰기 칸 폭까지만)
+      const maxA=R.wA+Math.max(0,R.cap-R.total);
+      const a=Math.min(Math.max(MIN,R.wA+dx),Math.max(maxA,MIN));
+      R.col.style.width=a+'px';R.table.style.width=(R.total-R.wA+a)+'px';
+    }
   }else{
     const dy=e.clientY-_tblResize.startY;
     _tblResize.tr.style.height=Math.max(20,_tblResize.startH+dy)+'px';
