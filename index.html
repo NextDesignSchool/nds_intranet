@@ -205,7 +205,7 @@ tr:hover td{background:var(--hover)}
 .rich-body details>summary{cursor:pointer;padding:2px 0;list-style:revert}
 .rich-body details>div{padding-left:22px}
 .rich-body table{border-collapse:collapse;margin:10px 0}
-.rich-body table td,.rich-body table th{border:1px solid #8A8A8A;padding:6px 10px;min-width:60px}
+.rich-body table td,.rich-body table th{border:1px solid #8A8A8A;padding:6px 10px;overflow-wrap:anywhere}
 .tbl-edge-btns{position:fixed;display:none;gap:3px;z-index:3200}
 .tbl-fab{width:20px;height:20px;border-radius:50%;border:none;background:var(--ac);color:#fff;font-size:calc(13px*var(--fs));line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.22);padding:0}
 .tbl-fab-del{background:#fff;color:var(--re);border:1px solid var(--bd)}
@@ -3783,6 +3783,7 @@ function richToolbarHtml(elId){
     <span class="rt-sep"></span>
     <button type="button" class="rt-btn" data-color-trigger onmousedown="event.preventDefault()" onclick="richOpenColorPicker(this,'fg','${elId}')" data-tip="글자 색" style="font-weight:700;color:#E03131">A</button>
     <button type="button" class="rt-btn" data-color-trigger onmousedown="event.preventDefault()" onclick="richOpenColorPicker(this,'bg','${elId}')" data-tip="배경 색" style="background:#FFF3B0">A</button>
+    <button type="button" class="rt-btn" data-color-trigger onmousedown="event.preventDefault()" onclick="richOpenColorPicker(this,'cell','${elId}')" data-tip="표 칸 배경색"><span style="display:inline-block;width:13px;height:13px;border:1.5px solid currentColor;border-radius:2px;background:#D0EBFF"></span></button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="document.execCommand('insertHorizontalRule')" data-tip="구분선">—</button>
     <button type="button" class="rt-btn" onmousedown="event.preventDefault()" onclick="richInsertTable(this)" data-tip="표">⊞</button>
   </div>`;
@@ -4117,7 +4118,7 @@ document.addEventListener('mousemove',e=>{
   if(!_tblResize)return;
   if(_tblResize.type==='col'){
     const dx=e.clientX-_tblResize.startX;
-    _tblResize.col.style.width=Math.max(32,_tblResize.startW+dx)+'px';
+    _tblResize.col.style.width=Math.max(12,_tblResize.startW+dx)+'px';
   }else{
     const dy=e.clientY-_tblResize.startY;
     _tblResize.tr.style.height=Math.max(20,_tblResize.startH+dy)+'px';
@@ -4136,6 +4137,38 @@ document.addEventListener('mouseup',()=>{
     richTableCommit(snap,finalTable,cellPos);
   }
 });
+// 복사해 붙여넣을 때: 브라우저는 복사한 글에 '그 순간 보이던 글자 크기·폰트·줄간격'을 인라인 스타일로 같이 실어 보냄.
+// (본문 글을 복사해 글자 크기가 다른 표 안에 붙이면, 본문 크기가 그대로 따라와서 혼자 커 보였음.
+//  저장할 땐 정리 함수가 이 스타일을 지워서 기본 크기로 돌아왔던 것.)
+// 그래서 붙여넣는 순간에 같은 정리를 먼저 해서, 크기·폰트는 버리고 굵게/밑줄/목록/표 같은 구조와 의도한 색만 남김.
+function cleanPasteHtml(html){
+  const clean=sanitizeRichHtml(html);
+  const box=document.createElement('div');box.innerHTML=clean;
+  // 기본 글자색/투명 배경은 '복사한 곳의 평범한 모습'일 뿐이라 같이 따라오면 오히려 방해가 됨
+  const isDefaultColor=c=>/^(rgb\(\s*43\s*,\s*45\s*,\s*48\s*\)|#2b2d30|rgb\(\s*0\s*,\s*0\s*,\s*0\s*\)|#000(000)?)$/i.test((c||'').trim());
+  box.querySelectorAll('[style]').forEach(el=>{
+    const bg=el.style.backgroundColor,fg=el.style.color;
+    if(bg&&(/^rgba\([^)]*,\s*0\s*\)$/.test(bg.trim())||bg==='transparent'))el.style.removeProperty('background-color');
+    if(fg&&isDefaultColor(fg))el.style.removeProperty('color');
+    if(!el.getAttribute('style'))el.removeAttribute('style');
+  });
+  // 의미 없이 남은 빈 <span> 껍데기 풀기
+  box.querySelectorAll('span:not([style])').forEach(sp=>{while(sp.firstChild)sp.parentNode.insertBefore(sp.firstChild,sp);sp.remove();});
+  return box.innerHTML;
+}
+function richPaste(e){
+  const cd=e.clipboardData;if(!cd)return;
+  const html=cd.getData('text/html');
+  if(!html)return; // 그냥 글자만 복사한 경우는 브라우저 기본 동작(깔끔한 글자 붙여넣기)에 맡김
+  e.preventDefault();
+  const cleaned=cleanPasteHtml(html);
+  if(cleaned.replace(/<br\s*\/?>|&nbsp;|\s/g,'')==='' && !/<(table|hr|img)/i.test(cleaned)){
+    const t=cd.getData('text/plain');
+    if(t)document.execCommand('insertText',false,t);
+    return;
+  }
+  document.execCommand('insertHTML',false,cleaned);
+}
 function richInsertLink(){
   const sel=window.getSelection();
   const hasSelection=sel&&!sel.isCollapsed&&sel.toString().trim();
@@ -4161,6 +4194,11 @@ function richSaveSelection(){
 }
 // 빨/주/노/초/파/보/회/검/흰 기본 색상 칩. 팔레트 팝업 맨 위에 두고, 그 아래에 직접 고르는
 // 네이티브 색상 선택기를 같이 둬서 자주 쓰는 색은 한 번에, 그 외엔 자유롭게 고를 수 있게 함.
+// 표 칸 배경에 쓰는 연한 색 (글자색 팔레트는 진해서 칸 전체를 칠하면 글씨가 안 보임)
+const CELL_PRESET_COLORS=[
+  {hex:'#F1F3F5',name:'연한 회색'},{hex:'#DEE2E6',name:'회색'},{hex:'#FFF3BF',name:'연한 노랑'},{hex:'#FFE8CC',name:'연한 주황'},{hex:'#FFE3E3',name:'연한 빨강'},
+  {hex:'#D3F9D8',name:'연한 초록'},{hex:'#D0EBFF',name:'연한 파랑'},{hex:'#E5DBFF',name:'연한 보라'},{hex:'#FFFFFF',name:'흰색'},{hex:'#343A40',name:'진한 회색'},
+];
 const RICH_PRESET_COLORS=[
   {hex:'#E03131',name:'빨강'},{hex:'#F08C00',name:'주황'},{hex:'#F5C400',name:'노랑'},
   {hex:'#2F9E44',name:'초록'},{hex:'#1971C2',name:'파랑'},{hex:'#9C36B5',name:'보라'},
@@ -4175,7 +4213,7 @@ function richOpenColorPicker(anchorEl,mode,elId){
   panel.style.left=Math.max(8,rect.left)+'px';
   panel.style.width='fit-content';
   panel.style.display='block';
-  const chips=RICH_PRESET_COLORS.map(c=>`<div class="rcp-swatch" style="background:${c.hex}" title="${c.name}"
+  const chips=(mode==='cell'?CELL_PRESET_COLORS:RICH_PRESET_COLORS).map(c=>`<div class="rcp-swatch" style="background:${c.hex}" title="${c.name}"
     onmousedown="event.preventDefault();event.stopPropagation()" onclick="event.stopPropagation();richPickColor('${mode}','${elId}','${c.hex}')"></div>`).join('');
   // 최근에 실제로 사용했던 색을 작은 칩으로 팔레트 아래에 따로 보여줌 (있을 때만)
   const recent=richGetRecentColors(mode);
@@ -4184,11 +4222,12 @@ function richOpenColorPicker(anchorEl,mode,elId){
     <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap">${recent.map(hex=>`<div class="rcp-swatch" style="width:14px;height:14px;background:${hex}" title="${hex}"
       onmousedown="event.preventDefault();event.stopPropagation()" onclick="event.stopPropagation();richPickColor('${mode}','${elId}','${hex}')"></div>`).join('')}</div>`:'';
   panel.innerHTML=`
-    <div style="font-size:calc(11px*var(--fs));color:var(--sub);margin-bottom:7px">${mode==='fg'?'글자 색':'배경 색'}</div>
+    <div style="font-size:calc(11px*var(--fs));color:var(--sub);margin-bottom:7px">${mode==='fg'?'글자 색':mode==='cell'?'표 칸 배경 색':'배경 색'}</div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px">${chips}</div>
     ${recentHtml}
-    <input type="color" id="rcp-custom" value="${mode==='fg'?'#B03025':'#FFF3B0'}" style="width:100%;height:28px;border:1px solid var(--bd);border-radius:6px;cursor:pointer"
-      onmousedown="event.stopPropagation()" onchange="event.stopPropagation();richPickColor('${mode}','${elId}',this.value)">`;
+    <input type="color" id="rcp-custom" value="${mode==='fg'?'#B03025':mode==='cell'?'#D0EBFF':'#FFF3B0'}" style="width:100%;height:28px;border:1px solid var(--bd);border-radius:6px;cursor:pointer"
+      onmousedown="event.stopPropagation()" onchange="event.stopPropagation();richPickColor('${mode}','${elId}',this.value)">
+    ${mode==='cell'?`<button type="button" class="btn btn-o btn-sm" style="width:100%;margin-top:8px" onmousedown="event.preventDefault();event.stopPropagation()" onclick="event.stopPropagation();richPickColor('cell','${elId}','none')">색 없음(원래대로)</button>`:''}`;
   clampPanelToViewport(panel);
 }
 // 최근 사용 색 저장/조회: 글자색·배경색을 각각 따로 최대 8개까지 최신순으로 localStorage에 보관
@@ -4204,8 +4243,8 @@ function richAddRecentColor(mode,hex){
 }
 function richPickColor(mode,elId,hex){
   closeRichColorPicker();
-  richAddRecentColor(mode,hex);
-  if(mode==='fg')richApplyColor(elId,hex);else richApplyBgColor(elId,hex);
+  if(hex!=='none')richAddRecentColor(mode,hex);
+  if(mode==='fg')richApplyColor(elId,hex);else if(mode==='cell')richApplyCellBg(elId,hex);else richApplyBgColor(elId,hex);
 }
 function closeRichColorPicker(){const p=document.getElementById('rich-color-picker');if(p)p.style.display='none';}
 document.addEventListener('click',e=>{
@@ -4219,6 +4258,46 @@ function richApplyColor(elId,hex){
   document.execCommand('styleWithCSS',false,true); // <font color> 태그 대신 <span style="color:..">로 만들도록 강제(저장 시 안 걸러지게 함)
   document.execCommand('foreColor',false,hex);
   document.execCommand('styleWithCSS',false,false); // 다른 서식(취소선 등)에 영향 안 주도록 바로 원래대로 꺼둠
+}
+// 선택한 표 칸(커서가 있는 칸, 또는 드래그로 걸쳐 선택한 여러 칸)의 '칸 전체' 배경색을 바꿈.
+// 되돌리기(Cmd+Z)가 되도록 표 편집과 같은 방식(복사본에 적용 → 정식 편집 명령으로 교체)을 씀.
+function richApplyCellBg(elId,hex){
+  const el=document.getElementById(elId);if(!el)return;
+  const rg=_richSavedRange;
+  if(!rg||!el.contains(rg.commonAncestorContainer)){alert('색을 바꿀 표 칸을 먼저 클릭하거나 드래그해서 선택해주세요.');return;}
+  const cells=[];
+  el.querySelectorAll('td,th').forEach(td=>{
+    if(!rg.intersectsNode(td))return;
+    if(!rg.collapsed){
+      // 선택 범위가 칸 경계에 '닿기만' 한 칸(실제로 선택된 글자가 없는 칸)은 제외
+      const cr=document.createRange();cr.selectNodeContents(td);
+      const ir=rg.cloneRange();
+      if(ir.compareBoundaryPoints(Range.START_TO_START,cr)<0)ir.setStart(cr.startContainer,cr.startOffset);
+      if(ir.compareBoundaryPoints(Range.END_TO_END,cr)>0)ir.setEnd(cr.endContainer,cr.endOffset);
+      if(ir.collapsed)return;
+    }
+    cells.push(td);
+  });
+  if(!cells.length){alert('색을 바꿀 표 칸을 먼저 클릭하거나 드래그해서 선택해주세요.');return;}
+  const tables=[...new Set(cells.map(td=>td.closest('table')))];
+  tables.forEach(table=>{
+    let mine=cells.filter(td=>td.closest('table')===table).map(td=>({r:td.parentElement.rowIndex,c:td.cellIndex}));
+    if(mine.length>1){
+      // 여러 칸을 드래그하면 브라우저는 '글 순서대로' 이어서 선택함(예: A1~B2 → C1도 포함).
+      // 엑셀처럼 처음 칸~마지막 칸을 모서리로 하는 '직사각형 범위'만 칠하도록 다시 계산
+      const f=mine[0],l=mine[mine.length-1];
+      const r1=Math.min(f.r,l.r),r2=Math.max(f.r,l.r),c1=Math.min(f.c,l.c),c2=Math.max(f.c,l.c);
+      mine=[];
+      for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)mine.push({r,c});
+    }
+    const nt=table.cloneNode(true);
+    mine.forEach(({r,c})=>{
+      const td=nt.rows[r]&&nt.rows[r].cells[c];if(!td)return;
+      if(hex==='none')td.style.removeProperty('background-color');else td.style.backgroundColor=hex;
+      if(!td.getAttribute('style'))td.removeAttribute('style');
+    });
+    richTableCommit(table,nt,mine[0]);
+  });
 }
 function richApplyBgColor(elId,hex){
   const el=document.getElementById(elId);if(!el)return;
@@ -4906,7 +4985,7 @@ function bOpenPost(id){
       </div>
     </div>
     ${_bEditMode?richToolbarHtml('b-rich-content'):''}
-    <div id="b-rich-content" class="rich-body" contenteditable="${_bEditMode}" data-ph="내용을 입력하세요..." oninput="bRichInput('${id}')" onmousemove="richTableHoverCheck(event,'b-rich-content')" onmouseleave="richHideTableAddBtns();richSetResizeCursor(null);_richResizeTarget=null" onmousedown="richTableMouseDown(event,'b-rich-content')">${_bEditMode?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
+    <div id="b-rich-content" class="rich-body" contenteditable="${_bEditMode}" data-ph="내용을 입력하세요..." oninput="bRichInput('${id}')" onmousemove="richTableHoverCheck(event,'b-rich-content')" onmouseleave="richHideTableAddBtns();richSetResizeCursor(null);_richResizeTarget=null" onmousedown="richTableMouseDown(event,'b-rich-content')" onpaste="richPaste(event)">${_bEditMode?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
   </div>`;
   const tInput=el.querySelector('.board-title-input');
   if(_bEditMode&&tInput&&!post.title)setTimeout(()=>tInput.focus(),40);
@@ -5127,7 +5206,7 @@ function pOpenPost(id){
       </div>
     </div>
     ${editing?richToolbarHtml('p-rich-content'):''}
-    <div id="p-rich-content" class="rich-body" contenteditable="${editing}" data-ph="내용을 입력하세요..." oninput="pRichInput('${id}')" onmousemove="richTableHoverCheck(event,'p-rich-content')" onmouseleave="richHideTableAddBtns();richSetResizeCursor(null);_richResizeTarget=null" onmousedown="richTableMouseDown(event,'p-rich-content')">${editing?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
+    <div id="p-rich-content" class="rich-body" contenteditable="${editing}" data-ph="내용을 입력하세요..." oninput="pRichInput('${id}')" onmousemove="richTableHoverCheck(event,'p-rich-content')" onmouseleave="richHideTableAddBtns();richSetResizeCursor(null);_richResizeTarget=null" onmousedown="richTableMouseDown(event,'p-rich-content')" onpaste="richPaste(event)">${editing?richInitialContent(post):linkifyHtml(richInitialContent(post))}</div>
     <div style="margin-top:8px;padding-top:24px;border-top:1px solid var(--bd)">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <span id="p-cal-label" style="font-size:calc(12px*var(--fs));font-weight:600;color:var(--sub);white-space:nowrap"></span>
