@@ -1402,6 +1402,21 @@ function openMonthJump(anchorEl,curDate,onPick){
 // 시간 선택 팝업 (네이티브 <input type="time">을 대체함 — 아이콘을 눌러야만 반응하고
 // 디자인도 브라우저 기본값이라 손댈 수 없었던 문제를 해결하기 위해 직접 만듦)
 let _tpTarget=null,_tpH=9,_tpM=0;
+let _tpAnchorEl=null;
+function placeTimePicker(){
+  const p=document.getElementById('time-picker');
+  if(!p||p.style.display==='none'||!_tpAnchorEl||!_tpAnchorEl.isConnected)return;
+  const r=_tpAnchorEl.getBoundingClientRect();
+  p.style.top=(r.bottom+6)+'px';p.style.left=Math.max(8,r.left)+'px';
+  clampPanelToViewport(p);
+}
+function repositionPickers(){
+  const m=document.getElementById('mini-cal');
+  if(m&&m.style.display!=='none'&&_mcAnchorEl&&_mcAnchorEl.isConnected)placeMiniCal();
+  placeTimePicker();
+}
+window.addEventListener('resize',repositionPickers);
+window.addEventListener('scroll',repositionPickers,true);
 function openTimePicker(inputId,anchorEl){
   _tpTarget=inputId;
   const cur=(document.getElementById(inputId).value||'').trim();
@@ -1411,6 +1426,7 @@ function openTimePicker(inputId,anchorEl){
   const rect=anchorEl.getBoundingClientRect();
   panel.style.top=(rect.bottom+6)+'px';
   panel.style.left=Math.max(8,rect.left)+'px';
+  _tpAnchorEl=anchorEl;
   panel.style.width='fit-content';
   panel.style.display='block';
   renderTimePicker();
@@ -1450,12 +1466,25 @@ function openMcPanel(anchorEl){
   _mcAnchorEl=anchorEl;
   let panel=document.getElementById('mini-cal');
   if(!panel){panel=document.createElement('div');panel.id='mini-cal';panel.className='mini-cal';document.body.appendChild(panel);}
-  const rect=anchorEl.getBoundingClientRect();
-  const top=rect.bottom+6, left=Math.min(rect.left,window.innerWidth-264);
-  panel.style.top=top+'px';
-  panel.style.left=Math.max(8,left)+'px';
   panel.style.display='block';
   renderMiniCal();
+}
+function placeMiniCal(){
+  const panel=document.getElementById('mini-cal');
+  if(!panel||!_mcAnchorEl)return;
+  const r=_mcAnchorEl.getBoundingClientRect();
+  const vw=window.innerWidth,vh=window.innerHeight;
+  panel.style.maxHeight=(vh-16)+'px';
+  panel.style.overflowY='auto';
+  const h=panel.offsetHeight,w=panel.offsetWidth;
+  const below=vh-r.bottom-6-8, above=r.top-6-8;
+  let top;
+  if(h<=below)top=r.bottom+6;
+  else if(h<=above)top=r.top-6-h;
+  else top=Math.max(8,Math.min(r.bottom+6,vh-h-8));
+  const left=Math.max(8,Math.min(r.left,vw-w-8));
+  panel.style.top=top+'px';
+  panel.style.left=left+'px';
 }
 function renderMiniCal(){
   if(_mcMode==='ym'){renderMiniCalYM();return;}
@@ -1496,6 +1525,7 @@ function renderMiniCal(){
       ${['일','월','화','수','목','금','토'].map((d,i)=>`<div class="mini-cal-dn${dnCls(i)}">${d}</div>`).join('')}
       ${cells}
     </div>`;
+  placeMiniCal();
 }
 function mcToggleYM(){_mcMode='ym';renderMiniCal();}
 function renderMiniCalYM(){
@@ -1515,6 +1545,7 @@ function renderMiniCalYM(){
       <button class="mini-cal-nav" onclick="event.stopPropagation();mcYearNav(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
     </div>
     <div class="mini-ym-grid">${cells}</div>`;
+  placeMiniCal();
 }
 function mcYearNav(d){_mcMonth=new Date(_mcMonth.getFullYear()+d,_mcMonth.getMonth(),1);renderMiniCalYM();}
 function mcToggleYearPicker(){_mcMode='year';renderMiniCal();}
@@ -1537,6 +1568,7 @@ function renderMiniCalYear(){
       <button class="mini-cal-nav" onclick="event.stopPropagation();mcYearBlockNav(1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
     </div>
     <div class="mini-ym-grid">${cells}</div>`;
+  placeMiniCal();
 }
 function mcYearBlockNav(d){_mcMonth=new Date(_mcMonth.getFullYear()+d*12,_mcMonth.getMonth(),1);renderMiniCalYear();}
 function mcPickYear(y){_mcMonth=new Date(y,_mcMonth.getMonth(),1);_mcMode='ym';renderMiniCal();}
