@@ -2079,7 +2079,14 @@ const ETYPE_PALETTE=[
 ];
 function assignRandomEtypeColor(name){
   if(!S.etypeColors)S.etypeColors={};
-  S.etypeColors[name]=ETYPE_PALETTE[Math.floor(Math.random()*ETYPE_PALETTE.length)];
+  S.etypeColors[name]=pickUnusedEtypeColor(S.etypeColors);
+}
+// 이미 다른 종류가 쓰고 있는 색은 빼고 랜덤으로 고름. 팔레트 8색을 모두 쓰고 있으면 그때만 겹쳐도 허용.
+function pickUnusedEtypeColor(colors){
+  const used=new Set(Object.values(colors||{}).map(c=>c&&c.bg));
+  const free=ETYPE_PALETTE.filter(c=>!used.has(c.bg));
+  const pool=free.length?free:ETYPE_PALETTE;
+  return pool[Math.floor(Math.random()*pool.length)];
 }
 // 지정된 색이 있으면 그 색으로, 없으면 기존 CSS 클래스(ev-행사 등) 색을 그대로 쓰도록 빈 문자열 반환.
 // colors 인자를 생략하면 일정관리/프로젝트 공용 목록(S.etypeColors)을 쓰고, 콘텐츠 캘린더처럼
@@ -2133,7 +2140,7 @@ function refreshContentEtypeSelect(selectVal){
 }
 function assignRandomContentEtypeColor(name){
   if(!S.contentEtypeColors)S.contentEtypeColors={};
-  S.contentEtypeColors[name]=ETYPE_PALETTE[Math.floor(Math.random()*ETYPE_PALETTE.length)];
+  S.contentEtypeColors[name]=pickUnusedEtypeColor(S.contentEtypeColors);
 }
 function editSelectedContentEtype(){
   const sel=document.getElementById('ev-type');if(!sel)return;
