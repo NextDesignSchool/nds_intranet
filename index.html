@@ -214,6 +214,7 @@ tr:hover td{background:var(--hover)}
 .rcp-swatch:hover{transform:scale(1.12)}
 body.tbl-resizing{user-select:none}
 body.tbl-resizing *{cursor:inherit!important}
+.ws-issues-scroll thead th{position:sticky;top:0;background:#fff;z-index:1}
 .mini-cal{position:fixed;background:#fff;border:1px solid var(--bd);border-radius:var(--r-md);box-shadow:var(--sh-lg);z-index:3500;padding:14px;width:248px;display:none}
 .mini-cal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .mini-cal-nav{width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--sub);font-size:calc(13px*var(--fs));cursor:pointer;border-radius:6px;padding:0;transition:background .12s,color .12s}
@@ -2259,7 +2260,7 @@ function renderEmployees(){
         <span style="color:var(--sub);flex:0 0 auto">${fmtDisp(iss.date)}</span>
         <span style="flex:1">${esc(iss.content)}</span>
         <button class="btn btn-d btn-sm" style="flex:0 0 auto" onclick="deleteEmpIssue('${e.id}',${iss.id})">삭제</button>
-      </div>`).join(''):'<div style="color:var(--sub);font-size:calc(13px*var(--fs))">오늘 이후 2개월 이내 이슈가 없습니다</div>'}
+      </div>`).join(''):'<div style="color:var(--sub);font-size:calc(13px*var(--fs))">등록된 이슈가 없습니다</div>'}
       </div>
     </div>
   </div>`).join('');
@@ -3280,7 +3281,7 @@ function renderWorkSchedule(){
       <div class="ctitle" style="margin-bottom:0">근무 이슈</div>
       <button class="btn btn-p btn-sm" onclick="openAddWorkIssue()">+ 이슈 등록</button>
     </div>
-    <div style="overflow-x:auto"><table><thead><tr><th style="text-align:center">인턴</th><th style="text-align:center">날짜</th><th>내용</th><th style="text-align:center">관리</th></tr></thead>
+    <div class="ws-issues-scroll" style="overflow:auto;max-height:calc(380px*var(--fs))"><table><thead><tr><th style="text-align:center">인턴</th><th style="text-align:center">날짜</th><th>내용</th><th style="text-align:center">관리</th></tr></thead>
     <tbody id="ws-issues"></tbody></table></div>
   </div>`:''}`;
   renderWSTable();if(isAdmin())renderWSIssues();
@@ -3601,10 +3602,14 @@ function issueInRange(iss){
   const maxD=new Date();maxD.setMonth(maxD.getMonth()+2);
   return iss.date>=today()&&iss.date<=fmt(maxD);
 }
+// 인턴 근무 이슈는 지난/먼 미래 상관없이 전부 표시(길어지면 목록 안에서 스크롤). 직원 관리 쪽 이슈는 위 issueInRange 기준을 그대로 씀.
+function internIssueVisible(iss){
+  return true; // 등록된 근무 이슈는 날짜와 상관없이 모두 표시
+}
 function renderWSIssues(){
   const el=document.getElementById('ws-issues');if(!el)return;
-  const list=S.workIssues.filter(issueInRange).sort((a,b)=>a.date.localeCompare(b.date)); // 날짜 오름차순(같은 날짜는 등록 순)
-  if(!list.length){el.innerHTML='<tr><td colspan="4" style="color:var(--sub)">오늘 이후 2개월 이내 이슈가 없습니다</td></tr>';return;}
+  const list=S.workIssues.filter(internIssueVisible).sort((a,b)=>a.date.localeCompare(b.date)); // 날짜 오름차순(같은 날짜는 등록 순)
+  if(!list.length){el.innerHTML='<tr><td colspan="4" style="color:var(--sub)">등록된 이슈가 없습니다</td></tr>';return;}
   el.innerHTML=list.map(iss=>`<tr>
     <td style="text-align:center">${iss.intern}</td><td style="text-align:center">${fmtDisp(iss.date)}</td><td>${iss.content}</td>
     <td style="text-align:center;white-space:nowrap">
