@@ -2874,7 +2874,7 @@ function buildInternGrid(mode){
           const bt=fromAbove?'':'border-top:2px solid '+info.c.tc+';';
           const bb=toBelow?'':'border-bottom:2px solid '+info.c.tc+';';
           const name=info.showName?`<span style="color:${info.c.tc};font-size:calc(${compact?'8px':'11px'}*var(--fs));font-weight:${compact?'400':'600'};white-space:nowrap">${info.intern.name}</span>`:'';
-          blocks.push(`<div onclick="openInternWeekSched(${info.intern.id},${wOff})" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}${sepL}">${name}</div>`);
+          blocks.push(`<div style="flex:1;display:flex;min-width:0;height:100%;background:#fff;${sepL}"><div onclick="openInternWeekSched(${info.intern.id},${wOff})" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}">${name}</div></div>`);
         }
         row+=`<td style="${bdrL}border:1px solid var(--bd3);${bdrR}${bdrB}height:${RH}px;padding:0;overflow:visible;vertical-align:top"><div style="display:flex;height:100%;width:100%;overflow:hidden">${blocks.join('')}</div></td>`;
       });
@@ -3472,7 +3472,7 @@ function renderWSTable(){
           :'';
         const fn=`openInternWeekSched(${info.intern.id},${S.weekOffset})`;
 
-        blocks.push(`<div onclick="${fn}" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}${sepL}">${name}</div>`);
+        blocks.push(`<div style="flex:1;display:flex;min-width:0;height:100%;background:#fff;${sepL}"><div onclick="${fn}" style="flex:1;display:flex;align-items:center;justify-content:center;background:${info.c.bg};height:100%;cursor:pointer;min-width:0;overflow:hidden;${bt}${bb}">${name}</div></div>`);
       }
 
       row+=`<td style="border:1px solid var(--bd3);${bdrR}${bdrB}height:${RH}px;padding:0;overflow:visible;vertical-align:top"><div style="display:flex;height:100%;width:100%;overflow:hidden">${blocks.join('')}</div></td>`;
