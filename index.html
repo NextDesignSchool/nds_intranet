@@ -2858,7 +2858,7 @@ function buildInternGrid(mode){
           return;
         }
         if(!Object.keys(cur).length){
-          row+=`<td style="${bdrL}border:1px solid var(--bd3);${bdrR}${bdrB}height:${RH}px;padding:0;background:#fff"></td>`;
+          row+=`<td style="${bdrL}border:1px solid var(--bd3);${bdrR}${bdrB}height:${RH}px;padding:0;background:#fff">${wsEmptyCellInner(slotMap)}</td>`;
           return;
         }
         const numCols=Math.max(...Object.values(cur).map(v=>v.numCols));
@@ -3347,6 +3347,14 @@ function buildWSDayData(interns,weekOffset){
   });
   return result;
 }
+// 그 요일 전체에서 가장 많이 겹친 사람 수만큼, 아무도 없는 빈 칸에도 같은 위치에 세로 구분선을 그려줌
+// (일하는 사람이 있는 시간대와 없는 시간대의 구분선 위치가 이어져 보이도록)
+function wsEmptyCellInner(slotMap){
+  let n=1;
+  Object.values(slotMap||{}).forEach(c=>Object.values(c).forEach(v=>{if(v.numCols>n)n=v.numCols;}));
+  if(n<2)return '';
+  return `<div style="display:flex;height:100%;width:100%">${Array.from({length:n},(_,c)=>`<div style="flex:1;height:100%;${c>0?'border-left:1px solid var(--bd3);':''}"></div>`).join('')}</div>`;
+}
 function renderWSTable(){
   const el=document.getElementById('ws-table');if(!el)return;
   const {mon}=getWeekInfo(S.weekOffset);
@@ -3429,7 +3437,7 @@ function renderWSTable(){
 
       // 블록이 없으면 빈 td
       if(!Object.keys(cur).length){
-        row+=`<td style="border:1px solid var(--bd3);${bdrR}${bdrB}height:${RH}px;padding:0;background:#fff"></td>`;
+        row+=`<td style="border:1px solid var(--bd3);${bdrR}${bdrB}height:${RH}px;padding:0;background:#fff">${wsEmptyCellInner(slotMap)}</td>`;
         return;
       }
 
